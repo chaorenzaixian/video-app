@@ -1,0 +1,10 @@
+# MySQL 数据库支持（宝塔面板部署需要）
+pymysql>=1.1.0
+aiomysql>=0.2.0
+cryptography>=41.0.0
+
+
+
+
+
+

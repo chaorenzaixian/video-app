@@ -1,0 +1,177 @@
+// 响应式断点 Mixins
+
+// 断点定义
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+$breakpoint-xxl: 1400px;
+
+// 最小宽度媒体查询
+@mixin min-sm {
+  @media (min-width: $breakpoint-sm) {
+    @content;
+  }
+}
+
+@mixin min-md {
+  @media (min-width: $breakpoint-md) {
+    @content;
+  }
+}
+
+@mixin min-lg {
+  @media (min-width: $breakpoint-lg) {
+    @content;
+  }
+}
+
+@mixin min-xl {
+  @media (min-width: $breakpoint-xl) {
+    @content;
+  }
+}
+
+@mixin min-xxl {
+  @media (min-width: $breakpoint-xxl) {
+    @content;
+  }
+}
+
+// 最大宽度媒体查询
+@mixin max-sm {
+  @media (max-width: ($breakpoint-sm - 1px)) {
+    @content;
+  }
+}
+
+@mixin max-md {
+  @media (max-width: ($breakpoint-md - 1px)) {
+    @content;
+  }
+}
+
+@mixin max-lg {
+  @media (max-width: ($breakpoint-lg - 1px)) {
+    @content;
+  }
+}
+
+@mixin max-xl {
+  @media (max-width: ($breakpoint-xl - 1px)) {
+    @content;
+  }
+}
+
+@mixin max-xxl {
+  @media (max-width: ($breakpoint-xxl - 1px)) {
+    @content;
+  }
+}
+
+// 超大屏幕断点
+$breakpoint-2k: 2560px;
+$breakpoint-4k: 3840px;
+
+@mixin min-2k {
+  @media (min-width: $breakpoint-2k) {
+    @content;
+  }
+}
+
+@mixin min-4k {
+  @media (min-width: $breakpoint-4k) {
+    @content;
+  }
+}
+
+// 触摸设备检测
+@mixin touch-device {
+  @media (hover: none) and (pointer: coarse) {
+    @content;
+  }
+}
+
+@mixin non-touch-device {
+  @media (hover: hover) and (pointer: fine) {
+    @content;
+  }
+}
+
+// 响应式排版 Mixins
+@mixin title-lg {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  
+  @include min-md {
+    font-size: 1.75rem;
+  }
+  
+  @include min-lg {
+    font-size: 2rem;
+  }
+}
+
+@mixin title-md {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  
+  @include min-md {
+    font-size: 1.375rem;
+  }
+  
+  @include min-lg {
+    font-size: 1.5rem;
+  }
+}
+
+@mixin title-sm {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  
+  @include min-md {
+    font-size: 1.125rem;
+  }
+}
+
+@mixin text-body {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  
+  @include min-md {
+    font-size: 1rem;
+  }
+}
+
+@mixin text-sm {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  
+  @include min-md {
+    font-size: 0.875rem;
+  }
+}
+
+@mixin text-small {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  
+  @include min-md {
+    font-size: 0.8125rem;
+  }
+}
+
+@mixin text-xs {
+  font-size: 0.625rem;
+  line-height: 1.4;
+  
+  @include min-md {
+    font-size: 0.75rem;
+  }
+}
+
+
+

@@ -1,0 +1,93 @@
+{
+  "0": {
+    "name": "非VIP",
+    "icon": "",
+    "color": "#999999",
+    "description": "普通用户",
+    "discount": 1.0,
+    "can_download": false,
+    "daily_downloads": 0,
+    "ad_free": false,
+    "priority_support": false,
+    "exclusive_content": false,
+    "price": 0
+  },
+  "1": {
+    "name": "VIP",
+    "icon": "/images/backgrounds/vip_gold.webp",
+    "color": "#FFD700",
+    "description": "基础会员权限",
+    "discount": 0.95,
+    "can_download": true,
+    "daily_downloads": 10,
+    "ad_free": true,
+    "priority_support": true,
+    "exclusive_content": false,
+    "price": 58.0
+  },
+  "2": {
+    "name": "VIP1",
+    "icon": "/images/backgrounds/vip_1.webp",
+    "color": "#FF6B6B",
+    "description": "VIP1级会员",
+    "discount": 0.9,
+    "can_download": true,
+    "daily_downloads": 15,
+    "ad_free": true,
+    "priority_support": true,
+    "exclusive_content": false,
+    "price": 50
+  },
+  "3": {
+    "name": "VIP2",
+    "icon": "/images/backgrounds/vip_2.webp",
+    "color": "#4ECDC4",
+    "description": "VIP2级会员",
+    "discount": 0.85,
+    "can_download": true,
+    "daily_downloads": 10,
+    "ad_free": true,
+    "priority_support": true,
+    "exclusive_content": false,
+    "price": 100
+  },
+  "4": {
+    "name": "VIP3",
+    "icon": "/images/backgrounds/vip_3.webp",
+    "color": "#45B7D1",
+    "description": "VIP3级会员",
+    "discount": 0.8,
+    "can_download": true,
+    "daily_downloads": 20,
+    "ad_free": true,
+    "priority_support": true,
+    "exclusive_content": true,
+    "price": 200
+  },
+  "5": {
+    "name": "黄金至尊",
+    "icon": "/images/backgrounds/super_vip_red.webp",
+    "color": "#FF4757",
+    "description": "黄金至尊会员",
+    "discount": 0,
+    "can_download": true,
+    "daily_downloads": 50,
+    "ad_free": true,
+    "priority_support": true,
+    "exclusive_content": true,
+    "price": 500
+  },
+  "6": {
+    "name": "砖石至尊",
+    "icon": "/images/backgrounds/super_vip_blue.webp",
+    "color": "#5352ED",
+    "description": "砖石至尊",
+    "discount": 0,
+    "can_download": true,
+    "daily_downloads": 100,
+    "ad_free": true,
+    "priority_support": true,
+    "exclusive_content": true,
+    "price": 1000.0
+  }
+}

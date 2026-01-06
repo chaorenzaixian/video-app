@@ -1,0 +1,1436 @@
+"""
+视频相关API
+"""
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query, BackgroundTasks, Form
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, desc
+from sqlalchemy.sql.expression import func as sql_func
+from sqlalchemy.orm import selectinload
+from typing import Optional, List
+from datetime import datetime, timedelta
+import os
+import uuid
+
+from app.core.database import get_db
+from app.core.config import settings
+from app.api.deps import get_current_user, get_current_user_optional, get_current_vip_user
+from app.models.user import User
+from app.models.video import Video, VideoCategory, VideoTag, VideoView, VideoStatus
+from app.schemas.video import (
+    VideoUpload, VideoUpdate, VideoResponse, 
+    VideoListResponse, CategoryResponse, VideoProcessStatus
+)
+from app.services.video_processor import VideoProcessor, process_video_auto
+
+router = APIRouter()
+
+
+# ========== 文件上传 ==========
+
+@router.post("/upload-file")
+async def upload_video_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """单独上传视频文件，返回文件URL（用于短视频等场景）"""
+    # 检查文件类型
+    allowed_types = ["video/mp4", "video/webm", "video/avi", "video/mov", "video/mkv", 
+                     "video/quicktime", "video/x-msvideo", "video/x-matroska"]
+    content_type = file.content_type or ""
+    
+    # 也检查文件扩展名
+    file_ext = os.path.splitext(file.filename or "")[1].lower()
+    allowed_exts = [".mp4", ".webm", ".avi", ".mov", ".mkv"]
+    
+    if content_type not in allowed_types and file_ext not in allowed_exts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的视频格式: {content_type}"
+        )
+    
+    # 生成唯一文件名
+    if not file_ext:
+        file_ext = ".mp4"
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = os.path.join(settings.VIDEO_DIR, unique_filename)
+    
+    # 确保目录存在
+    os.makedirs(settings.VIDEO_DIR, exist_ok=True)
+    
+    # 保存视频文件
+    content = await file.read()
+    
+    # 检查文件大小 (800MB)
+    if len(content) > 800 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="视频文件不能超过800MB"
+        )
+    
+    with open(file_path, "wb") as f:
+        f.write(content)
+    
+    # 返回相对URL
+    relative_url = f"/uploads/videos/{unique_filename}"
+    
+    return {
+        "url": relative_url,
+        "filename": unique_filename,
+        "size": len(content)
+    }
+
+
+# ========== 分类/标签 ==========
+
+from pydantic import BaseModel
+
+class CategoryTagResponse(BaseModel):
+    """分类标签响应"""
+    id: int
+    name: str
+    sort_order: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/tags", response_model=List[CategoryTagResponse])
+async def get_video_tags(
+    db: AsyncSession = Depends(get_db)
+):
+    """获取视频分类标签列表（按排序显示）"""
+    result = await db.execute(
+        select(VideoCategory)
+        .where(VideoCategory.is_active == True)
+        .order_by(VideoCategory.sort_order, VideoCategory.id)
+    )
+    categories = result.scalars().all()
+    
+    return [
+        CategoryTagResponse(
+            id=cat.id,
+            name=cat.name,
+            sort_order=cat.sort_order
+        )
+        for cat in categories
+    ]
+
+
+@router.get("/categories/by-type")
+async def get_categories_by_type(
+    category_type: str = Query("video", description="分类类型: video/short/both"),
+    db: AsyncSession = Depends(get_db)
+):
+    """按类型获取视频分类列表"""
+    from sqlalchemy import or_
+    
+    # 如果是 video 类型，返回 video 和 both
+    # 如果是 short 类型，返回 short 和 both
+    if category_type == "video":
+        query = select(VideoCategory).where(
+            VideoCategory.is_active == True,
+            or_(VideoCategory.category_type == "video", VideoCategory.category_type == "both")
+        )
+    elif category_type == "short":
+        query = select(VideoCategory).where(
+            VideoCategory.is_active == True,
+            or_(VideoCategory.category_type == "short", VideoCategory.category_type == "both")
+        )
+    else:
+        query = select(VideoCategory).where(VideoCategory.is_active == True)
+    
+    result = await db.execute(query.order_by(VideoCategory.sort_order, VideoCategory.id))
+    categories = result.scalars().all()
+    
+    return [
+        {
+            "id": cat.id,
+            "name": cat.name,
+            "sort_order": cat.sort_order,
+            "category_type": getattr(cat, 'category_type', 'video')
+        }
+        for cat in categories
+    ]
+
+
+@router.post("/upload", response_model=VideoResponse)
+async def upload_video(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    description: Optional[str] = Form(None),
+    category_id: Optional[int] = Form(None),
+    is_vip_only: bool = Form(False),
+    tags: Optional[str] = Form(None),  # 逗号分隔的标签名称
+    custom_cover_url: Optional[str] = Form(None),  # 自定义封面URL
+    # 付费设置
+    pay_type: str = Form("free"),  # free/coins/vip_free
+    coin_price: int = Form(0),  # 金币价格
+    vip_free_level: int = Form(0),  # VIP免费等级
+    free_preview_seconds: int = Form(15),  # 试看时长(秒)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """上传视频（支持自定义封面）"""
+    # 检查文件类型
+    allowed_types = ["video/mp4", "video/webm", "video/avi", "video/mov", "video/mkv"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不支持的视频格式"
+        )
+    
+    # 生成唯一文件名
+    file_ext = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = os.path.join(settings.VIDEO_DIR, unique_filename)
+    
+    # 保存视频文件
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        if len(content) > settings.MAX_VIDEO_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="视频文件过大"
+            )
+        f.write(content)
+    
+    # 创建视频记录
+    video = Video(
+        title=title,
+        description=description,
+        original_url=file_path,
+        category_id=category_id,
+        uploader_id=current_user.id,
+        is_vip_only=is_vip_only,
+        status=VideoStatus.PROCESSING,
+        file_size=len(content),
+        # 付费设置
+        pay_type=pay_type,
+        coin_price=coin_price,
+        vip_free_level=vip_free_level,
+        free_preview_seconds=free_preview_seconds
+    )
+    db.add(video)
+    await db.commit()
+    await db.refresh(video)
+    
+    # 处理标签
+    tag_names = []
+    if tags:
+        from sqlalchemy import text
+        tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+        for tag_name in tag_list:
+            # 查找或创建标签
+            tag_result = await db.execute(select(VideoTag).where(VideoTag.name == tag_name))
+            tag = tag_result.scalar_one_or_none()
+            
+            if not tag:
+                # 创建新标签
+                tag = VideoTag(name=tag_name, use_count=0)
+                db.add(tag)
+                await db.flush()
+            
+            # 使用原生SQL插入关联，避免懒加载问题
+            await db.execute(text(
+                "INSERT INTO video_tags_association (video_id, tag_id) VALUES (:video_id, :tag_id) ON CONFLICT DO NOTHING"
+            ), {"video_id": video.id, "tag_id": tag.id})
+            
+            # 更新标签使用次数
+            tag.use_count += 1
+            tag_names.append(tag_name)
+        
+        await db.commit()
+    
+    # 处理自定义封面
+    if custom_cover_url:
+        # 将临时封面复制到正式目录
+        import shutil
+        temp_cover_path = custom_cover_url.replace("/uploads/", settings.UPLOAD_DIR + "/")
+        if os.path.exists(temp_cover_path):
+            final_cover_path = os.path.join(settings.THUMBNAIL_DIR, f"{video.id}.jpg")
+            os.makedirs(settings.THUMBNAIL_DIR, exist_ok=True)
+            shutil.copy(temp_cover_path, final_cover_path)
+            video.cover_url = f"/uploads/thumbnails/{video.id}.jpg"
+            await db.commit()
+    
+    # 后台处理视频（转码、生成缩略图（若无自定义）、AI分析）
+    background_tasks.add_task(
+        process_video_auto,
+        video.id,
+        file_path,
+        skip_thumbnail=bool(custom_cover_url)  # 有自定义封面则跳过自动生成
+    )
+    
+    return VideoResponse(
+        id=video.id,
+        title=video.title,
+        description=video.description,
+        cover_url=video.cover_url,
+        hls_url=video.hls_url,
+        duration=video.duration,
+        status=video.status,
+        quality=video.quality,
+        is_vip_only=video.is_vip_only,
+        is_featured=video.is_featured,
+        view_count=video.view_count,
+        like_count=video.like_count,
+        comment_count=video.comment_count,
+        uploader_name=current_user.username,
+        uploader_avatar=current_user.avatar,
+        created_at=video.created_at,
+        tags=tag_names
+    )
+
+
+# ========== 批量上传 ==========
+
+class BatchUploadResult(BaseModel):
+    """批量上传结果"""
+    video_id: int
+    title: str
+    status: str  # success, error
+    message: str = ""
+
+class BatchUploadResponse(BaseModel):
+    """批量上传响应"""
+    total: int
+    success: int
+    failed: int
+    results: List[BatchUploadResult]
+
+
+@router.post("/batch-upload", response_model=BatchUploadResponse)
+async def batch_upload_videos(
+    background_tasks: BackgroundTasks,
+    files: List[UploadFile] = File(...),
+    category_id: Optional[int] = Form(None),
+    is_vip_only: bool = Form(False),
+    tags: Optional[str] = Form(None),
+    title_prefix: Optional[str] = Form(None),  # 标题前缀
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    批量上传视频
+    - 支持同时上传多个视频文件
+    - 统一设置分类、标签、VIP状态
+    - 标题默认使用文件名，可添加前缀
+    """
+    allowed_types = ["video/mp4", "video/webm", "video/avi", "video/mov", "video/mkv", 
+                     "video/quicktime", "video/x-msvideo", "video/x-matroska"]
+    
+    results = []
+    success_count = 0
+    failed_count = 0
+    
+    for file in files:
+        try:
+            # 检查文件类型
+            content_type = file.content_type or ""
+            file_ext = os.path.splitext(file.filename)[1].lower()
+            
+            # 通过扩展名判断
+            valid_extensions = ['.mp4', '.webm', '.avi', '.mov', '.mkv']
+            if content_type not in allowed_types and file_ext not in valid_extensions:
+                results.append(BatchUploadResult(
+                    video_id=0,
+                    title=file.filename,
+                    status="error",
+                    message=f"不支持的视频格式: {content_type or file_ext}"
+                ))
+                failed_count += 1
+                continue
+            
+            # 生成唯一文件名
+            unique_filename = f"{uuid.uuid4()}{file_ext}"
+            file_path = os.path.join(settings.VIDEO_DIR, unique_filename)
+            
+            # 保存视频文件
+            content = await file.read()
+            if len(content) > settings.MAX_VIDEO_SIZE:
+                results.append(BatchUploadResult(
+                    video_id=0,
+                    title=file.filename,
+                    status="error",
+                    message="视频文件过大"
+                ))
+                failed_count += 1
+                continue
+            
+            with open(file_path, "wb") as f:
+                f.write(content)
+            
+            # 生成标题（前缀 + 文件名）
+            base_name = os.path.splitext(file.filename)[0]
+            title = f"{title_prefix}{base_name}" if title_prefix else base_name
+            
+            # 创建视频记录
+            video = Video(
+                title=title,
+                description="",
+                original_url=file_path,
+                category_id=category_id,
+                uploader_id=current_user.id,
+                is_vip_only=is_vip_only,
+                status=VideoStatus.PROCESSING,
+                file_size=len(content)
+            )
+            db.add(video)
+            await db.commit()
+            await db.refresh(video)
+            
+            # 处理标签
+            if tags:
+                from sqlalchemy import text
+                tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+                for tag_name in tag_list:
+                    tag_result = await db.execute(select(VideoTag).where(VideoTag.name == tag_name))
+                    tag = tag_result.scalar_one_or_none()
+                    
+                    if not tag:
+                        tag = VideoTag(name=tag_name, use_count=0)
+                        db.add(tag)
+                        await db.flush()
+                    
+                    await db.execute(text(
+                        "INSERT INTO video_tags_association (video_id, tag_id) VALUES (:video_id, :tag_id) ON CONFLICT DO NOTHING"
+                    ), {"video_id": video.id, "tag_id": tag.id})
+                    tag.use_count += 1
+                
+                await db.commit()
+            
+            # 后台处理视频
+            background_tasks.add_task(
+                process_video_auto,
+                video.id,
+                file_path
+            )
+            
+            results.append(BatchUploadResult(
+                video_id=video.id,
+                title=title,
+                status="success",
+                message="上传成功，正在处理中"
+            ))
+            success_count += 1
+            
+        except Exception as e:
+            results.append(BatchUploadResult(
+                video_id=0,
+                title=file.filename,
+                status="error",
+                message=str(e)
+            ))
+            failed_count += 1
+    
+    return BatchUploadResponse(
+        total=len(files),
+        success=success_count,
+        failed=failed_count,
+        results=results
+    )
+
+
+# ========== 视频封面管理 ==========
+
+class CoverCandidate(BaseModel):
+    """封面候选"""
+    url: str
+    time_point: float
+    score: float
+
+class CoverCandidatesResponse(BaseModel):
+    """封面候选列表"""
+    candidates: List[CoverCandidate]
+
+
+@router.post("/extract-covers")
+async def extract_video_covers(
+    file: UploadFile = File(...),
+    num_candidates: int = Form(6),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    从上传的视频中提取多个候选封面
+    用于上传前预览选择封面
+    """
+    import tempfile
+    import subprocess
+    
+    print(f"[extract-covers] 开始处理: {file.filename}, content_type: {file.content_type}")
+    
+    allowed_types = ["video/mp4", "video/webm", "video/avi", "video/mov", "video/mkv", 
+                     "video/quicktime", "video/x-msvideo", "video/x-matroska",
+                     "application/octet-stream"]  # 添加通用类型
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    valid_extensions = ['.mp4', '.webm', '.avi', '.mov', '.mkv']
+    
+    if file.content_type not in allowed_types and file_ext not in valid_extensions:
+        print(f"[extract-covers] 不支持的格式: {file.content_type}, ext: {file_ext}")
+        raise HTTPException(status_code=400, detail=f"不支持的视频格式: {file.content_type}")
+    
+    # 保存临时视频文件
+    temp_video = None
+    try:
+        temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
+        print(f"[extract-covers] 临时文件: {temp_video.name}")
+        
+        content = await file.read()
+        print(f"[extract-covers] 文件大小: {len(content) / 1024 / 1024:.2f} MB")
+        
+        temp_video.write(content)
+        temp_video.close()
+        
+        # 获取视频时长
+        probe_cmd = [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "json",
+            temp_video.name
+        ]
+        probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=30)
+        duration = 60  # 默认60秒
+        if probe_result.returncode == 0:
+            import json as json_lib
+            probe_data = json_lib.loads(probe_result.stdout)
+            duration = float(probe_data.get("format", {}).get("duration", 60))
+        
+        # 生成候选封面目录
+        cover_dir = os.path.join(settings.UPLOAD_DIR, "temp_covers", str(current_user.id))
+        os.makedirs(cover_dir, exist_ok=True)
+        
+        # 清理旧的临时封面
+        import glob
+        for old_file in glob.glob(os.path.join(cover_dir, "*.jpg")):
+            try:
+                os.remove(old_file)
+            except:
+                pass
+        
+        candidates = []
+        
+        print(f"[extract-covers] Start extracting {num_candidates} covers, duration: {duration:.1f}s")
+        
+        # 计算采样点 (避开片头片尾)
+        for i in range(num_candidates):
+            try:
+                # 均匀分布：从10%到90%
+                position = 0.1 + (0.8 * i / (num_candidates - 1)) if num_candidates > 1 else 0.5
+                time_point = duration * position
+                
+                # 确保不超过时长
+                time_point = min(time_point, duration - 0.5)
+                time_point = max(0.5, time_point)
+                
+                cover_filename = f"cover_{i}_{int(time_point * 1000)}.jpg"
+                cover_path = os.path.join(cover_dir, cover_filename)
+                
+                # FFmpeg截取帧
+                time_str = f"{int(time_point // 3600):02d}:{int((time_point % 3600) // 60):02d}:{time_point % 60:06.3f}"
+                cmd = [
+                    "ffmpeg",
+                    "-ss", time_str,
+                    "-i", temp_video.name,
+                    "-vframes", "1",
+                    "-vf", "scale=480:-1",
+                    "-q:v", "3",
+                    "-y",
+                    cover_path
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, timeout=30)
+                
+                if result.returncode == 0 and os.path.exists(cover_path):
+                    # 使用快速简单评分（基于文件大小和基础图像分析）
+                    score = 50.0
+                    try:
+                        import cv2
+                        img = cv2.imread(cover_path)
+                        if img is not None:
+                            # 简单评分：清晰度 + 颜色丰富度
+                            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                            # 清晰度（拉普拉斯方差）
+                            laplacian = cv2.Laplacian(gray, cv2.CV_64F).var()
+                            clarity = min(50, laplacian / 10)
+                            # 颜色丰富度（标准差）
+                            color_richness = min(50, img.std() / 2)
+                            score = clarity + color_richness
+                    except Exception as e:
+                        # 备用：使用文件大小估算
+                        file_size = os.path.getsize(cover_path)
+                        score = min(80, file_size / 5000)  # 文件越大可能细节越多
+                    
+                    candidates.append(CoverCandidate(
+                        url=f"/uploads/temp_covers/{current_user.id}/{cover_filename}",
+                        time_point=round(time_point, 2),
+                        score=round(score, 1)
+                    ))
+                    print(f"  [OK] Cover {i+1}/{num_candidates}: {time_str} -> {score:.0f} score")
+                else:
+                    print(f"  [FAIL] FFmpeg extract failed ({i}): {result.stderr.decode('utf-8', errors='ignore')[:100]}")
+            except Exception as e:
+                print(f"  [FAIL] Extract cover {i} failed: {e}")
+                continue  # 继续提取下一个
+        
+        print(f"[extract-covers] Successfully extracted {len(candidates)} covers")
+        
+        # 按分数排序，最佳在前
+        candidates.sort(key=lambda x: x.score, reverse=True)
+        
+        return CoverCandidatesResponse(candidates=candidates)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[extract-covers] 错误: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"提取封面失败: {str(e)}")
+        
+    finally:
+        # 清理临时视频文件
+        if temp_video:
+            try:
+                os.unlink(temp_video.name)
+            except:
+                pass
+
+
+@router.post("/upload-custom-cover")
+async def upload_custom_cover(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    上传自定义封面
+    """
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="只支持 JPG、PNG、WebP、GIF 格式")
+    
+    # 保存到临时封面目录
+    cover_dir = os.path.join(settings.UPLOAD_DIR, "temp_covers", str(current_user.id))
+    os.makedirs(cover_dir, exist_ok=True)
+    
+    file_ext = os.path.splitext(file.filename)[1].lower() or ".jpg"
+    cover_filename = f"custom_{uuid.uuid4()}{file_ext}"
+    cover_path = os.path.join(cover_dir, cover_filename)
+    
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:  # 10MB限制
+        raise HTTPException(status_code=400, detail="图片大小不能超过10MB")
+    
+    with open(cover_path, "wb") as f:
+        f.write(content)
+    
+    return {
+        "url": f"/uploads/temp_covers/{current_user.id}/{cover_filename}",
+        "message": "上传成功"
+    }
+
+
+@router.get("", response_model=VideoListResponse)
+async def list_videos(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    category_id: Optional[int] = None,
+    search: Optional[str] = None,
+    is_featured: Optional[bool] = None,
+    sort_by: Optional[str] = Query(None, description="排序方式: hot, created_at, view_count, favorite_count"),
+    time_range: Optional[str] = Query(None, description="时间范围: week, month, lastMonth"),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取视频列表（排除短视频）"""
+    query = select(Video).where(
+        Video.status == VideoStatus.PUBLISHED,
+        Video.is_short != True  # 排除短视频
+    )
+    
+    # 非VIP用户也可以看到VIP视频（但播放时会限制）
+    # 移除 is_vip_only 过滤，让用户可以看到VIP视频封面
+    
+    # 时间范围筛选
+    if time_range:
+        now = datetime.utcnow()
+        if time_range == 'week':
+            # 本周最热：过去7天
+            start_date = now - timedelta(days=7)
+            query = query.where(Video.created_at >= start_date)
+        elif time_range == 'month':
+            # 本月最热：过去30天
+            start_date = now - timedelta(days=30)
+            query = query.where(Video.created_at >= start_date)
+        elif time_range == 'lastMonth':
+            # 上月最热：30-60天前
+            start_date = now - timedelta(days=60)
+            end_date = now - timedelta(days=30)
+            query = query.where(Video.created_at >= start_date)
+            query = query.where(Video.created_at < end_date)
+    
+    # 分类筛选
+    if category_id:
+        query = query.where(Video.category_id == category_id)
+    
+    # 搜索
+    if search:
+        query = query.where(Video.title.ilike(f"%{search}%"))
+    
+    # 推荐筛选
+    if is_featured is not None:
+        query = query.where(Video.is_featured == is_featured)
+    
+    # 统计总数
+    count_query = select(func.count()).select_from(query.subquery())
+    result = await db.execute(count_query)
+    total = result.scalar()
+    
+    # 排序
+    if sort_by == 'view_count':
+        query = query.order_by(desc(Video.view_count))
+    elif sort_by == 'favorite_count':
+        query = query.order_by(desc(Video.like_count))  # 使用 like_count 作为收藏
+    elif sort_by == 'hot':
+        # 热门：综合播放量和时间
+        query = query.order_by(desc(Video.view_count), desc(Video.created_at))
+    elif sort_by == 'random':
+        # 随机排序
+        query = query.order_by(sql_func.random())
+    else:
+        # 默认按创建时间排序
+        query = query.order_by(desc(Video.created_at))
+    
+    # 分页 + 预加载标签和上传者关系（解决N+1查询问题）
+    query = query.options(selectinload(Video.tags), selectinload(Video.uploader))
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    
+    result = await db.execute(query)
+    videos = result.scalars().all()
+    
+    # 构建响应（上传者已预加载，无需额外查询）
+    items = []
+    for video in videos:
+        # 获取标签（已预加载）
+        tags = [tag.name for tag in video.tags] if video.tags else []
+        
+        # 上传者信息已预加载
+        uploader = video.uploader
+        
+        items.append(VideoResponse(
+            id=video.id,
+            title=video.title,
+            description=video.description,
+            cover_url=video.cover_url,
+            preview_url=video.preview_url,
+            hls_url=video.hls_url,
+            duration=video.duration,
+            status=video.status,
+            quality=video.quality,
+            is_vip_only=video.is_vip_only,
+            is_featured=video.is_featured,
+            view_count=video.view_count,
+            like_count=video.like_count,
+            comment_count=video.comment_count,
+            ai_summary=video.ai_summary,
+            uploader_name=uploader.username if uploader else "未知用户",
+            uploader_avatar=uploader.avatar if uploader else None,
+            created_at=video.created_at,
+            published_at=video.published_at,
+            tags=tags
+        ))
+    
+    return VideoListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size
+    )
+
+
+@router.get("/categories", response_model=List[CategoryResponse])
+async def list_categories(
+    db: AsyncSession = Depends(get_db)
+):
+    """获取视频分类列表（树形结构）"""
+    result = await db.execute(
+        select(VideoCategory)
+        .where(VideoCategory.is_active == True)
+        .order_by(VideoCategory.sort_order)
+    )
+    categories = result.scalars().all()
+    
+    # 构建分类字典和统计视频数量
+    cat_dict = {}
+    for cat in categories:
+        count_result = await db.execute(
+            select(func.count()).where(
+                Video.category_id == cat.id,
+                Video.status == VideoStatus.PUBLISHED
+            )
+        )
+        video_count = count_result.scalar()
+        
+        # 兼容旧数据库没有level和parent_id字段
+        parent_id = getattr(cat, 'parent_id', None)
+        level = getattr(cat, 'level', None) or 1
+        
+        # 兼容旧数据库没有is_featured字段
+        is_featured = getattr(cat, 'is_featured', False) or False
+        
+        cat_dict[cat.id] = CategoryResponse(
+            id=cat.id,
+            name=cat.name,
+            description=cat.description,
+            icon=cat.icon,
+            video_count=video_count,
+            parent_id=parent_id,
+            level=level,
+            is_featured=is_featured,
+            category_type=getattr(cat, 'category_type', 'video') or 'video',
+            sort_order=cat.sort_order or 0,
+            children=[]
+        )
+    
+    # 构建树形结构
+    root_items = []
+    for cat_id, cat_response in cat_dict.items():
+        if cat_response.parent_id and cat_response.parent_id in cat_dict:
+            # 添加到父级的children中
+            cat_dict[cat_response.parent_id].children.append(cat_response)
+        else:
+            # 一级分类
+            root_items.append(cat_response)
+    
+    return root_items
+
+
+@router.get("/user/liked")
+async def get_user_liked_videos(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    video_type: str = Query("video", description="video=普通视频, short=短视频, all=全部"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取用户点赞的视频列表"""
+    from app.models.social import VideoLike
+    
+    # 构建查询
+    query = (
+        select(Video)
+        .join(VideoLike, Video.id == VideoLike.video_id)
+        .where(VideoLike.user_id == current_user.id)
+        .where(Video.status == VideoStatus.PUBLISHED)
+    )
+    
+    # 按视频类型过滤
+    if video_type == "video":
+        query = query.where(Video.is_short == False)
+    elif video_type == "short":
+        query = query.where(Video.is_short == True)
+    
+    # 按点赞时间倒序排列
+    query = query.order_by(VideoLike.created_at.desc())
+    
+    # 计算总数
+    count_query = (
+        select(func.count(Video.id))
+        .join(VideoLike, Video.id == VideoLike.video_id)
+        .where(VideoLike.user_id == current_user.id)
+        .where(Video.status == VideoStatus.PUBLISHED)
+    )
+    if video_type == "video":
+        count_query = count_query.where(Video.is_short == False)
+    elif video_type == "short":
+        count_query = count_query.where(Video.is_short == True)
+    
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # 分页
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+    
+    result = await db.execute(query)
+    videos = result.scalars().all()
+    
+    # 格式化时长
+    def format_duration(seconds):
+        if not seconds:
+            return "00:00"
+        mins = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"{mins}:{secs:02d}"
+    
+    items = [
+        {
+            "id": v.id,
+            "title": v.title,
+            "thumbnail": v.cover_url,
+            "duration": format_duration(v.duration),
+            "duration_seconds": v.duration,
+            "view_count": v.view_count or 0,
+            "like_count": v.like_count or 0,
+            "is_short": v.is_short,
+            "created_at": v.created_at.isoformat() if v.created_at else None
+        }
+        for v in videos
+    ]
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "has_more": offset + len(items) < total
+    }
+
+
+@router.get("/{video_id}", response_model=VideoResponse)
+async def get_video(
+    video_id: int,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取视频详情"""
+    # 使用 selectinload 预加载 tags 关系
+    result = await db.execute(
+        select(Video)
+        .options(selectinload(Video.tags))
+        .where(Video.id == video_id)
+    )
+    video = result.scalar_one_or_none()
+    
+    if not video:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="视频不存在"
+        )
+    
+    # 检查VIP权限 - 设置标记而不是直接拒绝，让用户能看到视频信息
+    needs_vip = False
+    if video.is_vip_only:
+        if not current_user:
+            needs_vip = True
+        else:
+            from app.models.user import UserVIP, UserRole
+            if current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+                result = await db.execute(
+                    select(UserVIP).where(
+                        UserVIP.user_id == current_user.id,
+                        UserVIP.is_active == True,
+                        UserVIP.expire_date > datetime.utcnow()
+                    )
+                )
+                if not result.scalar_one_or_none():
+                    needs_vip = True
+    
+    # 获取上传者信息
+    uploader_result = await db.execute(select(User).where(User.id == video.uploader_id))
+    uploader = uploader_result.scalar_one_or_none()
+    
+    # 获取上传者VIP等级
+    uploader_vip_level = 0
+    if uploader:
+        from app.models.user import UserVIP
+        vip_result = await db.execute(
+            select(UserVIP).where(
+                UserVIP.user_id == uploader.id,
+                UserVIP.is_active == True,
+                UserVIP.expire_date > datetime.utcnow()
+            )
+        )
+        vip = vip_result.scalar_one_or_none()
+        if vip:
+            uploader_vip_level = getattr(vip, 'vip_level', 0) or 0
+    
+    # 获取分类名称
+    category_name = None
+    if video.category_id:
+        cat_result = await db.execute(select(VideoCategory).where(VideoCategory.id == video.category_id))
+        cat = cat_result.scalar_one_or_none()
+        if cat:
+            category_name = cat.name
+    
+    # 获取标签
+    tags = [tag.name for tag in video.tags] if video.tags else []
+    
+    # 获取付费相关信息
+    pay_type = getattr(video, 'pay_type', 'free') or 'free'
+    coin_price = getattr(video, 'coin_price', 0) or 0
+    free_preview_seconds = getattr(video, 'free_preview_seconds', 30) or 30
+    
+    # 检查用户是否已购买（仅付费视频需要检查）
+    is_purchased = False
+    if current_user and pay_type != 'free' and coin_price > 0:
+        from app.models.coins import VideoPurchase
+        purchase_result = await db.execute(
+            select(VideoPurchase).where(
+                VideoPurchase.user_id == current_user.id,
+                VideoPurchase.video_id == video_id
+            )
+        )
+        is_purchased = purchase_result.scalar_one_or_none() is not None
+    
+    # 判断是否需要限制播放（未购买的付费视频）
+    needs_purchase = pay_type != 'free' and coin_price > 0 and not is_purchased and not needs_vip
+    
+    return VideoResponse(
+        id=video.id,
+        title=video.title,
+        description=video.description,
+        cover_url=video.cover_url,
+        preview_url=video.preview_url,
+        # 如果需要VIP/购买但用户没有权限，仍返回播放地址（前端实现试看控制）
+        hls_url=video.hls_url,
+        duration=video.duration,
+        status=video.status,
+        quality=video.quality,
+        is_vip_only=video.is_vip_only,
+        is_featured=video.is_featured,
+        view_count=video.view_count,
+        like_count=video.like_count,
+        comment_count=video.comment_count,
+        ai_summary=video.ai_summary,
+        category_name=category_name,
+        uploader_id=video.uploader_id,
+        uploader_name=uploader.username if uploader else "未知用户",
+        uploader_avatar=uploader.avatar if uploader else None,
+        uploader_vip_level=uploader_vip_level,
+        created_at=video.created_at,
+        published_at=video.published_at,
+        tags=tags,
+        needs_vip=needs_vip,
+        # 付费/试看相关
+        pay_type=pay_type,
+        coin_price=coin_price,
+        free_preview_seconds=free_preview_seconds if (needs_vip or needs_purchase) else 0,
+        is_purchased=is_purchased
+    )
+
+
+@router.post("/{video_id}/view")
+async def record_view(
+    video_id: int,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db)
+):
+    """记录视频观看"""
+    result = await db.execute(select(Video).where(Video.id == video_id))
+    video = result.scalar_one_or_none()
+    
+    if not video:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="视频不存在"
+        )
+    
+    # 创建观看记录
+    view = VideoView(
+        video_id=video_id,
+        user_id=current_user.id if current_user else None
+    )
+    db.add(view)
+    
+    # 更新观看次数
+    video.view_count += 1
+    
+    await db.commit()
+    
+    return {"message": "已记录观看"}
+
+
+@router.post("/{video_id}/like")
+async def like_video(
+    video_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """点赞视频"""
+    from app.models.social import VideoLike
+    
+    result = await db.execute(select(Video).where(Video.id == video_id))
+    video = result.scalar_one_or_none()
+    
+    if not video:
+        raise HTTPException(status_code=404, detail="视频不存在")
+    
+    # 检查是否已点赞
+    existing_result = await db.execute(
+        select(VideoLike).where(
+            VideoLike.user_id == current_user.id,
+            VideoLike.video_id == video_id
+        )
+    )
+    existing = existing_result.scalar_one_or_none()
+    
+    if existing:
+        # 取消点赞
+        await db.delete(existing)
+        video.like_count = max(0, (video.like_count or 0) - 1)
+        await db.commit()
+        return {"liked": False, "like_count": video.like_count}
+    else:
+        # 点赞
+        like = VideoLike(user_id=current_user.id, video_id=video_id)
+        db.add(like)
+        video.like_count = (video.like_count or 0) + 1
+        await db.commit()
+        return {"liked": True, "like_count": video.like_count}
+
+
+@router.post("/{video_id}/favorite")
+async def favorite_video(
+    video_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """收藏视频"""
+    from app.models.social import VideoFavorite
+    
+    result = await db.execute(select(Video).where(Video.id == video_id))
+    video = result.scalar_one_or_none()
+    
+    if not video:
+        raise HTTPException(status_code=404, detail="视频不存在")
+    
+    # 检查是否已收藏
+    existing_result = await db.execute(
+        select(VideoFavorite).where(
+            VideoFavorite.user_id == current_user.id,
+            VideoFavorite.video_id == video_id
+        )
+    )
+    existing = existing_result.scalar_one_or_none()
+    
+    if existing:
+        # 取消收藏
+        await db.delete(existing)
+        video.favorite_count = max(0, (video.favorite_count or 0) - 1)
+        await db.commit()
+        return {"favorited": False, "favorite_count": video.favorite_count}
+    else:
+        # 收藏
+        favorite = VideoFavorite(user_id=current_user.id, video_id=video_id)
+        db.add(favorite)
+        video.favorite_count = (video.favorite_count or 0) + 1
+        await db.commit()
+        return {"favorited": True, "favorite_count": video.favorite_count}
+
+
+@router.get("/{video_id}/status", response_model=VideoProcessStatus)
+async def get_video_status(
+    video_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取视频处理状态"""
+    result = await db.execute(
+        select(Video).where(
+            Video.id == video_id,
+            Video.uploader_id == current_user.id
+        )
+    )
+    video = result.scalar_one_or_none()
+    
+    if not video:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="视频不存在"
+        )
+    
+    # 从Redis获取处理进度
+    from app.core.redis import RedisCache
+    progress = await RedisCache.get(f"video_process:{video_id}")
+    
+    return VideoProcessStatus(
+        video_id=video.id,
+        status=video.status,
+        progress=float(progress) if progress else 0
+    )
+
+
+# ========== VIP下载功能 ==========
+
+from fastapi.responses import FileResponse, StreamingResponse
+from app.models.user import UserVIP
+from app.core.vip_benefits import get_daily_download_limit, can_download
+
+@router.get("/{video_id}/download")
+async def download_video(
+    video_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    VIP专属：下载视频
+    返回视频文件的直接下载链接
+    包含每日下载次数限制
+    """
+    # 检查用户是否是VIP
+    result = await db.execute(
+        select(UserVIP).where(
+            UserVIP.user_id == current_user.id,
+            UserVIP.is_active == True,
+            UserVIP.expire_date > datetime.utcnow()
+        )
+    )
+    vip = result.scalar_one_or_none()
+    
+    if not vip:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="下载功能仅限VIP会员使用"
+        )
+    
+    vip_level = getattr(vip, 'vip_level', 1) or 1
+    
+    # 检查VIP等级是否支持下载
+    if not can_download(vip_level):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您的VIP等级不支持下载功能，请升级VIP"
+        )
+    
+    # 检查每日下载次数限制
+    from app.core.redis import RedisCache
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    download_key = f"user_downloads:{current_user.id}:{today}"
+    
+    try:
+        today_downloads = await RedisCache.get(download_key)
+        today_downloads = int(today_downloads) if today_downloads else 0
+    except:
+        today_downloads = 0
+    
+    daily_limit = get_daily_download_limit(vip_level)
+    
+    if daily_limit > 0 and today_downloads >= daily_limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"今日下载次数已达上限（{daily_limit}次），请明日再试"
+        )
+    
+    # 获取视频
+    result = await db.execute(select(Video).where(Video.id == video_id))
+    video = result.scalar_one_or_none()
+    
+    if not video:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="视频不存在"
+        )
+    
+    if video.status != VideoStatus.PUBLISHED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="视频尚未发布"
+        )
+    
+    # 获取原始视频文件路径 - 尝试多个可能的位置
+    video_path = None
+    file_exists = False
+    
+    # 1. 首先直接尝试 original_url（可能是绝对路径）
+    if video.original_url:
+        path = video.original_url
+        if os.path.isabs(path):
+            if os.path.exists(path):
+                video_path = path
+                file_exists = True
+        else:
+            if path.startswith('/uploads'):
+                path = os.path.join(os.getcwd(), path.lstrip('/'))
+            elif path.startswith('uploads'):
+                path = os.path.join(os.getcwd(), path)
+            if os.path.exists(path):
+                video_path = path
+                file_exists = True
+    
+    # 2. 从original_url提取文件名查找
+    if not file_exists and video.original_url:
+        import re
+        match = re.search(r'([a-f0-9\-]{36}\.mp4)', video.original_url, re.IGNORECASE)
+        if match:
+            filename = match.group(1)
+            possible_path = os.path.join(settings.VIDEO_DIR, filename)
+            if os.path.exists(possible_path):
+                video_path = possible_path
+                file_exists = True
+    
+    if not file_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="视频文件不存在"
+        )
+    
+    # 记录下载次数
+    try:
+        await RedisCache.incr(download_key)
+        # 设置过期时间为次日0点
+        await RedisCache.expire(download_key, 86400)  # 24小时
+    except:
+        pass  # Redis故障不影响下载
+    
+    # 生成下载文件名
+    filename = f"{video.title}.mp4"
+    # 移除特殊字符
+    filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.')).strip()
+    if not filename:
+        filename = f"video_{video_id}.mp4"
+    
+    # 返回文件下载
+    return FileResponse(
+        path=video_path,
+        filename=filename,
+        media_type='video/mp4',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"'
+        }
+    )
+
+
+@router.get("/{video_id}/download-info")
+async def get_download_info(
+    video_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取视频下载信息（检查是否可下载）
+    """
+    # 检查用户是否是VIP
+    result = await db.execute(
+        select(UserVIP).where(
+            UserVIP.user_id == current_user.id,
+            UserVIP.is_active == True,
+            UserVIP.expire_date > datetime.utcnow()
+        )
+    )
+    vip = result.scalar_one_or_none()
+    
+    is_vip = vip is not None
+    
+    # 获取视频
+    result = await db.execute(select(Video).where(Video.id == video_id))
+    video = result.scalar_one_or_none()
+    
+    if not video:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="视频不存在"
+        )
+    
+    # 检查文件是否存在 - 尝试多个可能的路径
+    video_path = None
+    file_exists = False
+    
+    # 1. 首先直接尝试 original_url（可能是绝对路径）
+    if video.original_url:
+        path = video.original_url
+        # 处理Windows绝对路径或相对URL路径
+        if os.path.isabs(path):
+            # 是绝对路径，直接检查
+            if os.path.exists(path):
+                video_path = path
+                file_exists = True
+        else:
+            # 相对路径，拼接到当前工作目录
+            if path.startswith('/uploads'):
+                path = os.path.join(os.getcwd(), path.lstrip('/'))
+            elif path.startswith('uploads'):
+                path = os.path.join(os.getcwd(), path)
+            if os.path.exists(path):
+                video_path = path
+                file_exists = True
+    
+    # 2. 如果还是找不到，尝试从original_url提取文件名在videos目录下查找
+    if not file_exists and video.original_url:
+        import re
+        # 匹配 UUID 格式的文件名
+        match = re.search(r'([a-f0-9\-]{36}\.mp4)', video.original_url, re.IGNORECASE)
+        if match:
+            filename = match.group(1)
+            possible_path = os.path.join(settings.VIDEO_DIR, filename)
+            if os.path.exists(possible_path):
+                video_path = possible_path
+                file_exists = True
+    
+    file_size = os.path.getsize(video_path) if file_exists else 0
+    
+    return {
+        "video_id": video_id,
+        "title": video.title,
+        "can_download": is_vip and file_exists,
+        "is_vip": is_vip,
+        "file_exists": file_exists,
+        "file_size": file_size,
+        "file_size_mb": round(file_size / (1024 * 1024), 2) if file_size else 0,
+        "message": "可以下载" if (is_vip and file_exists) else ("请开通VIP" if not is_vip else "文件不存在")
+    }
+
+
+# ========== 远程转码回调 ==========
+
+from pydantic import BaseModel as PydanticBaseModel
+
+class TranscodeCallbackRequest(PydanticBaseModel):
+    """远程转码回调请求"""
+    video_id: int
+    token: str
+    success: bool
+    duration: float = 0
+    hls_url: str = ""
+    thumbnail_url: str = ""
+    preview_url: str = ""
+    qualities: List[str] = []
+
+
+@router.post("/transcode-callback")
+async def transcode_callback(
+    data: TranscodeCallbackRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    接收远程转码服务器的回调
+    更新视频状态和媒体URL
+    """
+    from app.services.remote_transcoder import RemoteTranscoder
+    
+    # 验证回调令牌
+    if not RemoteTranscoder.verify_callback_token(data.video_id, data.token):
+        # 令牌无效但不报错，可能是重复回调
+        print(f"[Callback] 视频 {data.video_id} 令牌验证失败（可能是重复回调）")
+    
+    # 查找视频
+    result = await db.execute(select(Video).where(Video.id == data.video_id))
+    video = result.scalar_one_or_none()
+    
+    if not video:
+        raise HTTPException(status_code=404, detail="视频不存在")
+    
+    if data.success:
+        # 转码成功，更新视频信息
+        video.status = VideoStatus.PUBLISHED
+        video.published_at = datetime.utcnow()
+        video.duration = data.duration
+        video.hls_url = data.hls_url
+        
+        if data.thumbnail_url:
+            video.cover_url = data.thumbnail_url
+        if data.preview_url:
+            video.preview_url = data.preview_url
+        
+        await db.commit()
+        print(f"[Callback] 视频 {data.video_id} 转码成功，已更新")
+        
+        return {"status": "ok", "message": "视频已更新"}
+    else:
+        # 转码失败
+        video.status = VideoStatus.FAILED
+        await db.commit()
+        print(f"[Callback] 视频 {data.video_id} 转码失败")
+        
+        return {"status": "failed", "message": "转码失败"}
+
