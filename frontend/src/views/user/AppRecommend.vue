@@ -171,7 +171,7 @@ onMounted(() => {
 })
 
 const handleIconError = (event) => {
-  event.target.src = '/images/default-app-icon.png'
+  event.target.src = '/images/default-app-icon.webp'
 }
 
 const openApp = (app) => {

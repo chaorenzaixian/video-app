@@ -353,7 +353,7 @@
       <div class="comment-list-wrapper">
         <!-- 官方公告 -->
         <div v-if="announcement && announcement.enabled" class="comment-item official-announcement">
-          <img :src="announcement.avatar || '/images/avatars/icon_avatar_1.png'" class="avatar" />
+          <img :src="announcement.avatar || '/images/avatars/icon_avatar_1.webp'" class="avatar" />
           <div class="comment-body">
             <div class="comment-user">
               <span class="username official-name">{{ announcement.name }}</span>
@@ -566,12 +566,28 @@ import Hls from 'hls.js'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
+import { useAbortController } from '@/composables/useAbortController'
+import { useTimers, useVideoCleanup, useEventListeners } from '@/composables/useCleanup'
+import { formatCount, formatDuration, formatViewCount } from '@/utils/format'
+import { VIP_LEVEL_ICONS } from '@/constants/vip'
 
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
 
 const route = useRoute()
 const router = useRouter()
+
+// 请求取消控制器
+const { signal: abortSignal } = useAbortController()
+
+// 定时器管理
+const timers = useTimers()
+
+// 视频资源管理
+const videoCleanup = useVideoCleanup()
+
+// 事件监听器管理
+const events = useEventListeners()
 
 const videoRef = ref(null)  // 保留用于兼容
 const artPlayerRef = ref(null)  // ArtPlayer 容器
@@ -707,9 +723,9 @@ const skipAd = () => {
   showPreRollAd.value = false
   
   // 清除广告计时器
-  if (adTimer) {
-    clearInterval(adTimer)
-    adTimer = null
+  if (adTimerId) {
+    timers.clearInterval(adTimerId)
+    adTimerId = null
   }
   
   if (adVideoRef.value) {
@@ -717,7 +733,7 @@ const skipAd = () => {
   }
   
   // 开始播放正片
-  setTimeout(() => {
+  timers.setTimeout(() => {
     if (artInstance) {
       isPlaying.value = true
       artInstance.play()
@@ -737,19 +753,19 @@ const onAdClick = async () => {
 }
 
 // 图片广告加载完成，开始倒计时
-let adTimer = null
+let adTimerId = null
 const onAdImageLoad = () => {
   const duration = preRollAd.value?.duration || 5
   adCountdown.value = duration
   canSkipAd.value = false
   
   // 开始倒计时（只控制关闭按钮显示，不自动关闭）
-  adTimer = setInterval(() => {
+  adTimerId = timers.setInterval(() => {
     adCountdown.value--
     // 倒计时结束后显示关闭按钮
     if (adCountdown.value <= 0) {
-      clearInterval(adTimer)
-      adTimer = null
+      timers.clearInterval(adTimerId)
+      adTimerId = null
       canSkipAd.value = true  // 显示关闭按钮
     }
   }, 1000)
@@ -859,7 +875,7 @@ const getDefaultAvatarPath = (userId) => {
   const index = (userId % totalAvatars)
   
   if (index < 17) {
-    return `/images/avatars/icon_avatar_${index + 1}.png`
+    return `/images/avatars/icon_avatar_${index + 1}.webp`
   } else if (index < 32) {
     const num = String(index - 17 + 1).padStart(3, '0')
     return `/images/avatars/DM_20251217202131_${num}.JPEG`
@@ -878,13 +894,14 @@ const currentUserAvatar = computed(() => {
 // 预览相关状态
 const previewRefs = ref({})
 const previewingVideoId = ref(null)
-let previewTimer = null
+let previewTimerId = null
 const isTouchMode = ref(false)
 
 // 设置预览视频引用
 const setPreviewRef = (id, el) => {
   if (el) {
     previewRefs.value[id] = el
+    videoCleanup.registerVideo(`preview_${id}`, el)
   }
 }
 
@@ -944,8 +961,8 @@ const startPreview = (video) => {
   
   previewingVideoId.value = video.id
   
-  if (previewTimer) clearTimeout(previewTimer)
-  previewTimer = setTimeout(() => {
+  if (previewTimerId) timers.clearTimeout(previewTimerId)
+  previewTimerId = timers.setTimeout(() => {
     if (previewingVideoId.value === video.id) {
       playPreview(video)
     }
@@ -956,9 +973,9 @@ const startPreview = (video) => {
 const stopPreview = (video) => {
   if (isTouchMode.value) return
   
-  if (previewTimer) {
-    clearTimeout(previewTimer)
-    previewTimer = null
+  if (previewTimerId) {
+    timers.clearTimeout(previewTimerId)
+    previewTimerId = null
   }
   
   if (previewingVideoId.value === video.id) {
@@ -1022,17 +1039,7 @@ const getAvatarUrl = (avatar, userId) => {
   return getDefaultAvatarPath(numericId)
 }
 
-// VIP等级图标映射
-const VIP_LEVEL_ICONS = {
-  1: '/images/backgrounds/vip_gold.webp',
-  2: '/images/backgrounds/vip_1.webp',
-  3: '/images/backgrounds/vip_2.webp',
-  4: '/images/backgrounds/vip_3.webp',
-  5: '/images/backgrounds/super_vip_red.webp',    // 黄金至尊
-  6: '/images/backgrounds/super_vip_blue.webp'    // 紫色限定至尊
-}
-
-// 获取VIP等级图标
+// 获取VIP等级图标（使用统一常量）
 const getVipLevelIcon = (level) => {
   return VIP_LEVEL_ICONS[level] || ''
 }
@@ -1045,7 +1052,7 @@ const fetchVideo = async () => {
     return
   }
   try {
-    const res = await api.get(`/videos/${videoId}`)
+    const res = await api.get(`/videos/${videoId}`, { signal: abortSignal })
     video.value = res.data || res
     
     // 检查是否需要VIP权限
@@ -1059,7 +1066,7 @@ const fetchVideo = async () => {
     // 检查是否已关注上传者
     if (video.value.uploader_id) {
       try {
-        const followRes = await api.get(`/users/${video.value.uploader_id}/follow/status`)
+        const followRes = await api.get(`/users/${video.value.uploader_id}/follow/status`, { signal: abortSignal })
         isUploaderFollowed.value = followRes.data?.is_followed || false
       } catch (e) {
         // 忽略错误
@@ -1068,6 +1075,7 @@ const fetchVideo = async () => {
     
     await api.post(`/videos/${videoId}/view`)
   } catch (error) {
+    if (error.name === 'CanceledError' || error.name === 'AbortError') return
     console.error('获取视频失败:', error)
     // 其他错误使用默认数据
     video.value = {
@@ -1138,7 +1146,7 @@ const checkVideoPurchase = async () => {
   needsPurchase.value = true
   
   try {
-    const res = await api.get(`/coins/purchase/video/${v.id}/check`)
+    const res = await api.get(`/coins/purchase/video/${v.id}/check`, { signal: abortSignal })
     const data = res.data || res
     hasPurchased.value = data.purchased === true || data.can_watch === true
     
@@ -1149,7 +1157,9 @@ const checkVideoPurchase = async () => {
       needsPurchase.value = false
     }
   } catch (error) {
-    console.log('检查购买状态失败:', error)
+    if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+      console.log('检查购买状态失败:', error)
+    }
     hasPurchased.value = false
   }
 }
@@ -1157,11 +1167,13 @@ const checkVideoPurchase = async () => {
 // 获取用户金币余额
 const fetchUserCoins = async () => {
   try {
-    const res = await api.get('/coins/balance')
+    const res = await api.get('/coins/balance', { signal: abortSignal })
     const data = res.data || res
     userCoins.value = data.balance || 0
   } catch (error) {
-    console.log('获取金币余额失败')
+    if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+      console.log('获取金币余额失败')
+    }
     userCoins.value = 0
   }
 }
@@ -1257,10 +1269,12 @@ const confirmPurchase = async () => {
 // 获取评论区公告
 const fetchAnnouncement = async () => {
   try {
-    const res = await api.get('/settings/comment-announcement')
+    const res = await api.get('/settings/comment-announcement', { signal: abortSignal })
     announcement.value = res.data || res
   } catch (error) {
-    console.log('获取公告失败:', error)
+    if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+      console.log('获取公告失败:', error)
+    }
   }
 }
 
@@ -1290,7 +1304,8 @@ const fetchComments = async (reset = true) => {
         page: commentPage.value,
         page_size: commentPageSize.value,
         sort_by: commentSortBy.value
-      }
+      },
+      signal: abortSignal
     })
     const data = res.data || res
     
@@ -1303,7 +1318,9 @@ const fetchComments = async (reset = true) => {
     commentTotal.value = data.total || 0
     hasMoreComments.value = (commentPage.value * commentPageSize.value) < commentTotal.value
   } catch (error) {
-    console.log('获取评论失败:', error)
+    if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+      console.log('获取评论失败:', error)
+    }
     if (reset) comments.value = []
   } finally {
     loadingComments.value = false
@@ -1427,7 +1444,7 @@ const loadMoreReplies = async (comment) => {
 const fetchRecommend = async () => {
   try {
     // 使用随机排序获取推荐视频
-    const res = await api.get('/videos', { params: { page: 1, page_size: 12, sort_by: 'random' } })
+    const res = await api.get('/videos', { params: { page: 1, page_size: 12, sort_by: 'random' }, signal: abortSignal })
     const data = res.data || res
     if (data.items && data.items.length > 0) {
       const currentId = parseInt(route.params.id)
@@ -1437,16 +1454,20 @@ const fetchRecommend = async () => {
       loadMockRecommend()
     }
   } catch (error) {
-    loadMockRecommend()
+    if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+      loadMockRecommend()
+    }
   }
 }
 
 const fetchIconAds = async () => {
   try {
-    const res = await axios.get('/api/v1/ads/icons')
+    const res = await axios.get('/api/v1/ads/icons', { signal: abortSignal })
     iconAds.value = (res.data || []).filter(ad => ad.is_active !== false)
   } catch (error) {
-    console.log('获取图标广告失败')
+    if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+      console.log('获取图标广告失败')
+    }
   }
 }
 
@@ -1954,27 +1975,7 @@ const handleAdClick = (ad) => {
   }
 }
 
-const formatDuration = (seconds) => {
-  if (!seconds) return '0:00'
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = Math.floor(seconds % 60)
-  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-const formatViewCount = (count) => {
-  if (!count) return '0'
-  if (count >= 10000) return (count / 10000).toFixed(1) + 'w'
-  if (count >= 1000) return (count / 1000).toFixed(1) + 'k'
-  return count.toString()
-}
-
-const formatCount = (count) => {
-  if (!count) return '0'
-  if (count >= 10000) return (count / 10000).toFixed(1) + 'w'
-  return count.toString()
-}
+// formatDuration, formatViewCount, formatCount 已从 @/utils/format 导入
 
 const formatTime = (date) => {
   return dayjs(date).fromNow()
@@ -2010,9 +2011,9 @@ watch(() => route.params.id, async (newId, oldId) => {
     showPreRollAd.value = false
     preRollAd.value = null
     canSkipAd.value = false
-    if (adTimer) {
-      clearInterval(adTimer)
-      adTimer = null
+    if (adTimerId) {
+      timers.clearInterval(adTimerId)
+      adTimerId = null
     }
     
     // 重新加载数据
@@ -2055,8 +2056,8 @@ onUnmounted(() => {
     artInstance = null
   }
   // 清除广告计时器
-  if (adTimer) {
-    clearInterval(adTimer)
+  if (adTimerId) {
+    timers.clearInterval(adTimerId)
   }
 })
 </script>

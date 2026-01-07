@@ -68,7 +68,7 @@
         <el-table-column label="用户" width="200">
           <template #default="{ row }">
             <div class="user-cell">
-              <el-avatar :src="row.avatar || '/images/avatars/icon_avatar_1.png'" :size="32" />
+              <el-avatar :src="row.avatar || '/images/avatars/icon_avatar_1.webp'" :size="32" />
               <div class="user-info">
                 <span class="nickname">{{ row.nickname || row.username }}</span>
                 <span class="username">@{{ row.username }}</span>

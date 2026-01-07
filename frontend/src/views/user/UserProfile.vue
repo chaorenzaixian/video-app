@@ -19,7 +19,7 @@
         <!-- 右侧：操作按钮（不显示在自己的主页） -->
         <div class="user-actions" v-if="!isOwnProfile">
           <div class="msg-btn" @click="handleMessage">
-            <img src="/images/backgrounds/msg_button.png" alt="私信" />
+            <img src="/images/backgrounds/msg_button.webp" alt="私信" />
           </div>
           <button class="follow-btn" :class="{ followed: isFollowed }" @click="toggleFollow">
             <span v-if="!isFollowed">+ 关注</span>
@@ -215,7 +215,7 @@ const getDefaultAvatarPath = (userId) => {
   const index = (userId % totalAvatars)
   
   if (index < 17) {
-    return `/images/avatars/icon_avatar_${index + 1}.png`
+    return `/images/avatars/icon_avatar_${index + 1}.webp`
   } else if (index < 32) {
     const num = String(index - 17 + 1).padStart(3, '0')
     return `/images/avatars/DM_20251217202131_${num}.JPEG`

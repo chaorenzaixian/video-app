@@ -197,9 +197,14 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
+import { useAbortController } from '@/composables/useAbortController'
+import { VIP_LEVEL_ICONS, VIP_LEVEL_BENEFITS } from '@/constants/vip'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+// 请求取消控制器
+const { signal: abortSignal } = useAbortController()
 
 const user = computed(() => userStore.user || {})
 
@@ -209,7 +214,7 @@ const getDefaultAvatarPath = (userId) => {
   const index = (userId % totalAvatars)
   
   if (index < 17) {
-    return `/images/avatars/icon_avatar_${index + 1}.png`
+    return `/images/avatars/icon_avatar_${index + 1}.webp`
   } else if (index < 32) {
     const num = String(index - 17 + 1).padStart(3, '0')
     return `/images/avatars/DM_20251217202131_${num}.JPEG`
@@ -261,17 +266,7 @@ const currentVipCard = computed(() => {
   return vipCards.value.find(c => c.level === user.value.vip_level)
 })
 
-// VIP等级图标映射
-const VIP_LEVEL_ICONS = {
-  1: '/images/backgrounds/vip_gold.webp',
-  2: '/images/backgrounds/vip_1.webp',
-  3: '/images/backgrounds/vip_2.webp',
-  4: '/images/backgrounds/vip_3.webp',
-  5: '/images/backgrounds/super_vip_red.webp',
-  6: '/images/backgrounds/super_vip_blue.webp'
-}
-
-// VIP等级图标
+// VIP等级图标（使用统一常量）
 const vipLevelIcon = computed(() => {
   return VIP_LEVEL_ICONS[user.value.vip_level] || ''
 })
@@ -282,56 +277,53 @@ const getBadgeColorClass = (index) => {
   return colors[index % colors.length]
 }
 
-// 获取等级对应的权益描述
+// 获取等级对应的权益描述（使用统一常量）
 const getLevelBenefit = (level) => {
-  const benefits = {
-    1: 'VIP视频免费',
-    2: 'VIP+金币视频',
-    3: '全部永久免费',
-    4: '尊享全部特权',
-    5: '帝王级体验',
-    6: '至尊级体验',
-    7: '限定尊享体验'
-  }
-  return benefits[level] || 'VIP特权'
+  return VIP_LEVEL_BENEFITS[level] || 'VIP特权'
 }
 
 // 获取VIP卡片列表
 const fetchVipCards = async () => {
   try {
-    const res = await api.get('/vip/cards')
+    const res = await api.get('/vip/cards', { signal: abortSignal })
     vipCards.value = res.data || []
     // 默认选中第一个
     if (vipCards.value.length > 0 && !selectedCard.value) {
       selectedCard.value = vipCards.value[0]
     }
   } catch (error) {
-    console.error('获取VIP卡片失败:', error)
-    // 使用默认数据
-    vipCards.value = getDefaultCards()
-    selectedCard.value = vipCards.value[0]
+    if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+      console.error('获取VIP卡片失败:', error)
+      // 使用默认数据
+      vipCards.value = getDefaultCards()
+      selectedCard.value = vipCards.value[0]
+    }
   }
 }
 
 // 获取VIP特权列表
 const fetchPrivileges = async () => {
   try {
-    const res = await api.get('/vip/privileges')
+    const res = await api.get('/vip/privileges', { signal: abortSignal })
     vipPrivileges.value = res.data || []
   } catch (error) {
-    console.error('获取VIP特权失败:', error)
-    // 使用默认数据
-    vipPrivileges.value = getDefaultPrivileges()
+    if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+      console.error('获取VIP特权失败:', error)
+      // 使用默认数据
+      vipPrivileges.value = getDefaultPrivileges()
+    }
   }
 }
 
 // 获取充值记录
 const fetchRecords = async () => {
   try {
-    const res = await api.get('/vip/records')
+    const res = await api.get('/vip/records', { signal: abortSignal })
     paymentRecords.value = res.data || []
   } catch (error) {
-    console.error('获取充值记录失败:', error)
+    if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+      console.error('获取充值记录失败:', error)
+    }
   }
 }
 
@@ -508,7 +500,7 @@ onMounted(() => {
   min-height: 100vh;
   min-height: 100dvh;
   background: 
-    url('/images/backgrounds/wallet_coin_bg_1.png') no-repeat center top / 100% auto,
+    url('/images/backgrounds/wallet_coin_bg_1.webp') no-repeat center top / 100% auto,
     linear-gradient(180deg, #1a0a2e 0%, #0d0d1a 30%, #0a0a0a 100%);
   padding-bottom: calc(env(safe-area-inset-bottom) + 180px);
 }
@@ -784,7 +776,7 @@ onMounted(() => {
 
 // 会员特权区域
 .privileges-section {
-  background: url('/images/backgrounds/vip_recommend.png') no-repeat center top;
+  background: url('/images/backgrounds/vip_recommend.webp') no-repeat center top;
   background-size: 100% auto;
   border-radius: 20px 20px 0 0;
   margin: 0 12px;

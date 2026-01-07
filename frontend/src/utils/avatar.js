@@ -14,7 +14,7 @@ export const getDefaultAvatarPath = (userId) => {
   const index = ((parseInt(userId) || 1) % totalAvatars)
   
   if (index < 17) {
-    return `/images/avatars/icon_avatar_${index + 1}.png`
+    return `/images/avatars/icon_avatar_${index + 1}.webp`
   } else if (index < 32) {
     const num = String(index - 17 + 1).padStart(3, '0')
     return `/images/avatars/DM_20251217202131_${num}.JPEG`

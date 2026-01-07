@@ -87,7 +87,7 @@
         <el-table-column label="话题" min-width="250">
           <template #default="{ row }">
             <div class="topic-cell">
-              <img :src="row.icon || row.cover || '/images/default-topic.png'" class="topic-cover" />
+              <img :src="row.icon || row.cover || '/images/default-topic.webp'" class="topic-cover" />
               <div class="topic-info">
                 <span class="topic-name">{{ row.name }}</span>
                 <span class="topic-parent" v-if="row.parent_name">所属：{{ row.parent_name }}</span>

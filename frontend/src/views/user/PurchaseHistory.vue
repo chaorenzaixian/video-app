@@ -74,38 +74,7 @@
     </div>
 
     <!-- 底部导航 -->
-    <nav class="bottom-nav">
-      <div class="nav-item" @click="$router.push('/user')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_0_0.webp" alt="首页" />
-        </div>
-        <span class="nav-label">首页</span>
-      </div>
-      <div class="nav-item" @click="$router.push('/user/forbidden')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_1_0.webp" alt="禁区" />
-        </div>
-        <span class="nav-label">禁区</span>
-      </div>
-      <div class="nav-item" @click="$router.push('/user/soul')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_2_0.webp" alt="Soul" />
-        </div>
-        <span class="nav-label">Soul</span>
-      </div>
-      <div class="nav-item" @click="$router.push('/user/community')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_3_0.webp" alt="广场" />
-        </div>
-        <span class="nav-label">广场</span>
-      </div>
-      <div class="nav-item active" @click="$router.push('/user/profile')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_4_1.webp" alt="自己" />
-        </div>
-        <span class="nav-label">自己</span>
-      </div>
-    </nav>
+    <BottomNav />
   </div>
 </template>
 
@@ -113,6 +82,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/utils/api'
+import BottomNav from '@/components/common/BottomNav.vue'
 
 const router = useRouter()
 
@@ -217,6 +187,21 @@ onMounted(() => {
   background: #000;
   color: #fff;
   padding-bottom: 70px;
+  width: 100%;
+  max-width: 100vw;
+  margin: 0 auto;
+  
+  @media (min-width: 768px) {
+    max-width: 750px;
+  }
+  
+  @media (min-width: 1024px) {
+    max-width: 900px;
+  }
+  
+  @media (min-width: 1280px) {
+    max-width: 1200px;
+  }
 }
 
 .page-header {
@@ -457,64 +442,6 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.5);
   font-size: 13px;
   cursor: pointer;
-}
-
-// 底部导航
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: clamp(2px, 0.8vw, 5px) 0;
-  padding-bottom: calc(clamp(2px, 0.8vw, 5px) + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(to top, #0a0a0a 0%, rgba(10, 10, 10, 0.98) 100%);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  z-index: 100;
-  
-  .nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: clamp(1px, 0.5vw, 3px);
-    font-size: clamp(11px, 3vw, 13px);
-    color: rgba(255, 255, 255, 0.45);
-    cursor: pointer;
-    transition: all 0.25s ease;
-    padding: clamp(3px, 1vw, 6px) clamp(8px, 3vw, 16px);
-    
-    &:hover {
-      color: rgba(255, 255, 255, 0.7);
-    }
-    
-    .nav-icon-img {
-      width: clamp(24px, 7vw, 32px);
-      height: clamp(24px, 7vw, 32px);
-      
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-      }
-    }
-    
-    .nav-label {
-      letter-spacing: 0.5px;
-      transition: all 0.25s ease;
-    }
-    
-    &.active {
-      color: #fff;
-      
-      .nav-label {
-        color: #fff;
-      }
-    }
-  }
 }
 </style>
 

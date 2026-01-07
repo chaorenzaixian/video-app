@@ -451,6 +451,28 @@ async def get_user_profile(
     )
 
 
+@router.get("/{user_id}/follow/status")
+async def get_follow_status(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取当前用户对目标用户的关注状态"""
+    if user_id == current_user.id:
+        return {"is_followed": False, "is_self": True}
+    
+    # 检查是否已关注
+    follow_result = await db.execute(
+        select(UserFollow).where(
+            UserFollow.follower_id == current_user.id,
+            UserFollow.following_id == user_id
+        ).limit(1)
+    )
+    existing_follow = follow_result.scalar_one_or_none()
+    
+    return {"is_followed": existing_follow is not None, "is_self": False}
+
+
 @router.post("/{user_id}/follow")
 async def follow_user(
     user_id: int,

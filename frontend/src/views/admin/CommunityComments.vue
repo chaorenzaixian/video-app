@@ -27,7 +27,7 @@
           <template #default="{ row }">
             <div class="comment-cell">
               <div class="comment-user" v-if="row.user">
-                <img :src="row.user.avatar || '/images/default-avatar.png'" class="user-avatar" />
+                <img :src="row.user.avatar || '/images/default-avatar.webp'" class="user-avatar" />
                 <span class="user-name">{{ row.user.nickname || row.user.username }}</span>
               </div>
               <p class="comment-text">{{ row.content }}</p>

@@ -105,7 +105,7 @@
 
     <!-- 底部发布按钮 (仅创作者可见) -->
     <div class="publish-btn" v-if="isCreator" @click="showPublishModal = true">
-      <img src="/images/backgrounds/publish.png" alt="发布" />
+      <img src="/images/backgrounds/publish.webp" alt="发布" />
       </div>
 
     <!-- 发布类型选择弹窗 -->
@@ -119,7 +119,7 @@
             <span>图片</span>
         </div>
           <div class="publish-option" @click="handlePublishType('video')">
-            <img src="/images/backgrounds/publish_video.png" alt="视频" />
+            <img src="/images/backgrounds/publish_video.webp" alt="视频" />
             <span>视频</span>
           </div>
           <div class="publish-option" @click="handlePublishType('article')">

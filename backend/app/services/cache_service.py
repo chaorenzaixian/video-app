@@ -33,6 +33,14 @@ class CacheKeys:
     # 统计数据
     STATS_OVERVIEW = "stats:overview"
     STATS_TODAY = "stats:today"
+    
+    # 社区相关
+    COMMUNITY_POSTS = "community:posts:{feed_type}:{topic_id}:{page}"
+    COMMUNITY_POST_DETAIL = "community:post:{id}"
+    COMMUNITY_COMMENTS = "community:comments:{post_id}:{page}"
+    COMMUNITY_TOPICS = "community:topics:{page}"
+    COMMUNITY_TOPICS_RECOMMENDED = "community:topics:recommended"
+    COMMUNITY_TOPICS_CATEGORIES = "community:topics:categories"
 
 
 class CacheTTL:

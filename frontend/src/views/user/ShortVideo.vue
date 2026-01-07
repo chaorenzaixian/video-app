@@ -240,7 +240,7 @@
         <div class="comments-list">
           <!-- 官方公告 -->
           <div v-if="announcement && announcement.enabled" class="comment-item official-announcement">
-            <img :src="announcement.avatar || '/images/avatars/icon_avatar_1.png'" class="comment-avatar" />
+            <img :src="announcement.avatar || '/images/avatars/icon_avatar_1.webp'" class="comment-avatar" />
             <div class="comment-body">
               <div class="comment-user">
                 <span class="username official-name">{{ announcement.name }}</span>
@@ -386,10 +386,30 @@ import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
 import { useUserStore } from '@/stores/user'
+import { useAbortController } from '@/composables/useAbortController'
+import { useTimers, useVideoCleanup, useEventListeners } from '@/composables/useCleanup'
+import { useDebounce } from '@/composables/useDebounce'
+import { formatCount, formatDuration } from '@/utils/format'
+import { VIP_LEVEL_ICONS } from '@/constants/vip'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+
+// 请求取消控制器
+const { signal: abortSignal } = useAbortController()
+
+// 定时器管理
+const timers = useTimers()
+
+// 视频资源管理
+const videoCleanup = useVideoCleanup()
+
+// 事件监听器管理
+const events = useEventListeners()
+
+// 防抖处理
+const { debounce } = useDebounce()
 
 // 检查用户是否是VIP（使用 store 的计算属性）
 const isUserVip = computed(() => {
@@ -410,7 +430,7 @@ const isPlaying = ref(false)
 const userPaused = ref(false)  // 用户主动暂停标记
 const hasAutoPlayed = ref(false)  // 当前视频是否已自动播放过
 const progress = ref(0)
-let playTimer = null  // 延迟播放定时器
+let playTimerId = null  // 延迟播放定时器ID
 let lastPauseTime = 0  // 上次暂停时间戳
 const videoRefs = ref({})
 
@@ -500,18 +520,6 @@ const getTrialSeconds = (video) => {
   return video.trial_seconds || 15
 }
 
-// 格式化数量
-const formatCount = (count) => {
-  if (!count) return '0'
-  if (count >= 10000) {
-    return (count / 10000).toFixed(1) + 'w'
-  }
-  if (count >= 1000) {
-    return (count / 1000).toFixed(1) + 'k'
-  }
-  return count.toString()
-}
-
 // 获取头像URL（如果没有自定义头像，使用默认头像）
 // 获取默认头像路径（共52个）
 const getDefaultAvatarPath = (userId) => {
@@ -519,7 +527,7 @@ const getDefaultAvatarPath = (userId) => {
   const index = (userId % totalAvatars)
   
   if (index < 17) {
-    return `/images/avatars/icon_avatar_${index + 1}.png`
+    return `/images/avatars/icon_avatar_${index + 1}.webp`
   } else if (index < 32) {
     const num = String(index - 17 + 1).padStart(3, '0')
     return `/images/avatars/DM_20251217202131_${num}.JPEG`
@@ -555,14 +563,6 @@ const formatTime = (time) => {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
-// 格式化播放时长（秒 -> 分:秒）
-const formatDuration = (seconds) => {
-  if (!seconds || isNaN(seconds)) return '0:00'
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
 // 获取短视频列表
 const fetchVideos = async (reset = false) => {
   if (loading.value || (!hasMore.value && !reset)) return
@@ -578,7 +578,8 @@ const fetchVideos = async (reset = false) => {
     }
     
     const res = await api.get('/shorts', {
-      params: { page: page.value, limit: 10 }
+      params: { page: page.value, limit: 10 },
+      signal: abortSignal
     })
     
     const data = res.data || res
@@ -594,11 +595,11 @@ const fetchVideos = async (reset = false) => {
         hasAutoPlayed.value = false
         // 等待DOM更新后自动播放
         await nextTick()
-        if (playTimer) {
-          clearTimeout(playTimer)
+        if (playTimerId) {
+          timers.clearTimeout(playTimerId)
         }
-        playTimer = setTimeout(() => {
-          playTimer = null
+        playTimerId = timers.setTimeout(() => {
+          playTimerId = null
           if (!userPaused.value) {
             playCurrentVideo()
           }
@@ -608,7 +609,9 @@ const fetchVideos = async (reset = false) => {
       hasMore.value = false
     }
   } catch (error) {
-    console.error('获取短视频失败:', error)
+    if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+      console.error('获取短视频失败:', error)
+    }
   } finally {
     loading.value = false
   }
@@ -696,14 +699,14 @@ const goToSlide = (index) => {
     }
     
     // 取消之前的播放定时器
-    if (playTimer) {
-      clearTimeout(playTimer)
-      playTimer = null
+    if (playTimerId) {
+      timers.clearTimeout(playTimerId)
+      playTimerId = null
     }
     
-    playTimer = setTimeout(() => {
+    playTimerId = timers.setTimeout(() => {
       isAnimating.value = false
-      playTimer = null
+      playTimerId = null
       // 只有当用户没有主动暂停时才播放
       if (!userPaused.value) {
         playCurrentVideo()
@@ -711,7 +714,7 @@ const goToSlide = (index) => {
     }, 300)
   } else {
     // 回弹到当前视频，不重置任何状态
-    setTimeout(() => {
+    timers.setTimeout(() => {
       isAnimating.value = false
     }, 300)
   }
@@ -875,9 +878,9 @@ const togglePlay = (index) => {
     // 视频正在播放，执行暂停
     userPaused.value = true
     lastPauseTime = Date.now()
-    if (playTimer) {
-      clearTimeout(playTimer)
-      playTimer = null
+    if (playTimerId) {
+      timers.clearTimeout(playTimerId)
+      playTimerId = null
     }
     videoEl.pause()
   }
@@ -893,13 +896,21 @@ const handleDoubleTap = (video) => {
   // 显示爱心动画
   likeAnimationIndex.value = currentIndex.value
   showLikeAnimation.value = true
-  setTimeout(() => {
+  timers.setTimeout(() => {
     showLikeAnimation.value = false
   }, 1000)
 }
 
 // 点赞
+// 操作锁，防止重复点击
+const actionLocks = ref({})
+
+// 点赞（带防抖）
 const handleLike = async (video) => {
+  const lockKey = `like_${video.id}`
+  if (actionLocks.value[lockKey]) return
+  actionLocks.value[lockKey] = true
+  
   try {
     const res = await api.post(`/shorts/${video.id}/like`)
     const data = res.data || res
@@ -907,11 +918,19 @@ const handleLike = async (video) => {
     video.like_count = data.like_count
   } catch (error) {
     ElMessage.error('操作失败')
+  } finally {
+    timers.setTimeout(() => {
+      actionLocks.value[lockKey] = false
+    }, 500)
   }
 }
 
-// 收藏
+// 收藏（带防抖）
 const handleFavorite = async (video) => {
+  const lockKey = `favorite_${video.id}`
+  if (actionLocks.value[lockKey]) return
+  actionLocks.value[lockKey] = true
+  
   try {
     const res = await api.post(`/shorts/${video.id}/favorite`)
     const data = res.data || res
@@ -919,13 +938,21 @@ const handleFavorite = async (video) => {
     ElMessage.success(data.favorited ? '已收藏' : '已取消收藏')
   } catch (error) {
     ElMessage.error('操作失败')
+  } finally {
+    timers.setTimeout(() => {
+      actionLocks.value[lockKey] = false
+    }, 500)
   }
 }
 
-// 关注
+// 关注（带防抖）
 const handleFollow = async (video) => {
   const uploaderId = video.uploader_id
   if (!uploaderId) return
+  
+  const lockKey = `follow_${uploaderId}`
+  if (actionLocks.value[lockKey]) return
+  actionLocks.value[lockKey] = true
   
   try {
     await api.post(`/users/${uploaderId}/follow`)
@@ -940,6 +967,10 @@ const handleFollow = async (video) => {
     } else {
       ElMessage.error(error.response?.data?.detail || '关注失败')
     }
+  } finally {
+    timers.setTimeout(() => {
+      actionLocks.value[lockKey] = false
+    }, 500)
   }
 }
 
@@ -960,7 +991,7 @@ const handleDownload = async (video) => {
   
   try {
     // 先获取下载信息
-    const infoRes = await api.get(`/shorts/${video.id}/download-info`)
+    const infoRes = await api.get(`/shorts/${video.id}/download-info`, { signal: abortSignal })
     const info = infoRes.data || infoRes
     
     if (!info.can_download) {
@@ -1293,17 +1324,7 @@ const removeCommentImage = () => {
   commentImagePreview.value = ''
 }
 
-// VIP等级图标
-const VIP_LEVEL_ICONS = {
-  1: '/images/backgrounds/vip_gold.webp',
-  2: '/images/backgrounds/vip_1.webp',
-  3: '/images/backgrounds/vip_2.webp',
-  4: '/images/backgrounds/vip_3.webp',
-  5: '/images/backgrounds/super_vip_red.webp',
-  6: '/images/backgrounds/super_vip_blue.webp'
-}
-
-// 获取VIP等级图标
+// 获取VIP等级图标（使用统一常量）
 const getVipLevelIcon = (level) => {
   return VIP_LEVEL_ICONS[level] || ''
 }
@@ -1434,10 +1455,12 @@ const userCoinsBalance = ref(-1)
 // 获取用户金币余额
 const fetchCoinsBalance = async () => {
   try {
-    const res = await api.get('/coins/balance')
+    const res = await api.get('/coins/balance', { signal: abortSignal })
     userCoinsBalance.value = res.data?.balance || res.balance || 0
   } catch (e) {
-    userCoinsBalance.value = -1  // 获取失败，标记为未知
+    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
+      userCoinsBalance.value = -1  // 获取失败，标记为未知
+    }
   }
 }
 
@@ -1457,7 +1480,7 @@ onMounted(async () => {
   if (targetVideoId) {
     try {
       // 先获取指定视频
-      const res = await api.get(`/shorts/${targetVideoId}`)
+      const res = await api.get(`/shorts/${targetVideoId}`, { signal: abortSignal })
       const targetVideo = res.data || res
       if (targetVideo && targetVideo.id) {
         // 将目标视频放在列表第一个位置
@@ -1469,11 +1492,11 @@ onMounted(async () => {
         
         // 等待DOM更新后自动播放
         await nextTick()
-        if (playTimer) {
-          clearTimeout(playTimer)
+        if (playTimerId) {
+          timers.clearTimeout(playTimerId)
         }
-        playTimer = setTimeout(() => {
-          playTimer = null
+        playTimerId = timers.setTimeout(() => {
+          playTimerId = null
           if (!userPaused.value) {
             playCurrentVideo()
           }
@@ -1481,7 +1504,7 @@ onMounted(async () => {
         
         // 然后在后台加载更多视频
         page.value = 1
-        const moreRes = await api.get('/shorts', { params: { page: 1, limit: 10 } })
+        const moreRes = await api.get('/shorts', { params: { page: 1, limit: 10 }, signal: abortSignal })
         const moreData = moreRes.data || moreRes
         if (moreData.items && moreData.items.length > 0) {
           // 过滤掉已存在的目标视频，添加其他视频
@@ -1492,32 +1515,31 @@ onMounted(async () => {
         }
         
         loading.value = false
-        // 监听窗口大小变化
-        window.addEventListener('resize', handleResize)
+        // 监听窗口大小变化（使用事件管理器）
+        events.addEventListener(window, 'resize', handleResize)
         return
       }
     } catch (error) {
-      console.error('获取指定短视频失败:', error)
+      if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+        console.error('获取指定短视频失败:', error)
+      }
     }
   }
   
   fetchVideos(true)
   
-  // 监听窗口大小变化
-  window.addEventListener('resize', handleResize)
+  // 监听窗口大小变化（使用事件管理器）
+  events.addEventListener(window, 'resize', handleResize)
 })
 
 // 停止所有视频播放
 const stopAllVideos = () => {
   try {
     // 清除播放定时器
-    if (playTimer) {
-      clearTimeout(playTimer)
-      playTimer = null
+    if (playTimerId) {
+      timers.clearTimeout(playTimerId)
+      playTimerId = null
     }
-    
-    // 移除事件监听器
-    window.removeEventListener('resize', handleResize)
     
     // 暂停所有视频
     Object.values(videoRefs.value).forEach(video => {
@@ -1549,6 +1571,7 @@ onBeforeUnmount(() => {
   stopAllVideos()
 })
 
+// 资源清理由 composables 自动处理
 onUnmounted(() => {
   stopAllVideos()
 })

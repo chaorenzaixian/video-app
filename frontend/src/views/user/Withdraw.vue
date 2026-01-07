@@ -59,7 +59,7 @@
               <img src="/images/backgrounds/ic_union_pay.webp" alt="银行卡" class="method-icon" />
               <span>银行卡</span>
               <div class="check-circle">
-                <img v-if="withdrawMethod === 'bank'" src="/images/backgrounds/mine_withdraw_sel.png" alt="selected" class="check-img" />
+                <img v-if="withdrawMethod === 'bank'" src="/images/backgrounds/mine_withdraw_sel.webp" alt="selected" class="check-img" />
               </div>
             </div>
             <div 
@@ -69,7 +69,7 @@
               <img src="/images/backgrounds/ic_usdt.webp" alt="USDT" class="method-icon" />
               <span>USDT</span>
               <div class="check-circle">
-                <img v-if="withdrawMethod === 'usdt'" src="/images/backgrounds/mine_withdraw_sel.png" alt="selected" class="check-img" />
+                <img v-if="withdrawMethod === 'usdt'" src="/images/backgrounds/mine_withdraw_sel.webp" alt="selected" class="check-img" />
               </div>
             </div>
           </template>
@@ -83,7 +83,7 @@
               <div class="method-icon-text alipay">支</div>
               <span>支付宝</span>
               <div class="check-circle">
-                <img v-if="withdrawMethod === 'alipay'" src="/images/backgrounds/mine_withdraw_sel.png" alt="selected" class="check-img" />
+                <img v-if="withdrawMethod === 'alipay'" src="/images/backgrounds/mine_withdraw_sel.webp" alt="selected" class="check-img" />
               </div>
             </div>
             <div 
@@ -93,7 +93,7 @@
               <div class="method-icon-text wechat">微</div>
               <span>微信</span>
               <div class="check-circle">
-                <img v-if="withdrawMethod === 'wechat'" src="/images/backgrounds/mine_withdraw_sel.png" alt="selected" class="check-img" />
+                <img v-if="withdrawMethod === 'wechat'" src="/images/backgrounds/mine_withdraw_sel.webp" alt="selected" class="check-img" />
               </div>
             </div>
             <div 
@@ -103,7 +103,7 @@
               <img src="/images/backgrounds/ic_union_pay.webp" alt="银行卡" class="method-icon" />
               <span>银行卡</span>
               <div class="check-circle">
-                <img v-if="withdrawMethod === 'bank'" src="/images/backgrounds/mine_withdraw_sel.png" alt="selected" class="check-img" />
+                <img v-if="withdrawMethod === 'bank'" src="/images/backgrounds/mine_withdraw_sel.webp" alt="selected" class="check-img" />
               </div>
             </div>
           </template>

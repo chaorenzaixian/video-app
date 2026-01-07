@@ -94,7 +94,7 @@ const initAvatarList = () => {
   
   // 原有17个预设头像
   for (let i = 1; i <= 17; i++) {
-    const path = `/images/avatars/icon_avatar_${i}.png`
+    const path = `/images/avatars/icon_avatar_${i}.webp`
     list.push({
       path: path,
       url: path
@@ -131,7 +131,7 @@ const getDefaultAvatarPath = (userId) => {
   
   if (index < 17) {
     // 原有头像 (0-16)
-    return `/images/avatars/icon_avatar_${index + 1}.png`
+    return `/images/avatars/icon_avatar_${index + 1}.webp`
   } else if (index < 32) {
     // DM第一批 (17-31)
     const num = String(index - 17 + 1).padStart(3, '0')

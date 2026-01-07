@@ -225,7 +225,7 @@ def load_announcement() -> dict:
     return {
         "enabled": True,
         "name": "Soul官方",
-        "avatar": "/images/avatars/icon_avatar_1.png",
+        "avatar": "/images/avatars/icon_avatar_1.webp",
         "content": "🔥限时\"新人永久卡\"🔥100元特惠,VIP视频💕永久免费看,消费一次终身受益,还送3次AI脱衣👇女神秒变母狗👉点击抢购👉👉👉",
         "updated_at": datetime.now().isoformat()
     }

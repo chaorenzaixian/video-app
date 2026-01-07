@@ -200,7 +200,7 @@
 
     <!-- 发布按钮 -->
     <div class="publish-btn" @click="showPublishModal = true" v-if="activeMainTab === 'community'">
-      <img src="/images/backgrounds/publish.png" alt="发布" class="publish-icon" />
+      <img src="/images/backgrounds/publish.webp" alt="发布" class="publish-icon" />
     </div>
 
     <!-- 发布类型选择弹窗 -->
@@ -214,7 +214,7 @@
             <span class="type-label">图片</span>
           </div>
           <div class="publish-type-item" @click="goPublishVideo">
-            <img src="/images/backgrounds/publish_video.png" alt="视频" class="type-icon" />
+            <img src="/images/backgrounds/publish_video.webp" alt="视频" class="type-icon" />
             <span class="type-label">视频</span>
           </div>
           <div class="publish-type-item" @click="goPublishTextImage">
@@ -225,56 +225,34 @@
       </div>
     </div>
 
-    <!-- 底部导航 -->
-    <nav class="bottom-nav">
-      <div class="nav-item" @click="$router.push('/user')">
-        <div class="nav-icon-img"><img src="/images/backgrounds/home_0_0.webp" alt="首页" /></div>
-        <span class="nav-label">首页</span>
-      </div>
-      <div class="nav-item" @click="$router.push('/shorts')">
-        <div class="nav-icon-img"><img src="/images/backgrounds/home_1_0.webp" alt="暗网" /></div>
-        <span class="nav-label">暗网</span>
-      </div>
-      <div class="nav-item" @click="$router.push('/user/soul')">
-        <div class="nav-icon-img"><img src="/images/backgrounds/home_2_0.webp" alt="Soul" /></div>
-        <span class="nav-label">Soul</span>
-      </div>
-      <div class="nav-item active">
-        <div class="nav-icon-img"><img src="/images/backgrounds/home_3_1.webp" alt="社区" /></div>
-        <span class="nav-label">社区</span>
-      </div>
-      <div class="nav-item" @click="$router.push('/user/profile')">
-        <div class="nav-icon-img"><img src="/images/backgrounds/home_4_0.webp" alt="自己" /></div>
-        <span class="nav-label">自己</span>
-      </div>
-    </nav>
+    <!-- 底部导航 - 使用公共组件 -->
+    <BottomNav />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
 import { getAvatarUrl } from '@/utils/avatar'
+import { formatCount, formatCommentTime } from '@/utils/format'
+import { getVipLevelIcon } from '@/constants/vip'
+import { useAbortController } from '@/composables/useAbortController'
+import { useActionLock, useDebounce } from '@/composables/useDebounce'
+import BottomNav from '@/components/common/BottomNav.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
 
-// VIP等级图标映射
-const VIP_LEVEL_ICONS = {
-  1: '/images/backgrounds/vip_gold.webp',      // 普通VIP
-  2: '/images/backgrounds/vip_1.webp',         // VIP1
-  3: '/images/backgrounds/vip_2.webp',         // VIP2
-  4: '/images/backgrounds/vip_3.webp',         // VIP3
-  5: '/images/backgrounds/super_vip_red.webp', // 黄金至尊
-  6: '/images/backgrounds/super_vip_blue.webp' // 钻石至尊
-}
+// 请求取消控制器 - 防止内存泄漏
+const { signal } = useAbortController()
 
-// 获取VIP图标
-const getVipIcon = (level) => {
-  return VIP_LEVEL_ICONS[level] || VIP_LEVEL_ICONS[1]
-}
+// 点赞防重复
+const { withLock } = useActionLock()
+
+// 获取VIP图标 - 使用统一的常量
+const getVipIcon = (level) => getVipLevelIcon(level)
 
 // 主Tab配置
 const mainTabs = [
@@ -401,7 +379,7 @@ const fetchTopicsLegacy = async () => {
   }
 }
 
-// 获取动态列表
+// 获取动态列表 - 添加请求取消支持
 const fetchPosts = async (reset = false) => {
   if (loading.value) return
   if (reset) {
@@ -425,42 +403,39 @@ const fetchPosts = async (reset = false) => {
     // 如果只选择了一级分类（非热门推荐），可以按分类下所有话题筛选
     // 这里简化处理，暂时不做
 
-    const res = await api.get('/community/posts', { params })
+    const res = await api.get('/community/posts', { params, signal })
     const data = res.data || []
     
     if (data.length < 20) hasMore.value = false
     posts.value = reset ? data : [...posts.value, ...data]
     page.value++
   } catch (e) {
-    console.error('获取动态失败', e)
+    // 忽略请求取消错误
+    if (e.name !== 'AbortError' && e.name !== 'CanceledError') {
+      console.error('获取动态失败', e)
+    }
   } finally {
     loading.value = false
   }
 }
 
-// 点赞
+// 点赞 - 添加防重复点击
 const likePost = async (post) => {
-  try {
-    const res = await api.post(`/community/posts/${post.id}/like`)
-    post.is_liked = res.data.liked
-    post.like_count = res.data.like_count
-  } catch (e) {
-    console.error('点赞失败', e)
-  }
+  await withLock(`like_post_${post.id}`, async () => {
+    try {
+      const res = await api.post(`/community/posts/${post.id}/like`, null, { signal })
+      post.is_liked = res.data.liked
+      post.like_count = res.data.like_count
+    } catch (e) {
+      if (e.name !== 'AbortError' && e.name !== 'CanceledError') {
+        console.error('点赞失败', e)
+      }
+    }
+  })
 }
 
-const formatTime = (time) => {
-  if (!time) return ''
-  const d = new Date(time)
-  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`
-}
-
-const formatCount = (count) => {
-  if (!count) return '0'
-  if (count >= 10000) return (count / 10000).toFixed(1) + 'W'
-  if (count >= 1000) return (count / 1000).toFixed(1) + 'K'
-  return String(count)
-}
+// 使用统一的格式化函数（已从 @/utils/format 导入）
+const formatTime = (time) => formatCommentTime(time)
 
 const goToDetail = (id) => router.push(`/user/community/post/${id}`)
 
@@ -739,6 +714,11 @@ onMounted(() => {
 
 /* 响应式 - 平板及以上 */
 @media (min-width: 768px) {
+  .community-page {
+    max-width: 750px;
+    margin: 0 auto;
+  }
+  
   .topic-grid {
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
@@ -769,12 +749,18 @@ onMounted(() => {
 /* 响应式 - 桌面端 */
 @media (min-width: 1024px) {
   .community-page {
-    max-width: 800px;
-    margin: 0 auto;
+    max-width: 900px;
   }
   
   .topic-grid {
     grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* 响应式 - 大屏 */
+@media (min-width: 1280px) {
+  .community-page {
+    max-width: 1200px;
   }
 }
 
@@ -1264,47 +1250,6 @@ onMounted(() => {
 .publish-type-item .type-label {
   color: #fff;
   font-size: 14px;
-}
-
-/* 底部导航 */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-around;
-  padding: 8px 0 12px;
-  background: linear-gradient(to top, #0a0a0a 80%, transparent);
-  z-index: 100;
-}
-
-.nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-}
-
-.nav-icon-img {
-  width: 26px;
-  height: 26px;
-  margin-bottom: 4px;
-}
-
-.nav-icon-img img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.nav-label {
-  font-size: 11px;
-  color: #666;
-}
-
-.nav-item.active .nav-label {
-  color: #8b5cf6;
 }
 
 .loading, .no-more, .empty {

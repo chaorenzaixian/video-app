@@ -4,7 +4,7 @@
     <header class="page-header">
       <div class="header-left">
         <div class="notification-wrapper" @click="$router.push('/user/messages')">
-          <img src="/images/backgrounds/mine_notification.png" class="header-icon-img" alt="通知" />
+          <img src="/images/backgrounds/mine_notification.webp" class="header-icon-img" alt="通知" />
           <span v-if="unreadMessageCount > 0" class="notification-badge">{{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}</span>
         </div>
       </div>
@@ -375,43 +375,7 @@
     </div>
 
     <!-- 底部导航 -->
-    <nav class="bottom-nav">
-      <!-- 首页 -->
-      <div class="nav-item" @click="$router.push('/user')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_0_0.webp" alt="首页" />
-        </div>
-        <span class="nav-label">首页</span>
-      </div>
-      <!-- 禁区 -->
-      <div class="nav-item" @click="$router.push('/user/forbidden')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_1_0.webp" alt="禁区" />
-        </div>
-        <span class="nav-label">禁区</span>
-      </div>
-      <!-- Soul -->
-      <div class="nav-item" @click="$router.push('/user/soul')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_2_0.webp" alt="Soul" />
-        </div>
-        <span class="nav-label">Soul</span>
-      </div>
-      <!-- 广场 -->
-      <div class="nav-item" @click="$router.push('/user/community')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_3_0.webp" alt="广场" />
-        </div>
-        <span class="nav-label">广场</span>
-      </div>
-      <!-- 自己 -->
-      <div class="nav-item active">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_4_1.webp" alt="自己" />
-        </div>
-        <span class="nav-label">自己</span>
-      </div>
-    </nav>
+    <BottomNav />
   </div>
 </template>
 
@@ -422,9 +386,28 @@ import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 import api from '@/utils/api'
+import { getAvatarUrl } from '@/utils/avatar'
+import { formatDate } from '@/utils/format'
+import { getVipLevelIcon, getVipLevelName } from '@/constants/vip'
+import { useAbortController } from '@/composables/useAbortController'
+import { useTimers } from '@/composables/useCleanup'
+import { useAsyncLock } from '@/composables/useDebounce'
+import BottomNav from '@/components/common/BottomNav.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+// 请求取消控制器
+const { signal } = useAbortController()
+
+// 定时器管理
+const { setInterval, clearInterval } = useTimers()
+
+// 签到防重复
+const { execute: executeSign, loading: signingIn } = useAsyncLock(async () => {
+  const res = await api.post('/points/tasks/checkin', null, { signal })
+  return res.data?.points || 0
+})
 
 const user = ref({
   id: '',
@@ -433,21 +416,13 @@ const user = ref({
   avatar: '',
   is_vip: false,
   vip_level: 0,
-  vip_level_name: '非VIP',  // VIP等级名称（从后端获取）
-  vip_expire_date: null,  // VIP到期时间
+  vip_level_name: '非VIP',
+  vip_expire_date: null,
   cache_count: 0,
   ai_count: 0
 })
 
-// VIP等级图标映射
-const VIP_LEVEL_ICONS = {
-  1: '/images/backgrounds/vip_gold.webp',      // 普通VIP
-  2: '/images/backgrounds/vip_1.webp',         // VIP1
-  3: '/images/backgrounds/vip_2.webp',         // VIP2
-  4: '/images/backgrounds/vip_3.webp',         // VIP3
-  5: '/images/backgrounds/super_vip_red.webp', // 黄金至尊
-  6: '/images/backgrounds/super_vip_blue.webp' // 紫色限定至尊
-}
+// 使用统一的VIP常量（已从 @/constants/vip 导入）
 
 const iconAds = ref([])
 const isLoading = ref(true)
@@ -484,7 +459,7 @@ const getDefaultAvatarPath = (userId) => {
   const index = (userId % totalAvatars)
   
   if (index < 17) {
-    return `/images/avatars/icon_avatar_${index + 1}.png`
+    return `/images/avatars/icon_avatar_${index + 1}.webp`
   } else if (index < 32) {
     const num = String(index - 17 + 1).padStart(3, '0')
     return `/images/avatars/DM_20251217202131_${num}.JPEG`
@@ -494,32 +469,25 @@ const getDefaultAvatarPath = (userId) => {
   }
 }
 
-// 根据用户ID自动分配头像
+// 根据用户ID自动分配头像 - 使用统一的工具函数
 const avatarUrl = computed(() => {
-  // 如果用户有自定义头像，使用自定义头像
-  if (user.value.avatar) {
-    return user.value.avatar
-  }
-  // 根据用户ID取模分配预设头像
-  const numericId = parseInt(user.value.id) || 1
-  return getDefaultAvatarPath(numericId)
+  return getAvatarUrl(user.value.avatar, user.value.id)
 })
 
-// VIP等级图标
+// VIP等级图标 - 使用统一的常量
 const vipLevelIcon = computed(() => {
-  return VIP_LEVEL_ICONS[user.value.vip_level] || ''
+  return getVipLevelIcon(user.value.vip_level)
 })
 
-const signingIn = ref(false)
+// 签到处理 - 使用防重复锁
 const handleSign = async () => {
-  if (signingIn.value) return
-  signingIn.value = true
   try {
-    const res = await api.post('/points/tasks/checkin')
-    const points = res.data?.points || 0
-    ElMessage.success(`签到成功！获得 ${points} 积分`)
-    // 刷新用户信息
-    await fetchUserInfo()
+    const points = await executeSign()
+    if (points !== null) {
+      ElMessage.success(`签到成功！获得 ${points} 积分`)
+      // 刷新用户信息
+      await fetchUserInfo()
+    }
   } catch (error) {
     const msg = error.response?.data?.detail || ''
     // 已签到不显示错误，只显示提示
@@ -528,24 +496,18 @@ const handleSign = async () => {
     } else if (msg) {
       ElMessage.error(msg)
     }
-    // 如果没有msg，不显示任何提示（避免重复提示）
-  } finally {
-    signingIn.value = false
   }
 }
 
+// VIP等级名称 - 使用统一的常量
 const vipLevelName = computed(() => {
-  return user.value.vip_level_name || '非VIP'
+  return user.value.vip_level_name || getVipLevelName(user.value.vip_level)
 })
 
-// 格式化VIP到期时间
+// 格式化VIP到期时间 - 使用统一的格式化函数
 const formattedExpireDate = computed(() => {
   if (!user.value.vip_expire_date) return ''
-  const date = new Date(user.value.vip_expire_date)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}.${month}.${day}`
+  return formatDate(user.value.vip_expire_date)
 })
 
 const copyId = () => {
@@ -554,7 +516,6 @@ const copyId = () => {
     ElMessage.success('账号已复制')
   }
 }
-
 
 const handleAdClick = (ad) => {
   if (ad.link) {
@@ -1095,7 +1056,7 @@ $breakpoint-4k: 2560px;
   margin: clamp(6px, 2vw, 10px) clamp(12px, 4vw, 20px);
   padding: clamp(12px, 3.5vw, 16px) clamp(12px, 4vw, 20px);
   min-height: clamp(60px, 18vw, 80px);
-  background-image: url("/images/backgrounds/vipbg.gif");
+  background-image: url("/images/backgrounds/vipbg.webp");
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
@@ -1680,69 +1641,6 @@ $breakpoint-4k: 2560px;
   }
 }
 
-// 底部导航 - 与首页完全一致
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 0;
-  padding-bottom: calc(clamp(2px, 0.8vw, 5px) + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(to top, #0a0a0a 0%, rgba(10, 10, 10, 0.98) 100%);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  width: 100%;
-  z-index: 100;
-  
-  .nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: clamp(1px, 0.5vw, 3px);
-    font-size: clamp(11px, 3vw, 13px);
-    color: rgba(255, 255, 255, 0.45);
-    cursor: pointer;
-    transition: all 0.25s ease;
-    padding: clamp(3px, 1vw, 6px) clamp(8px, 3vw, 16px);
-    
-    &:hover {
-      color: rgba(255, 255, 255, 0.7);
-    }
-    
-    .nav-icon-img {
-      width: clamp(24px, 7vw, 32px);
-      height: clamp(24px, 7vw, 32px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-      }
-    }
-    
-    .nav-label {
-      letter-spacing: 0.5px;
-      transition: all 0.25s ease;
-    }
-    
-    &.active {
-      .nav-label {
-        background: linear-gradient(135deg, #c084fc, #818cf8);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
-    }
-  }
-}
-
 // 横屏模式优化
 @media (orientation: landscape) and (max-height: 500px) {
   .page-header {
@@ -1786,23 +1684,6 @@ $breakpoint-4k: 2560px;
     .quick-item .quick-icon-img {
       width: 32px;
       height: 32px;
-    }
-  }
-  
-  .bottom-nav {
-    padding: 3px 0;
-    
-    .nav-item {
-      padding: 2px 8px;
-      
-      .nav-icon-img {
-        width: 22px;
-        height: 22px;
-      }
-      
-      .nav-label {
-        font-size: 9px;
-      }
     }
   }
 }

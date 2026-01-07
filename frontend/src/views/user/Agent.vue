@@ -55,9 +55,9 @@
     <!-- 操作简单 无限级返利 -->
     <div class="section-block">
       <div class="section-title-fancy">
-        <img src="/images/backgrounds/app_dlbtw.png" alt="" class="title-icon left" />
+        <img src="/images/backgrounds/app_dlbtw.webp" alt="" class="title-icon left" />
         <span class="title-text gradient-gold">操作简单 无限级返利</span>
-        <img src="/images/backgrounds/app_dlbtw2.png" alt="" class="title-icon right" />
+        <img src="/images/backgrounds/app_dlbtw2.webp" alt="" class="title-icon right" />
       </div>
       
       <div class="content-box">
@@ -73,9 +73,9 @@
     <!-- 代理等级说明 -->
     <div class="section-block">
       <div class="section-title-fancy">
-        <img src="/images/backgrounds/app_dlbtw.png" alt="" class="title-icon left" />
+        <img src="/images/backgrounds/app_dlbtw.webp" alt="" class="title-icon left" />
         <span class="title-text gradient-gold">代理等级说明</span>
-        <img src="/images/backgrounds/app_dlbtw2.png" alt="" class="title-icon right" />
+        <img src="/images/backgrounds/app_dlbtw2.webp" alt="" class="title-icon right" />
       </div>
       
       <div class="level-table">
@@ -95,9 +95,9 @@
     <!-- 直推收益 -->
     <div class="section-block">
       <div class="section-title-fancy">
-        <img src="/images/backgrounds/app_dlbtw.png" alt="" class="title-icon left" />
+        <img src="/images/backgrounds/app_dlbtw.webp" alt="" class="title-icon left" />
         <span class="title-text gradient-gold">直推收益</span>
-        <img src="/images/backgrounds/app_dlbtw2.png" alt="" class="title-icon right" />
+        <img src="/images/backgrounds/app_dlbtw2.webp" alt="" class="title-icon right" />
       </div>
       
       <p class="desc-text center gradient-gold">您直接推广的所有用户的会员充值，你都将获得直推收益</p>
@@ -111,16 +111,16 @@
     <!-- 层级收益 -->
     <div class="section-block">
       <div class="section-title-fancy">
-        <img src="/images/backgrounds/app_dlbtw.png" alt="" class="title-icon left" />
+        <img src="/images/backgrounds/app_dlbtw.webp" alt="" class="title-icon left" />
         <span class="title-text gradient-gold">层级收益（月入十万秘籍）</span>
-        <img src="/images/backgrounds/app_dlbtw2.png" alt="" class="title-icon right" />
+        <img src="/images/backgrounds/app_dlbtw2.webp" alt="" class="title-icon right" />
       </div>
       
       <p class="desc-text gradient-gold">如果您的下级也参与代理推广，若您的等级高于他们，就能从他们所有伞下业绩中获取层级收益</p>
       
       <!-- 层级收益图 -->
       <div class="commission-diagram">
-        <img src="/images/backgrounds/app_dlcy.png" alt="层级收益图" class="commission-img" />
+        <img src="/images/backgrounds/app_dlcy.webp" alt="层级收益图" class="commission-img" />
       </div>
       
       <!-- 说明文字 -->
@@ -134,9 +134,9 @@
     <!-- 总结 -->
     <div class="section-block">
       <div class="section-title-fancy">
-        <img src="/images/backgrounds/app_dlbtw.png" alt="" class="title-icon left" />
+        <img src="/images/backgrounds/app_dlbtw.webp" alt="" class="title-icon left" />
         <span class="title-text gradient-gold">总结</span>
-        <img src="/images/backgrounds/app_dlbtw2.png" alt="" class="title-icon right" />
+        <img src="/images/backgrounds/app_dlbtw2.webp" alt="" class="title-icon right" />
       </div>
       
       <div class="summary-content">
@@ -156,7 +156,7 @@
     <!-- 固定底部推广按钮 -->
     <div class="fixed-bottom">
       <button class="btn-promote-img" @click="$router.push('/user/promotion')">
-        <img src="/images/backgrounds/app_proxy_btn_bg.png" alt="立即推广" />
+        <img src="/images/backgrounds/app_proxy_btn_bg.webp" alt="立即推广" />
       </button>
     </div>
 
@@ -204,7 +204,7 @@ const getDefaultAvatarPath = (userId) => {
   const index = (userId % totalAvatars)
   
   if (index < 17) {
-    return `/images/avatars/icon_avatar_${index + 1}.png`
+    return `/images/avatars/icon_avatar_${index + 1}.webp`
   } else if (index < 32) {
     const num = String(index - 17 + 1).padStart(3, '0')
     return `/images/avatars/DM_20251217202131_${num}.JPEG`

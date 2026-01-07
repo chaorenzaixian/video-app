@@ -54,6 +54,12 @@ class Post(Base):
     __table_args__ = (
         Index('idx_post_user_created', 'user_id', 'created_at'),
         Index('idx_post_status_created', 'status', 'created_at'),
+        # 新增优化索引
+        Index('idx_post_visibility_created', 'visibility', 'created_at'),
+        Index('idx_post_is_hot_created', 'is_hot', 'created_at'),
+        Index('idx_post_like_count', 'like_count'),
+        Index('idx_post_view_count', 'view_count'),
+        Index('idx_post_is_top_created', 'is_top', 'created_at'),
     )
 
 
@@ -89,6 +95,13 @@ class PostComment(Base):
     user = relationship("User", foreign_keys=[user_id], backref="post_comments")
     reply_to_user = relationship("User", foreign_keys=[reply_to_user_id])
     parent = relationship("PostComment", remote_side=[id], backref="replies")
+    
+    __table_args__ = (
+        Index('idx_comment_post_created', 'post_id', 'created_at'),
+        Index('idx_comment_user_created', 'user_id', 'created_at'),
+        Index('idx_comment_parent_id', 'parent_id'),
+        Index('idx_comment_status', 'status'),
+    )
 
 
 class PostLike(Base):

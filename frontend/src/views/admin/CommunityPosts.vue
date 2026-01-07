@@ -72,7 +72,7 @@
                 <p class="content-text">{{ row.content }}</p>
                 <div class="post-meta">
                   <span class="user-info" v-if="row.user">
-                    <img :src="row.user.avatar || '/images/default-avatar.png'" class="user-avatar" />
+                    <img :src="row.user.avatar || '/images/default-avatar.webp'" class="user-avatar" />
                     {{ row.user.nickname || row.user.username }}
                   </span>
                   <span>{{ formatTime(row.created_at) }}</span>
@@ -157,7 +157,7 @@
     <el-dialog v-model="detailDialog.visible" title="帖子详情" width="600px">
       <div class="detail-content" v-if="detailDialog.post">
         <div class="detail-user">
-          <img :src="detailDialog.post.user?.avatar || '/images/default-avatar.png'" class="detail-avatar" />
+          <img :src="detailDialog.post.user?.avatar || '/images/default-avatar.webp'" class="detail-avatar" />
           <div class="detail-user-info">
             <span class="detail-nickname">{{ detailDialog.post.user?.nickname || detailDialog.post.user?.username }}</span>
             <span class="detail-time">{{ formatTime(detailDialog.post.created_at) }}</span>

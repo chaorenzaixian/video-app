@@ -12,7 +12,7 @@ linear-gradient(53deg, #03A9F4, #3F51B5)<template>
     <!-- 主卡片区域 -->
     <div class="promo-card">
       <!-- 卡片背景图片 -->
-      <img class="card-bg-img" src="/images/backgrounds/app_mine_jelly_share_qr_bg-Photoroom.png" alt="" />
+      <img class="card-bg-img" src="/images/backgrounds/app_mine_jelly_share_qr_bg-Photoroom.webp" alt="" />
       
       <!-- 卡片主体内容 -->
       <div class="card-body">
@@ -189,7 +189,7 @@ onMounted(() => {
 .promotion-page {
   min-height: 100vh;
   background: #0a0a12;
-  background-image: url('/images/backgrounds/app_share_up_bg.png');
+  background-image: url('/images/backgrounds/app_share_up_bg.webp');
   background-size: 100% auto;
   background-position: top center;
   background-repeat: no-repeat;

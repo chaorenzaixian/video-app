@@ -93,12 +93,12 @@
       
       <!-- 图片上传按钮 -->
       <div class="action-btn" @click="openImagePicker">
-        <img src="/images/backgrounds/下载 (5).png" alt="上传图片" class="action-icon" />
+        <img src="/images/backgrounds/下载 (5).webp" alt="上传图片" class="action-icon" />
       </div>
       
       <!-- 发送按钮 -->
       <div class="action-btn send-btn" @click="sendMessage" :class="{ disabled: !canSend }">
-        <img src="/images/backgrounds/下载 (4).png" alt="发送" class="action-icon" />
+        <img src="/images/backgrounds/下载 (4).webp" alt="发送" class="action-icon" />
       </div>
       
       <!-- 隐藏的图片上传 -->
@@ -163,7 +163,7 @@ const getDefaultAvatarPath = (userId) => {
   const index = (userId % totalAvatars)
   
   if (index < 17) {
-    return `/images/avatars/icon_avatar_${index + 1}.png`
+    return `/images/avatars/icon_avatar_${index + 1}.webp`
   } else if (index < 32) {
     const num = String(index - 17 + 1).padStart(3, '0')
     return `/images/avatars/DM_20251217202131_${num}.JPEG`

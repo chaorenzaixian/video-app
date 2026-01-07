@@ -66,46 +66,15 @@
     </div>
 
     <!-- 评论区 -->
-    <div class="comments-section">
-      <div class="comments-header">
-        <span class="comments-count">{{ post?.comment_count || 0 }}条评论</span>
-        <div class="sort-tabs">
-          <span :class="{ active: sortBy === 'hot' }" @click="sortBy = 'hot'">推荐</span>
-          <span class="divider">|</span>
-          <span :class="{ active: sortBy === 'new' }" @click="sortBy = 'new'">最新</span>
-        </div>
-      </div>
-
-      <!-- 评论列表 -->
-      <div class="comments-list">
-        <div v-for="comment in comments" :key="comment.id" class="comment-item">
-          <img :src="getAvatarUrl(comment.user?.avatar, comment.user?.id)" class="comment-avatar" @click="goProfile(comment.user?.id)" />
-          <div class="comment-content">
-            <div class="comment-user">
-              <span class="comment-username">{{ comment.user?.nickname || comment.user?.username }}</span>
-              <img v-if="comment.user?.vip_level" :src="getVipIcon(comment.user.vip_level)" class="vip-badge" />
-            </div>
-            <p class="comment-text">{{ comment.content }}</p>
-            <!-- 评论图片 -->
-            <div v-if="comment.images && comment.images.length" class="comment-images">
-              <img v-for="(img, idx) in comment.images" :key="idx" :src="img" class="comment-img" />
-            </div>
-            <div class="comment-meta">
-              <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
-              <span class="comment-like" @click="likeComment(comment)">
-                <span class="heart">{{ comment.is_liked ? '❤️' : '♡' }}</span>
-                {{ comment.like_count || 0 }}
-              </span>
-              <span class="comment-reply-btn" @click="replyTo(comment)">💬</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="loadingComments" class="loading">加载中...</div>
-      <div v-if="!loadingComments && !hasMoreComments && comments.length" class="no-more">— 没有更多评论了 —</div>
-      <div v-if="!loadingComments && comments.length === 0" class="empty-comments">暂无评论，快来抢沙发~</div>
-    </div>
+    <CommentsList
+      :comments="comments"
+      :comment-count="post?.comment_count || 0"
+      :loading="loadingComments"
+      :has-more="hasMoreComments"
+      @like-comment="likeComment"
+      @reply-comment="replyTo"
+      @go-profile="goProfile"
+    />
 
     <!-- 底部操作栏 -->
     <div class="bottom-bar">
@@ -129,24 +98,12 @@
     </div>
 
     <!-- 评论输入弹窗 -->
-    <div class="comment-modal" v-if="showCommentInput" @click.self="showCommentInput = false">
-      <div class="comment-modal-content">
-        <div class="modal-header">
-          <span>{{ replyTarget ? `回复 @${replyTarget.user?.nickname || replyTarget.user?.username}` : '发表评论' }}</span>
-          <span class="close-btn" @click="showCommentInput = false">×</span>
-        </div>
-        <textarea 
-          ref="commentTextarea"
-          v-model="commentText" 
-          placeholder="说点什么..."
-          rows="4"
-        ></textarea>
-        <div class="modal-footer">
-          <button class="cancel-btn" @click="showCommentInput = false">取消</button>
-          <button class="submit-btn" @click="submitComment" :disabled="!commentText.trim()">发送</button>
-        </div>
-      </div>
-    </div>
+    <CommentInput
+      :visible="showCommentInput"
+      :reply-target="replyTarget"
+      @close="showCommentInput = false"
+      @submit="submitComment"
+    />
 
     <!-- 图片预览 -->
     <div class="image-preview" v-if="previewVisible" @click="previewVisible = false">
@@ -156,16 +113,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue'
+import { ref, onMounted, computed, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
 import { getAvatarUrl } from '@/utils/avatar'
+import CommentsList from '@/components/community/CommentsList.vue'
+import CommentInput from '@/components/community/CommentInput.vue'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+
+// 用于取消请求
+const abortController = new AbortController()
 
 // VIP等级图标映射
 const VIP_LEVEL_ICONS = {
@@ -184,14 +146,11 @@ const currentUserId = computed(() => userStore.user?.id)
 
 const post = ref(null)
 const comments = ref([])
-const commentText = ref('')
 const replyTarget = ref(null)
 const loadingComments = ref(false)
 const hasMoreComments = ref(true)
 const commentPage = ref(1)
-const sortBy = ref('hot')
 const showCommentInput = ref(false)
-const commentTextarea = ref(null)
 
 // 图片预览
 const previewVisible = ref(false)
@@ -200,10 +159,14 @@ const previewImageUrl = ref('')
 // 获取动态详情
 const fetchPost = async () => {
   try {
-    const res = await api.get(`/community/posts/${postId.value}`)
+    const res = await api.get(`/community/posts/${postId.value}`, {
+      signal: abortController.signal
+    })
     post.value = res.data
   } catch (e) {
-    console.error('获取动态失败', e)
+    if (e.name !== 'AbortError') {
+      console.error('获取动态失败', e)
+    }
   }
 }
 
@@ -220,14 +183,17 @@ const fetchComments = async (reset = false) => {
   loadingComments.value = true
   try {
     const res = await api.get(`/community/posts/${postId.value}/comments`, {
-      params: { page: commentPage.value, page_size: 20 }
+      params: { page: commentPage.value, page_size: 20 },
+      signal: abortController.signal
     })
     const data = res.data || []
     if (data.length < 20) hasMoreComments.value = false
     comments.value = reset ? data : [...comments.value, ...data]
     commentPage.value++
   } catch (e) {
-    console.error('获取评论失败', e)
+    if (e.name !== 'AbortError') {
+      console.error('获取评论失败', e)
+    }
   } finally {
     loadingComments.value = false
   }
@@ -267,12 +233,16 @@ const followUser = async () => {
 
 // 点赞评论
 const likeComment = async (comment) => {
+  if (comment._liking) return // 防止重复点击
+  comment._liking = true
   try {
     const res = await api.post(`/community/comments/${comment.id}/like`)
     comment.is_liked = res.data.liked
     comment.like_count = res.data.like_count
   } catch (e) {
     console.error('点赞失败', e)
+  } finally {
+    comment._liking = false
   }
 }
 
@@ -280,32 +250,27 @@ const likeComment = async (comment) => {
 const openCommentInput = () => {
   replyTarget.value = null
   showCommentInput.value = true
-  nextTick(() => commentTextarea.value?.focus())
 }
 
 // 回复评论
 const replyTo = (comment) => {
   replyTarget.value = comment
   showCommentInput.value = true
-  nextTick(() => commentTextarea.value?.focus())
 }
 
 // 提交评论
-const submitComment = async () => {
-  if (!commentText.value.trim()) return
-  
+const submitComment = async ({ content, replyTarget: target }) => {
   try {
     const payload = {
-      content: commentText.value,
+      content: content,
       images: []
     }
-    if (replyTarget.value) {
-      payload.parent_id = replyTarget.value.parent_id || replyTarget.value.id
-      payload.reply_to_user_id = replyTarget.value.user.id
+    if (target) {
+      payload.parent_id = target.parent_id || target.id
+      payload.reply_to_user_id = target.user.id
     }
     
     await api.post(`/community/posts/${postId.value}/comments`, payload)
-    commentText.value = ''
     replyTarget.value = null
     showCommentInput.value = false
     post.value.comment_count++
@@ -345,6 +310,11 @@ const previewImage = (idx) => {
 onMounted(() => {
   fetchPost()
   fetchComments(true)
+})
+
+// 组件卸载时取消所有请求
+onBeforeUnmount(() => {
+  abortController.abort()
 })
 </script>
 

@@ -27,6 +27,20 @@ class PostCreate(BaseModel):
     topic_ids: List[int] = []
     visibility: str = "public"
     location: Optional[str] = None
+    
+    @classmethod
+    def validate_content(cls, v):
+        if v:
+            # 移除危险的HTML标签
+            import re
+            # 移除script标签
+            v = re.sub(r'<script[^>]*>.*?</script>', '', v, flags=re.IGNORECASE | re.DOTALL)
+            # 移除事件处理器
+            v = re.sub(r'\s*on\w+\s*=\s*["\'][^"\']*["\']', '', v, flags=re.IGNORECASE)
+            # 限制长度
+            if len(v) > 10000:
+                raise ValueError('内容过长，最多10000字')
+        return v
 
 class PostUpdate(BaseModel):
     content: Optional[str] = None
@@ -40,6 +54,19 @@ class CommentCreate(BaseModel):
     images: List[str] = []
     parent_id: Optional[int] = None
     reply_to_user_id: Optional[int] = None
+    
+    @classmethod
+    def validate_content(cls, v):
+        if v:
+            import re
+            # 移除script标签
+            v = re.sub(r'<script[^>]*>.*?</script>', '', v, flags=re.IGNORECASE | re.DOTALL)
+            # 移除事件处理器
+            v = re.sub(r'\s*on\w+\s*=\s*["\'][^"\']*["\']', '', v, flags=re.IGNORECASE)
+            # 限制长度
+            if len(v) > 2000:
+                raise ValueError('评论过长，最多2000字')
+        return v
 
 class UserBriefResponse(BaseModel):
     id: int
@@ -203,14 +230,13 @@ async def get_posts(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取动态列表"""
+    """获取动态列表 - 优化版本，批量查询减少N+1问题"""
     import json as json_lib
     
     query = select(Post).where(Post.status == "published")
     
     # 按类型筛选
     if feed_type == "following" and current_user:
-        # 获取关注的用户ID
         following_result = await db.execute(
             select(UserFollow.following_id).where(UserFollow.follower_id == current_user.id)
         )
@@ -222,18 +248,14 @@ async def get_posts(
     elif feed_type == "hot":
         query = query.where(Post.is_hot == True)
     
-    # 按话题筛选
     if topic_id:
         query = query.where(Post.topic_ids.contains([topic_id]))
     
-    # 按用户筛选
     if user_id:
         query = query.where(Post.user_id == user_id)
-        # 非本人只能看公开动态
         if not current_user or current_user.id != user_id:
             query = query.where(Post.visibility == "public")
     
-    # 排序
     if feed_type == "hot":
         query = query.order_by(desc(Post.like_count), desc(Post.created_at))
     else:
@@ -243,7 +265,46 @@ async def get_posts(
     result = await db.execute(query)
     posts = result.scalars().all()
     
-    # 收集所有topic_ids用于批量查询
+    if not posts:
+        return []
+    
+    # ========== 批量查询优化 ==========
+    post_ids = [p.id for p in posts]
+    user_ids = list(set(p.user_id for p in posts))
+    
+    # 1. 批量获取用户信息
+    users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+    users_map = {u.id: u for u in users_result.scalars().all()}
+    
+    # 2. 批量获取VIP信息
+    vip_result = await db.execute(
+        select(UserVIP).where(UserVIP.user_id.in_(user_ids), UserVIP.is_active == True)
+    )
+    vip_map = {v.user_id: v for v in vip_result.scalars().all()}
+    
+    # 3. 批量获取点赞状态
+    liked_post_ids = set()
+    if current_user:
+        like_result = await db.execute(
+            select(PostLike.post_id).where(
+                PostLike.post_id.in_(post_ids),
+                PostLike.user_id == current_user.id
+            )
+        )
+        liked_post_ids = set(r[0] for r in like_result.fetchall())
+    
+    # 4. 批量获取关注状态
+    followed_user_ids = set()
+    if current_user:
+        follow_result = await db.execute(
+            select(UserFollow.following_id).where(
+                UserFollow.follower_id == current_user.id,
+                UserFollow.following_id.in_(user_ids)
+            )
+        )
+        followed_user_ids = set(r[0] for r in follow_result.fetchall())
+    
+    # 5. 批量获取话题信息
     all_topic_ids = set()
     for post in posts:
         topic_ids_list = post.topic_ids or []
@@ -255,7 +316,6 @@ async def get_posts(
         for tid in topic_ids_list:
             all_topic_ids.add(tid)
     
-    # 批量获取话题信息
     topics_map = {}
     if all_topic_ids:
         topic_result = await db.execute(
@@ -264,20 +324,27 @@ async def get_posts(
         for t in topic_result.scalars().all():
             topics_map[t.id] = {"id": t.id, "name": t.name}
     
+    # ========== 构建响应 ==========
     response = []
     for post in posts:
-        # 获取用户信息
-        user_result = await db.execute(select(User).where(User.id == post.user_id))
-        post_user = user_result.scalar_one()
-        user_brief = await get_user_brief(db, post_user)
+        post_user = users_map.get(post.user_id)
+        if not post_user:
+            continue
         
-        is_liked = False
-        is_followed = False
-        if current_user:
-            is_liked = await check_is_liked(db, post.id, current_user.id)
-            is_followed = await check_is_followed(db, current_user.id, post.user_id)
+        # 构建用户简要信息
+        vip = vip_map.get(post.user_id)
+        is_vip = vip is not None and vip.expire_date and vip.expire_date > datetime.utcnow()
+        vip_level = vip.vip_level if (is_vip and vip) else 0
         
-        # 获取帖子的话题
+        user_brief = {
+            "id": post_user.id,
+            "username": post_user.username,
+            "nickname": post_user.nickname,
+            "avatar": post_user.avatar,
+            "is_vip": is_vip,
+            "vip_level": vip_level
+        }
+        
         topic_ids_list = post.topic_ids or []
         if isinstance(topic_ids_list, str):
             try:
@@ -305,8 +372,8 @@ async def get_posts(
             "allow_comment": post.allow_comment,
             "location": post.location,
             "created_at": post.created_at,
-            "is_liked": is_liked,
-            "is_followed": is_followed
+            "is_liked": post.id in liked_post_ids,
+            "is_followed": post.user_id in followed_user_ids
         })
     
     return response
@@ -520,7 +587,7 @@ async def get_comments(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取评论列表"""
+    """获取评论列表 - 优化版本，批量查询减少N+1问题"""
     query = select(PostComment).where(
         PostComment.post_id == post_id,
         PostComment.status == "visible"
@@ -537,30 +604,63 @@ async def get_comments(
     result = await db.execute(query)
     comments = result.scalars().all()
     
+    if not comments:
+        return []
+    
+    # ========== 批量查询优化 ==========
+    comment_ids = [c.id for c in comments]
+    user_ids = list(set(c.user_id for c in comments))
+    reply_user_ids = list(set(c.reply_to_user_id for c in comments if c.reply_to_user_id))
+    all_user_ids = list(set(user_ids + reply_user_ids))
+    
+    # 1. 批量获取用户信息
+    users_result = await db.execute(select(User).where(User.id.in_(all_user_ids)))
+    users_map = {u.id: u for u in users_result.scalars().all()}
+    
+    # 2. 批量获取VIP信息
+    vip_result = await db.execute(
+        select(UserVIP).where(UserVIP.user_id.in_(all_user_ids), UserVIP.is_active == True)
+    )
+    vip_map = {v.user_id: v for v in vip_result.scalars().all()}
+    
+    # 3. 批量获取点赞状态
+    liked_comment_ids = set()
+    if current_user:
+        like_result = await db.execute(
+            select(PostCommentLike.comment_id).where(
+                PostCommentLike.comment_id.in_(comment_ids),
+                PostCommentLike.user_id == current_user.id
+            )
+        )
+        liked_comment_ids = set(r[0] for r in like_result.fetchall())
+    
+    # ========== 辅助函数：构建用户简要信息 ==========
+    def build_user_brief(user_id: int) -> dict:
+        user = users_map.get(user_id)
+        if not user:
+            return None
+        vip = vip_map.get(user_id)
+        is_vip = vip is not None and vip.expire_date and vip.expire_date > datetime.utcnow()
+        vip_level = vip.vip_level if (is_vip and vip) else 0
+        return {
+            "id": user.id,
+            "username": user.username,
+            "nickname": user.nickname,
+            "avatar": user.avatar,
+            "is_vip": is_vip,
+            "vip_level": vip_level
+        }
+    
+    # ========== 构建响应 ==========
     response = []
     for comment in comments:
-        user_result = await db.execute(select(User).where(User.id == comment.user_id))
-        comment_user = user_result.scalar_one()
-        user_brief = await get_user_brief(db, comment_user)
+        user_brief = build_user_brief(comment.user_id)
+        if not user_brief:
+            continue
         
         reply_to_user = None
         if comment.reply_to_user_id:
-            reply_user_result = await db.execute(
-                select(User).where(User.id == comment.reply_to_user_id)
-            )
-            reply_user = reply_user_result.scalar_one_or_none()
-            if reply_user:
-                reply_to_user = await get_user_brief(db, reply_user)
-        
-        is_liked = False
-        if current_user:
-            like_result = await db.execute(
-                select(PostCommentLike).where(
-                    PostCommentLike.comment_id == comment.id,
-                    PostCommentLike.user_id == current_user.id
-                )
-            )
-            is_liked = like_result.scalar_one_or_none() is not None
+            reply_to_user = build_user_brief(comment.reply_to_user_id)
         
         response.append(CommentResponse(
             id=comment.id,
@@ -572,7 +672,7 @@ async def get_comments(
             like_count=comment.like_count,
             reply_count=comment.reply_count,
             created_at=comment.created_at,
-            is_liked=is_liked
+            is_liked=comment.id in liked_comment_ids
         ))
     
     return response
@@ -658,7 +758,7 @@ async def get_followers(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取粉丝列表"""
+    """获取粉丝列表 - 优化版本，批量查询"""
     query = select(UserFollow).where(UserFollow.following_id == user_id)
     query = query.order_by(desc(UserFollow.created_at))
     query = query.offset((page - 1) * page_size).limit(page_size)
@@ -666,19 +766,56 @@ async def get_followers(
     result = await db.execute(query)
     follows = result.scalars().all()
     
+    if not follows:
+        return []
+    
+    # ========== 批量查询优化 ==========
+    follower_ids = [f.follower_id for f in follows]
+    
+    # 1. 批量获取用户信息
+    users_result = await db.execute(select(User).where(User.id.in_(follower_ids)))
+    users_map = {u.id: u for u in users_result.scalars().all()}
+    
+    # 2. 批量获取VIP信息
+    vip_result = await db.execute(
+        select(UserVIP).where(UserVIP.user_id.in_(follower_ids), UserVIP.is_active == True)
+    )
+    vip_map = {v.user_id: v for v in vip_result.scalars().all()}
+    
+    # 3. 批量获取当前用户的关注状态
+    followed_ids = set()
+    if current_user:
+        follow_result = await db.execute(
+            select(UserFollow.following_id).where(
+                UserFollow.follower_id == current_user.id,
+                UserFollow.following_id.in_(follower_ids)
+            )
+        )
+        followed_ids = set(r[0] for r in follow_result.fetchall())
+    
+    # ========== 构建响应 ==========
     response = []
     for follow in follows:
-        user_result = await db.execute(select(User).where(User.id == follow.follower_id))
-        follower = user_result.scalar_one()
-        user_brief = await get_user_brief(db, follower)
+        follower = users_map.get(follow.follower_id)
+        if not follower:
+            continue
         
-        is_followed = False
-        if current_user:
-            is_followed = await check_is_followed(db, current_user.id, follower.id)
+        vip = vip_map.get(follow.follower_id)
+        is_vip = vip is not None and vip.expire_date and vip.expire_date > datetime.utcnow()
+        vip_level = vip.vip_level if (is_vip and vip) else 0
+        
+        user_brief = {
+            "id": follower.id,
+            "username": follower.username,
+            "nickname": follower.nickname,
+            "avatar": follower.avatar,
+            "is_vip": is_vip,
+            "vip_level": vip_level
+        }
         
         response.append({
             "user": user_brief,
-            "is_followed": is_followed,
+            "is_followed": follow.follower_id in followed_ids,
             "followed_at": follow.created_at
         })
     
@@ -693,7 +830,7 @@ async def get_following(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取关注列表"""
+    """获取关注列表 - 优化版本，批量查询"""
     query = select(UserFollow).where(UserFollow.follower_id == user_id)
     query = query.order_by(desc(UserFollow.created_at))
     query = query.offset((page - 1) * page_size).limit(page_size)
@@ -701,19 +838,56 @@ async def get_following(
     result = await db.execute(query)
     follows = result.scalars().all()
     
+    if not follows:
+        return []
+    
+    # ========== 批量查询优化 ==========
+    following_ids = [f.following_id for f in follows]
+    
+    # 1. 批量获取用户信息
+    users_result = await db.execute(select(User).where(User.id.in_(following_ids)))
+    users_map = {u.id: u for u in users_result.scalars().all()}
+    
+    # 2. 批量获取VIP信息
+    vip_result = await db.execute(
+        select(UserVIP).where(UserVIP.user_id.in_(following_ids), UserVIP.is_active == True)
+    )
+    vip_map = {v.user_id: v for v in vip_result.scalars().all()}
+    
+    # 3. 批量获取当前用户的关注状态
+    followed_ids = set()
+    if current_user:
+        follow_result = await db.execute(
+            select(UserFollow.following_id).where(
+                UserFollow.follower_id == current_user.id,
+                UserFollow.following_id.in_(following_ids)
+            )
+        )
+        followed_ids = set(r[0] for r in follow_result.fetchall())
+    
+    # ========== 构建响应 ==========
     response = []
     for follow in follows:
-        user_result = await db.execute(select(User).where(User.id == follow.following_id))
-        following = user_result.scalar_one()
-        user_brief = await get_user_brief(db, following)
+        following = users_map.get(follow.following_id)
+        if not following:
+            continue
         
-        is_followed = False
-        if current_user:
-            is_followed = await check_is_followed(db, current_user.id, following.id)
+        vip = vip_map.get(follow.following_id)
+        is_vip = vip is not None and vip.expire_date and vip.expire_date > datetime.utcnow()
+        vip_level = vip.vip_level if (is_vip and vip) else 0
+        
+        user_brief = {
+            "id": following.id,
+            "username": following.username,
+            "nickname": following.nickname,
+            "avatar": following.avatar,
+            "is_vip": is_vip,
+            "vip_level": vip_level
+        }
         
         response.append({
             "user": user_brief,
-            "is_followed": is_followed,
+            "is_followed": follow.following_id in followed_ids,
             "followed_at": follow.created_at
         })
     
@@ -822,7 +996,7 @@ async def get_topics(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取话题列表"""
+    """获取话题列表 - 优化版本，批量查询"""
     query = select(Topic).where(Topic.is_active == True)
     
     if parent_id is not None:
@@ -843,18 +1017,24 @@ async def get_topics(
     result = await db.execute(query)
     topics = result.scalars().all()
     
+    if not topics:
+        return []
+    
+    # ========== 批量查询关注状态 ==========
+    followed_topic_ids = set()
+    if current_user:
+        topic_ids = [t.id for t in topics]
+        follow_result = await db.execute(
+            select(TopicFollow.topic_id).where(
+                TopicFollow.topic_id.in_(topic_ids),
+                TopicFollow.user_id == current_user.id
+            )
+        )
+        followed_topic_ids = set(r[0] for r in follow_result.fetchall())
+    
+    # ========== 构建响应 ==========
     response = []
     for topic in topics:
-        is_followed = False
-        if current_user:
-            follow_result = await db.execute(
-                select(TopicFollow).where(
-                    TopicFollow.topic_id == topic.id,
-                    TopicFollow.user_id == current_user.id
-                )
-            )
-            is_followed = follow_result.scalar_one_or_none() is not None
-        
         response.append(TopicResponse(
             id=topic.id,
             name=topic.name,
@@ -863,7 +1043,7 @@ async def get_topics(
             post_count=topic.post_count,
             follow_count=topic.follow_count,
             is_hot=topic.is_hot,
-            is_followed=is_followed
+            is_followed=topic.id in followed_topic_ids
         ))
     
     return response

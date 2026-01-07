@@ -261,43 +261,7 @@
     </div>
 
     <!-- 底部导航 -->
-    <nav class="bottom-nav">
-      <!-- 首页 -->
-      <div class="nav-item active">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_0_1.webp" alt="首页" />
-        </div>
-        <span class="nav-label">首页</span>
-      </div>
-      <!-- 禁区 -->
-      <div class="nav-item" @click="$router.push('/user/forbidden')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_1_0.webp" alt="禁区" />
-        </div>
-        <span class="nav-label">禁区</span>
-      </div>
-      <!-- Soul -->
-      <div class="nav-item" @click="$router.push('/user/soul')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_2_0.webp" alt="Soul" />
-        </div>
-        <span class="nav-label">Soul</span>
-      </div>
-      <!-- 广场 -->
-      <div class="nav-item" @click="$router.push('/user/community')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_3_0.webp" alt="广场" />
-        </div>
-        <span class="nav-label">广场</span>
-      </div>
-      <!-- 自己 -->
-      <div class="nav-item" @click="$router.push('/user/profile')">
-        <div class="nav-icon-img">
-          <img src="/images/backgrounds/home_4_0.webp" alt="自己" />
-        </div>
-        <span class="nav-label">自己</span>
-      </div>
-    </nav>
+    <BottomNav />
     
     <!-- 导航列表抽屉 -->
     <div class="nav-drawer-mask" v-if="showNavDrawer" @click="showNavDrawer = false"></div>
@@ -325,8 +289,21 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import { useAbortController } from '@/composables/useAbortController'
+import { useTimers, useVideoCleanup } from '@/composables/useCleanup'
+import { formatCount, formatDuration } from '@/utils/format'
+import BottomNav from '@/components/common/BottomNav.vue'
 
 const router = useRouter()
+
+// 请求取消控制器
+const { signal: abortSignal } = useAbortController()
+
+// 定时器管理
+const timers = useTimers()
+
+// 视频预览资源管理
+const videoCleanup = useVideoCleanup()
 
 // 网站设置
 const siteSettings = ref({
@@ -347,7 +324,6 @@ const announcementText = ref('限时"尊享永久卡" 消费一次终身受益 �
 // 轮播广告
 const banners = ref([])
 const currentBannerIndex = ref(0)
-let bannerTimer = null
 
 // 分类（默认数据，会被后台数据覆盖）
 const categories = ref([
@@ -475,7 +451,7 @@ const selectFromDrawer = (catId) => {
 // 获取分类列表
 const fetchCategories = async () => {
   try {
-    const res = await axios.get('/api/v1/videos/categories')
+    const res = await axios.get('/api/v1/videos/categories', { signal: abortSignal })
     if (res.data && res.data.length > 0) {
       const allCategories = res.data
       
@@ -501,7 +477,9 @@ const fetchCategories = async () => {
       ]
     }
   } catch (e) {
-    console.error('获取分类失败', e)
+    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
+      console.error('获取分类失败', e)
+    }
   }
 }
 
@@ -534,24 +512,25 @@ const gridMode = ref(2) // 1=单列, 2=双列
 
 // 滚动动画
 const scrollContainer = ref(null)
-let scrollAnimation = null
 
 // 获取网站设置
 const fetchSiteSettings = async () => {
   try {
-    const res = await axios.get('/api/v1/settings/site')
+    const res = await axios.get('/api/v1/settings/site', { signal: abortSignal })
     if (res.data) {
       siteSettings.value = res.data
     }
   } catch (e) {
-    console.error('获取网站设置失败', e)
+    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
+      console.error('获取网站设置失败', e)
+    }
   }
 }
 
 // 获取功能入口
 const fetchFuncEntries = async () => {
   try {
-    const res = await axios.get('/api/v1/ads/func-entries')
+    const res = await axios.get('/api/v1/ads/func-entries', { signal: abortSignal })
     if (res.data && res.data.length > 0) {
       // 添加 imageError 标记用于图片加载失败时显示占位符
       funcItems.value = res.data.map(item => ({
@@ -560,38 +539,44 @@ const fetchFuncEntries = async () => {
       }))
     }
   } catch (e) {
-    console.error('获取功能入口失败', e)
+    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
+      console.error('获取功能入口失败', e)
+    }
   }
 }
 
 // 获取广告位
 const fetchIconAds = async () => {
   try {
-    const res = await axios.get('/api/v1/ads/icons')
+    const res = await axios.get('/api/v1/ads/icons', { signal: abortSignal })
     if (res.data) {
       adRow1.value = res.data.slice(0, 5)
       adRow2.value = res.data.slice(5, 10)
       // 数据加载完成后启动滚动动画
-      setTimeout(() => {
+      timers.setTimeout(() => {
         startScrollAnimation()
       }, 500)
     }
   } catch (e) {
-    console.error('获取广告位失败', e)
+    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
+      console.error('获取广告位失败', e)
+    }
   }
 }
 
 // 获取公告
 const fetchAnnouncements = async () => {
   try {
-    const res = await axios.get('/api/v1/ads/announcements')
+    const res = await axios.get('/api/v1/ads/announcements', { signal: abortSignal })
     if (res.data && res.data.length > 0) {
       announcements.value = res.data
       // 合并所有公告内容为滚动文字
       announcementText.value = res.data.map(a => a.content).join(' 🔸 ')
     }
   } catch (e) {
-    console.error('获取公告失败', e)
+    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
+      console.error('获取公告失败', e)
+    }
   }
 }
 
@@ -609,14 +594,16 @@ const fetchVideos = async () => {
       // 选择了某个一级分类，显示该分类下所有视频（包括二级分类的视频）
       params.category_id = activeCategory.value
     }
-    const res = await axios.get('/api/v1/videos', { params })
+    const res = await axios.get('/api/v1/videos', { params, signal: abortSignal })
     if (res.data && res.data.items) {
       videos.value = res.data.items
     } else if (Array.isArray(res.data)) {
       videos.value = res.data
     }
   } catch (e) {
-    console.error('获取视频列表失败', e)
+    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
+      console.error('获取视频列表失败', e)
+    }
   } finally {
     loadingVideos.value = false
   }
@@ -642,27 +629,10 @@ const startScrollAnimation = () => {
       scrollPos = 0
     }
     container.scrollLeft = scrollPos
-    scrollAnimation = requestAnimationFrame(animate)
+    timers.requestAnimationFrame(animate)
   }
   
-  scrollAnimation = requestAnimationFrame(animate)
-}
-
-// 格式化播放量
-const formatCount = (count) => {
-  if (!count) return '0'
-  if (count >= 10000) {
-    return (count / 10000).toFixed(1) + 'W'
-  }
-  return count.toString()
-}
-
-// 格式化时长
-const formatDuration = (seconds) => {
-  if (!seconds) return '0:00'
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
+  timers.requestAnimationFrame(animate)
 }
 
 // 获取封面URL
@@ -683,13 +653,13 @@ const getPreviewUrl = (url) => {
 const previewRefs = ref({})
 // 当前正在预览的视频ID
 const previewingVideoId = ref(null)
-let previewTimer = null
 // 触摸模式（首次触摸时启用）
 const isTouchMode = ref(false)
 
 const setPreviewRef = (id, el) => {
   if (el) {
     previewRefs.value[id] = el
+    videoCleanup.registerVideo(`preview_${id}`, el)
   }
 }
 
@@ -732,13 +702,14 @@ const stopCurrentPreview = () => {
 }
 
 // 开始预览 (PC鼠标悬停)
+let previewTimerId = null
 const startPreview = (video) => {
   if (!video.preview_url || isTouchMode.value) return
   
   previewingVideoId.value = video.id
   
-  if (previewTimer) clearTimeout(previewTimer)
-  previewTimer = setTimeout(() => {
+  if (previewTimerId) timers.clearTimeout(previewTimerId)
+  previewTimerId = timers.setTimeout(() => {
     if (previewingVideoId.value === video.id) {
       playPreview(video)
     }
@@ -749,9 +720,9 @@ const startPreview = (video) => {
 const stopPreview = (video) => {
   if (isTouchMode.value) return
   
-  if (previewTimer) {
-    clearTimeout(previewTimer)
-    previewTimer = null
+  if (previewTimerId) {
+    timers.clearTimeout(previewTimerId)
+    previewTimerId = null
   }
   
   if (previewingVideoId.value === video.id) {
@@ -845,20 +816,23 @@ const handleFuncClick = (func) => {
 // 获取轮播广告
 const fetchBanners = async () => {
   try {
-    const res = await axios.get('/api/v1/home/banners', { params: { position: 'home' } })
+    const res = await axios.get('/api/v1/home/banners', { params: { position: 'home' }, signal: abortSignal })
     banners.value = res.data || []
     if (banners.value.length > 1) {
       startBannerAutoPlay()
     }
   } catch (e) {
-    console.error('获取轮播广告失败:', e)
+    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
+      console.error('获取轮播广告失败:', e)
+    }
   }
 }
 
 // 轮播自动播放
+let bannerIntervalId = null
 const startBannerAutoPlay = () => {
-  if (bannerTimer) clearInterval(bannerTimer)
-  bannerTimer = setInterval(() => {
+  if (bannerIntervalId) timers.clearInterval(bannerIntervalId)
+  bannerIntervalId = timers.setInterval(() => {
     currentBannerIndex.value = (currentBannerIndex.value + 1) % banners.value.length
   }, 4000)
 }
@@ -890,18 +864,14 @@ onMounted(() => {
   fetchAnnouncements()
   fetchBanners()
   
-  setTimeout(() => {
+  timers.setTimeout(() => {
     startScrollAnimation()
   }, 1000)
 })
 
+// 资源清理由 composables 自动处理
 onUnmounted(() => {
-  if (scrollAnimation) {
-    cancelAnimationFrame(scrollAnimation)
-  }
-  if (bannerTimer) {
-    clearInterval(bannerTimer)
-  }
+  // timers 和 videoCleanup 会在组件卸载时自动清理
 })
 </script>
 
@@ -1980,28 +1950,50 @@ $breakpoint-xxl: 1280px; // 大桌面
 // 底部提示条
 .bottom-promo {
   position: fixed;
-  bottom: calc(clamp(50px, 12vw, 70px) + env(safe-area-inset-bottom, 0px)); /* 自适应导航栏高度 */
+  bottom: calc(52px + env(safe-area-inset-bottom, 0px)); /* 底部导航高度约48px + 一点间距 */
   left: 0;
   right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(6px, 2vw, 10px);
-  padding: clamp(2px, 0.5vw, 3px) clamp(12px, 4vw, 20px);
-  background: rgba(30, 15, 45, 0.5);
-  border-radius: 0;
-  box-shadow: none;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(30, 15, 45, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 99;
   width: 100%;
   
+  // 响应式最大宽度 - 与页面内容一致
+  @media (min-width: 768px) {
+    max-width: 750px;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px)); // 平板导航稍高
+    padding: 8px 20px;
+  }
+  
+  @media (min-width: 1024px) {
+    max-width: 900px;
+  }
+  
+  @media (min-width: 1280px) {
+    max-width: 1200px;
+  }
+  
   .promo-icon {
-    width: clamp(24px, 7vw, 32px);
-    height: clamp(24px, 7vw, 32px);
+    width: 28px;
+    height: 28px;
     flex-shrink: 0;
     
     svg {
       width: 100%;
       height: 100%;
+    }
+    
+    @media (min-width: 768px) {
+      width: 30px;
+      height: 30px;
     }
   }
   
@@ -2010,18 +2002,26 @@ $breakpoint-xxl: 1280px; // 大桌面
     overflow: hidden;
     display: flex;
     align-items: center;
-    height: clamp(18px, 5vw, 24px);
+    height: 22px;
     position: relative;
+    
+    @media (min-width: 768px) {
+      height: 24px;
+    }
     
     .scroll-text {
       display: inline-block;
-      font-size: clamp(12px, 3.5vw, 14px);
+      font-size: 13px;
       font-weight: 500;
-      color: rgba(255, 255, 255, 0.7);
+      color: rgba(255, 255, 255, 0.85);
       white-space: nowrap;
       animation: scroll-promo 25s linear infinite;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
       letter-spacing: 0.5px;
+      
+      @media (min-width: 768px) {
+        font-size: 14px;
+      }
     }
   }
   
@@ -2031,12 +2031,17 @@ $breakpoint-xxl: 1280px; // 大桌面
   }
   
   .close-btn {
-    padding: clamp(3px, 1vw, 5px) clamp(6px, 2vw, 10px);
+    padding: 4px 8px;
     cursor: pointer;
     opacity: 0.6;
-    font-size: clamp(12px, 3.5vw, 16px);
-    margin-left: clamp(2px, 1vw, 6px);
+    font-size: 14px;
+    margin-left: 4px;
     flex-shrink: 0;
+    
+    @media (min-width: 768px) {
+      font-size: 16px;
+      padding: 6px 10px;
+    }
     
     &:hover {
       opacity: 1;
@@ -2079,73 +2084,6 @@ $breakpoint-xxl: 1280px; // 大桌面
   }
 }
 
-// 底部导航
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 0;
-  padding-bottom: calc(clamp(2px, 0.8vw, 5px) + env(safe-area-inset-bottom, 0px)); /* 安全区域适配 */
-  background: linear-gradient(to top, #0a0a0a 0%, rgba(10, 10, 10, 0.98) 100%);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  width: 100%;
-  z-index: 100;
-  
-  .nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: clamp(1px, 0.5vw, 3px);
-    font-size: clamp(11px, 3vw, 13px);
-    color: rgba(255, 255, 255, 0.45);
-    cursor: pointer;
-    transition: all 0.25s ease;
-    padding: clamp(3px, 1vw, 6px) clamp(8px, 3vw, 16px);
-    
-    &:hover {
-      color: rgba(255, 255, 255, 0.7);
-    }
-    
-    .nav-icon-img {
-      width: clamp(24px, 7vw, 32px);
-      height: clamp(24px, 7vw, 32px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-      }
-      
-      .nav-icon-emoji {
-        font-size: clamp(20px, 6vw, 26px);
-      }
-    }
-    
-    .nav-label {
-      letter-spacing: 0.5px;
-      transition: all 0.25s ease;
-    }
-    
-    &.active {
-      .nav-label {
-        background: linear-gradient(135deg, #c084fc, #818cf8);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
-    }
-  }
-}
-
 // 横屏模式优化
 @media (orientation: landscape) and (max-height: 500px) {
   .fixed-header {
@@ -2164,44 +2102,27 @@ $breakpoint-xxl: 1280px; // 大桌面
     height: 80px !important;
   }
   
-  .bottom-nav {
-    padding: 2px 0;
-    
-    .nav-item {
-      padding: 2px 10px;
-      
-      .nav-icon-img {
-        width: 22px;
-        height: 22px;
-      }
-      
-      .nav-label {
-        font-size: 10px;
-      }
-    }
-  }
-  
   .short-video-float {
     width: 50px;
     height: 50px;
     right: 12px;
-    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   }
   
   .bottom-promo {
-    padding: 3px 10px;
-    bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+    padding: 4px 12px;
+    bottom: calc(40px + env(safe-area-inset-bottom, 0px));
     
     .promo-icon {
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
     }
     
     .promo-text {
-      height: 16px;
+      height: 18px;
       
       .scroll-text {
-        font-size: 11px;
+        font-size: 12px;
       }
     }
   }
