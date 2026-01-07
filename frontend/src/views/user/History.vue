@@ -78,9 +78,9 @@ const fetchHistory = async () => {
   } catch (error) {
     // 模拟数据
     history.value = [
-      { id: 1, video_id: 1, title: '极品女神激情缠绵', cover_url: '/uploads/thumbnails/3.jpg', duration: 2032, view_count: 131700, uploader_name: '创作者A', progress: 75, watched_at: new Date() },
-      { id: 2, video_id: 2, title: '清纯学妹宿舍私拍', cover_url: '/uploads/thumbnails/3.jpg', duration: 1800, view_count: 89000, uploader_name: '创作者B', progress: 30, watched_at: new Date(Date.now() - 86400000) },
-      { id: 3, video_id: 3, title: '人妻诱惑完整版', cover_url: '/uploads/thumbnails/3.jpg', duration: 2400, view_count: 56000, uploader_name: '创作者C', progress: 100, watched_at: new Date(Date.now() - 86400000) }
+      { id: 1, video_id: 1, title: '极品女神激情缠绵', cover_url: '/uploads/thumbnails/3.webp', duration: 2032, view_count: 131700, uploader_name: '创作者A', progress: 75, watched_at: new Date() },
+      { id: 2, video_id: 2, title: '清纯学妹宿舍私拍', cover_url: '/uploads/thumbnails/3.webp', duration: 1800, view_count: 89000, uploader_name: '创作者B', progress: 30, watched_at: new Date(Date.now() - 86400000) },
+      { id: 3, video_id: 3, title: '人妻诱惑完整版', cover_url: '/uploads/thumbnails/3.webp', duration: 2400, view_count: 56000, uploader_name: '创作者C', progress: 100, watched_at: new Date(Date.now() - 86400000) }
     ]
   }
 }
@@ -121,7 +121,7 @@ const getVipLevelIcon = (level) => {
 }
 
 const getCoverUrl = (url) => {
-  if (!url) return '/placeholder.jpg'
+  if (!url) return '/placeholder.webp'
   return url.startsWith('/') ? url : '/' + url
 }
 

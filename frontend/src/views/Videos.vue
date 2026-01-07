@@ -562,7 +562,7 @@ const formatDate = (date) => {
 }
 
 const getCoverUrl = (url) => {
-  if (!url) return '/placeholder.jpg'
+  if (!url) return '/placeholder.webp'
   if (url.startsWith('http') || url.startsWith('/')) return url
   return '/' + url
 }

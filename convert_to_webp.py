@@ -16,6 +16,15 @@ CONVERT_DIRS = [
     "frontend/public/images",
     "flutter/assets/images",
     "flutter/assets/icon",
+    "backend/uploads/images",
+    "backend/uploads/thumbnails",
+    "backend/uploads/site",
+    "backend/uploads/community",
+    "backend/uploads/gallery",
+    "backend/uploads/vip",
+    "backend/uploads/comments",
+    "backend/uploads/novel",
+    "backend/uploads/func",
 ]
 
 # 需要更新引用的代码目录
@@ -23,6 +32,9 @@ CODE_DIRS = [
     "frontend/src",
     "flutter/lib",
 ]
+
+# 数据库图片路径需要更新（运行后手动执行SQL）
+DB_UPDATE_NEEDED = True
 
 # 支持的图片格式
 SUPPORTED_FORMATS = {'.png', '.jpg', '.jpeg', '.gif'}

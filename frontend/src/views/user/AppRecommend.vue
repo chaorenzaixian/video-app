@@ -284,7 +284,7 @@ const openApp = (app) => {
   margin: 0 16px 20px;
   border-radius: 12px;
   overflow: hidden;
-  background-image: url('/images/backgrounds/bg_id_card.png');
+  background-image: url('/images/backgrounds/bg_id_card.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

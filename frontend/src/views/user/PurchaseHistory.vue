@@ -149,7 +149,7 @@ const goToDetail = (item) => {
 }
 
 const getCoverUrl = (url) => {
-  if (!url) return '/images/default-cover.jpg'
+  if (!url) return '/images/default-cover.webp'
   if (url.startsWith('http')) return url
   return url
 }

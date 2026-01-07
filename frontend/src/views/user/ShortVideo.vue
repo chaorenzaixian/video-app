@@ -355,7 +355,7 @@
           
           <!-- 推广图片 -->
           <div class="share-promo-image">
-            <img :src="shareVideo?.cover_url || '/images/default-cover.jpg'" alt="推广图" />
+            <img :src="shareVideo?.cover_url || '/images/default-cover.webp'" alt="推广图" />
           </div>
           
           <!-- 二维码和邀请信息 -->

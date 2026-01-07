@@ -637,7 +637,7 @@ const startScrollAnimation = () => {
 
 // 获取封面URL
 const getCoverUrl = (url) => {
-  if (!url) return '/placeholder.jpg'
+  if (!url) return '/placeholder.webp'
   if (url.startsWith('http')) return url
   return url
 }

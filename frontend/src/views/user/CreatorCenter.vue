@@ -81,7 +81,7 @@
       <div class="video-list" v-else-if="currentList.length > 0">
         <div class="video-item" v-for="video in currentList" :key="video.id" @click="handleVideoClick(video)">
           <div class="video-cover">
-            <img :src="video.cover_url || '/images/default-cover.jpg'" :alt="video.title" />
+            <img :src="video.cover_url || '/images/default-cover.webp'" :alt="video.title" />
             <span v-if="video.review_status === 'rejected'" class="status-tag rejected">未通过</span>
             <span v-else-if="video.review_status === 'pending'" class="status-tag pending">审核中</span>
           </div>

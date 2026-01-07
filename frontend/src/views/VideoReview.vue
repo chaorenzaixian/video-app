@@ -25,7 +25,7 @@
       <el-table-column label="视频信息" min-width="300">
         <template #default="{ row }">
           <div class="video-info">
-            <img :src="row.video?.cover_url || '/images/default-cover.jpg'" class="video-cover">
+            <img :src="row.video?.cover_url || '/images/default-cover.webp'" class="video-cover">
             <div class="video-detail">
               <span class="video-title">{{ row.video?.title }}</span>
               <span class="video-uploader">上传者: {{ row.video?.uploader?.nickname }}</span>

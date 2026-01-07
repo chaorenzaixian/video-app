@@ -26,7 +26,7 @@ class AppAssets {
   // ============================================
   // 个人中心图标
   // ============================================
-  static const String mineNotification = 'assets/images/mine_notification.png'; // 通知图标
+  static const String mineNotification = 'assets/images/mine_notification.webp'; // 通知图标
   static const String icService = 'assets/images/ic_service.webp';   // 客服图标
   static const String icSetting = 'assets/images/ic_setting.webp';   // 设置图标
   static const String icSign = 'assets/images/ic_sign.webp';         // 签到图标
@@ -62,10 +62,10 @@ class AppAssets {
   // ============================================
   // 发布相关
   // ============================================
-  static const String publishVideo = 'assets/images/publish_video.png';    // 发布视频
+  static const String publishVideo = 'assets/images/publish_video.webp';    // 发布视频
   static const String publishImg = 'assets/images/publish_img_1.webp';     // 发布图片
   static const String publishImgText = 'assets/images/publish_img_text.webp'; // 发布图文
-  static const String publish = 'assets/images/publish.png';               // 发布按钮
+  static const String publish = 'assets/images/publish.webp';               // 发布按钮
   
   // ============================================
   // 背景图片
@@ -73,7 +73,7 @@ class AppAssets {
   static const String girl = 'assets/images/girl.webp';
   static const String girl2 = 'assets/images/girl2.webp';
   static const String welfareVipBg = 'assets/images/welfare_vip_background.webp';
-  static const String walletCoinBg = 'assets/images/wallet_coin_bg_1.png';
+  static const String walletCoinBg = 'assets/images/wallet_coin_bg_1.webp';
   static const String walletCoinBg6 = 'assets/images/wallet_coin_bg6_1.webp';
   static const String searchRankBg = 'assets/images/search_rank_bg.webp';
   
@@ -182,7 +182,7 @@ class AppAssets {
   // ============================================
   // 个人中心图标
   // ============================================
-  static const String mineNotification = 'assets/images/mine_notification.png'; // 通知图标
+  static const String mineNotification = 'assets/images/mine_notification.webp'; // 通知图标
   static const String icService = 'assets/images/ic_service.webp';   // 客服图标
   static const String icSetting = 'assets/images/ic_setting.webp';   // 设置图标
   static const String icSign = 'assets/images/ic_sign.webp';         // 签到图标
@@ -218,10 +218,10 @@ class AppAssets {
   // ============================================
   // 发布相关
   // ============================================
-  static const String publishVideo = 'assets/images/publish_video.png';    // 发布视频
+  static const String publishVideo = 'assets/images/publish_video.webp';    // 发布视频
   static const String publishImg = 'assets/images/publish_img_1.webp';     // 发布图片
   static const String publishImgText = 'assets/images/publish_img_text.webp'; // 发布图文
-  static const String publish = 'assets/images/publish.png';               // 发布按钮
+  static const String publish = 'assets/images/publish.webp';               // 发布按钮
   
   // ============================================
   // 背景图片
@@ -229,7 +229,7 @@ class AppAssets {
   static const String girl = 'assets/images/girl.webp';
   static const String girl2 = 'assets/images/girl2.webp';
   static const String welfareVipBg = 'assets/images/welfare_vip_background.webp';
-  static const String walletCoinBg = 'assets/images/wallet_coin_bg_1.png';
+  static const String walletCoinBg = 'assets/images/wallet_coin_bg_1.webp';
   static const String walletCoinBg6 = 'assets/images/wallet_coin_bg6_1.webp';
   static const String searchRankBg = 'assets/images/search_rank_bg.webp';
   

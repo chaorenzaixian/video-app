@@ -120,7 +120,7 @@
           
           <!-- 推广图片 -->
           <div class="share-promo-image">
-            <img :src="video.cover_url || '/images/default-cover.jpg'" alt="推广图" />
+            <img :src="video.cover_url || '/images/default-cover.webp'" alt="推广图" />
               </div>
           
           <!-- 二维码和邀请信息 -->
@@ -1027,7 +1027,7 @@ const getVideoUrl = () => {
 }
 
 const getCoverUrl = (url) => {
-  if (!url) return '/placeholder.jpg'
+  if (!url) return '/placeholder.webp'
   if (url.startsWith('http') || url.startsWith('/')) return url
   return '/' + url
 }
@@ -1082,7 +1082,7 @@ const fetchVideo = async () => {
       id: videoId,
       title: '视频加载失败',
       description: '请稍后重试',
-      cover_url: '/uploads/thumbnails/3.jpg',
+      cover_url: '/uploads/thumbnails/3.webp',
       hls_url: '',
       duration: 0,
       view_count: 0,
@@ -1473,10 +1473,10 @@ const fetchIconAds = async () => {
 
 const loadMockRecommend = () => {
   recommendVideos.value = [
-    { id: 101, title: '极品外国女神 超美嫩穴 初下海被操喷水！', cover_url: '/uploads/thumbnails/3.jpg', duration: 4099, view_count: 1098000 },
-    { id: 102, title: '正宗大学生宿舍直播道具插逼骚话连篇', cover_url: '/uploads/thumbnails/3.jpg', duration: 1608, view_count: 1752000 },
-    { id: 103, title: '推荐视频3', cover_url: '/uploads/thumbnails/3.jpg', duration: 3200, view_count: 12300 },
-    { id: 104, title: '推荐视频4', cover_url: '/uploads/thumbnails/3.jpg', duration: 1500, view_count: 4500 }
+    { id: 101, title: '极品外国女神 超美嫩穴 初下海被操喷水！', cover_url: '/uploads/thumbnails/3.webp', duration: 4099, view_count: 1098000 },
+    { id: 102, title: '正宗大学生宿舍直播道具插逼骚话连篇', cover_url: '/uploads/thumbnails/3.webp', duration: 1608, view_count: 1752000 },
+    { id: 103, title: '推荐视频3', cover_url: '/uploads/thumbnails/3.webp', duration: 3200, view_count: 12300 },
+    { id: 104, title: '推荐视频4', cover_url: '/uploads/thumbnails/3.webp', duration: 1500, view_count: 4500 }
   ]
 }
 

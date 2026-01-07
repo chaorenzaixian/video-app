@@ -328,7 +328,7 @@ const handlePublish = async () => {
       // 将 base64 转为 Blob
       const coverBlob = await fetch(coverData).then(r => r.blob())
       const coverFormData = new FormData()
-      coverFormData.append('file', coverBlob, 'cover.jpg')
+      coverFormData.append('file', coverBlob, 'cover.webp')
       
       const coverRes = await api.post('/ads/upload/image', coverFormData, {
         headers: { 'Content-Type': 'multipart/form-data' }

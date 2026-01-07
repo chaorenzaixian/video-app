@@ -57,7 +57,7 @@
           <template #default="{ row }">
             <div class="video-cell">
               <div class="video-cover">
-                <img :src="row.video?.cover_url || '/images/default-cover.jpg'" alt="">
+                <img :src="row.video?.cover_url || '/images/default-cover.webp'" alt="">
                 <span class="video-duration">{{ formatDuration(row.video?.duration) }}</span>
               </div>
               <div class="video-detail">

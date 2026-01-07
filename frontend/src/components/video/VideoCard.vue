@@ -77,7 +77,7 @@ let previewTimer = null
 // 封面URL
 const coverUrl = computed(() => {
   const url = props.video.cover_url
-  if (!url) return '/placeholder.jpg'
+  if (!url) return '/placeholder.webp'
   if (url.startsWith('http')) return url
   return url
 })

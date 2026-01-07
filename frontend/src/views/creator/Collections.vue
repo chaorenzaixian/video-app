@@ -10,7 +10,7 @@
     <div class="collections-list">
       <div v-for="col in collections" :key="col.id" class="collection-item">
         <div class="collection-cover">
-          <img :src="col.cover_image || '/images/default-collection.jpg'" alt="">
+          <img :src="col.cover_image || '/images/default-collection.webp'" alt="">
           <span class="video-count">{{ col.total_videos }}集</span>
         </div>
         <div class="collection-info">

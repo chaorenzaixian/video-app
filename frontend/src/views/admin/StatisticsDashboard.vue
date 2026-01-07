@@ -85,7 +85,7 @@
           <div v-for="(video, index) in topVideos" :key="video.id" class="ranking-item">
             <span class="rank" :class="{ top3: index < 3 }">{{ index + 1 }}</span>
             <div class="item-cover">
-              <img :src="video.cover_url || '/images/default-cover.jpg'" alt="">
+              <img :src="video.cover_url || '/images/default-cover.webp'" alt="">
             </div>
             <div class="item-info">
               <span class="item-title">{{ video.title }}</span>

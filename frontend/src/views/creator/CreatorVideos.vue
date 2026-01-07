@@ -18,7 +18,7 @@
     <div class="videos-list">
       <div v-for="video in filteredVideos" :key="video.id" class="video-item">
         <div class="video-cover">
-          <img :src="video.cover_url || '/images/default-cover.jpg'" alt="">
+          <img :src="video.cover_url || '/images/default-cover.webp'" alt="">
           <span class="status-badge" :class="video.review_status">
             {{ getStatusText(video.review_status) }}
           </span>

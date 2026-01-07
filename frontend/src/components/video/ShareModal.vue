@@ -16,7 +16,7 @@
         
         <!-- 推广图片 -->
         <div class="share-promo-image">
-          <img :src="coverUrl || '/images/default-cover.jpg'" alt="推广图" />
+          <img :src="coverUrl || '/images/default-cover.webp'" alt="推广图" />
         </div>
         
         <!-- 二维码和邀请信息 -->
@@ -106,7 +106,7 @@ const saveImage = () => {
   // 创建下载链接
   const link = document.createElement('a')
   link.href = qrCodeUrl.value
-  link.download = 'share-qrcode.png'
+  link.download = 'share-qrcode.webp'
   link.click()
   ElMessage.success('图片已保存')
 }

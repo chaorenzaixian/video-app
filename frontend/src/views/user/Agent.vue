@@ -104,7 +104,7 @@
       
       <!-- 直推层级图 -->
       <div class="hierarchy-diagram">
-        <img src="/images/backgrounds/app_dlcj.png" alt="层级图" class="hierarchy-img" />
+        <img src="/images/backgrounds/app_dlcj.webp" alt="层级图" class="hierarchy-img" />
       </div>
     </div>
 
@@ -149,7 +149,7 @@
     <div class="bottom-section">
       <p class="question-text gradient-gold">规则看懂了不会实操？</p>
       <button class="btn-group-img" @click="joinGroup">
-        <img src="/images/backgrounds/app_dljq.png" alt="加群" />
+        <img src="/images/backgrounds/app_dljq.webp" alt="加群" />
       </button>
     </div>
 

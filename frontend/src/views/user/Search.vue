@@ -465,10 +465,10 @@ const fetchVideos = async () => {
   } catch (error) {
     // 模拟数据
     const mockVideos = [
-      { id: 1, title: '淫欲老师淫穴教学，肉穴满足男学生性幻想', cover_url: '/uploads/thumbnails/3.jpg', duration: 2524, view_count: 267000, tag: '国产', comment_count: 2, is_hot: true },
-      { id: 2, title: '【我是假亲妈，可你是真畜生啊！你怎么又内射我？】第二...', cover_url: '/uploads/thumbnails/3.jpg', duration: 1003, view_count: 151000, tag: '国产', comment_count: 0, is_hot: false },
-      { id: 3, title: '清纯学妹被室友偷拍私密视频流出', cover_url: '/uploads/thumbnails/3.jpg', duration: 1845, view_count: 89000, tag: '国产', comment_count: 5, is_hot: false },
-      { id: 4, title: '人妻出轨被老公发现后的惩罚', cover_url: '/uploads/thumbnails/3.jpg', duration: 2100, view_count: 156000, tag: '国产', comment_count: 3, is_hot: true }
+      { id: 1, title: '淫欲老师淫穴教学，肉穴满足男学生性幻想', cover_url: '/uploads/thumbnails/3.webp', duration: 2524, view_count: 267000, tag: '国产', comment_count: 2, is_hot: true },
+      { id: 2, title: '【我是假亲妈，可你是真畜生啊！你怎么又内射我？】第二...', cover_url: '/uploads/thumbnails/3.webp', duration: 1003, view_count: 151000, tag: '国产', comment_count: 0, is_hot: false },
+      { id: 3, title: '清纯学妹被室友偷拍私密视频流出', cover_url: '/uploads/thumbnails/3.webp', duration: 1845, view_count: 89000, tag: '国产', comment_count: 5, is_hot: false },
+      { id: 4, title: '人妻出轨被老公发现后的惩罚', cover_url: '/uploads/thumbnails/3.webp', duration: 2100, view_count: 156000, tag: '国产', comment_count: 3, is_hot: true }
     ]
     videos.value = mockVideos
   } finally {
@@ -516,7 +516,7 @@ const loadMore = () => {
 }
 
 const getCoverUrl = (url) => {
-  if (!url) return '/placeholder.jpg'
+  if (!url) return '/placeholder.webp'
   return url.startsWith('/') ? url : '/' + url
 }
 
