@@ -267,20 +267,35 @@
         </div>
       </div>
 
-      <!-- 图标广告位 -->
+      <!-- 图标广告位 - 循环滚动 -->
       <div class="ad-icons-section" v-if="iconAds.length > 0">
-        <div class="ad-icons-scroll">
-          <div 
-            v-for="ad in iconAds" 
-            :key="ad.id" 
-            class="ad-icon-item"
-            @click="handleAdClick(ad)"
-          >
-            <div class="icon-wrap">
-              <img v-if="ad.image" :src="ad.image" :alt="ad.name" />
-              <span v-else class="icon-emoji">{{ ad.icon }}</span>
+        <div class="ad-icons-scroll" ref="adIconsScrollRef">
+          <div class="ad-icons-track">
+            <div 
+              v-for="ad in iconAds" 
+              :key="'a-' + ad.id" 
+              class="ad-icon-item"
+              @click="handleAdClick(ad)"
+            >
+              <div class="icon-wrap">
+                <img v-if="ad.image" :src="ad.image" :alt="ad.name" />
+                <span v-else class="icon-emoji">{{ ad.icon }}</span>
+              </div>
+              <span class="icon-name">{{ ad.name }}</span>
             </div>
-            <span class="icon-name">{{ ad.name }}</span>
+            <!-- 复制一份用于无缝循环 -->
+            <div 
+              v-for="ad in iconAds" 
+              :key="'b-' + ad.id" 
+              class="ad-icon-item"
+              @click="handleAdClick(ad)"
+            >
+              <div class="icon-wrap">
+                <img v-if="ad.image" :src="ad.image" :alt="ad.name" />
+                <span v-else class="icon-emoji">{{ ad.icon }}</span>
+              </div>
+              <span class="icon-name">{{ ad.name }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -331,7 +346,6 @@
                 <span>{{ formatViewCount(rec.view_count) }}</span>
               </div>
               <div class="video-duration">{{ formatDuration(rec.duration) }}</div>
-              <div v-if="rec.is_vip_only" class="vip-tag">VIP</div>
             </div>
             <div class="video-info">
               <p class="video-title">{{ rec.title }}</p>
@@ -3338,11 +3352,11 @@ onUnmounted(() => {
     .follow-btn {
       background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
       border: none;
-      padding: 2px 8px;
-      border-radius: 2px;
+      padding: 6px 16px;
+      border-radius: 4px;
       color: #fff;
-      font-size: 10px;
-      font-weight: 400;
+      font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
       transition: all 0.2s ease;
       white-space: nowrap;
@@ -3459,22 +3473,35 @@ onUnmounted(() => {
   }
 }
 
-// 图标广告区
+// 图标广告区 - 循环滚动
 .ad-icons-section {
-  padding: 12px 0;
+  padding: 10px 0;
   background: #0a0a0a;
   overflow: hidden;
   
   .ad-icons-scroll {
+    overflow: hidden;
+    width: 100%;
+  }
+  
+  .ad-icons-track {
     display: flex;
-    gap: 12px;
-    padding: 0 15px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    gap: 6px;
+    animation: scrollAds 25s linear infinite;
+    width: max-content;
+    padding: 0 6px;
     
-    &::-webkit-scrollbar {
-      display: none;
+    &:hover {
+      animation-play-state: paused;
+    }
+  }
+  
+  @keyframes scrollAds {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
     }
   }
   
@@ -3485,11 +3512,17 @@ onUnmounted(() => {
     gap: 5px;
     flex-shrink: 0;
     cursor: pointer;
+    padding: 0 2px;
+    transition: transform 0.2s;
+    
+    &:active {
+      transform: scale(0.95);
+    }
     
     .icon-wrap {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
+      width: 58px;
+      height: 58px;
+      border-radius: 14px;
       overflow: hidden;
       background: rgba(255, 255, 255, 0.1);
       display: flex;
@@ -3503,14 +3536,14 @@ onUnmounted(() => {
       }
       
       .icon-emoji {
-        font-size: 22px;
+        font-size: 28px;
       }
     }
     
     .icon-name {
-      font-size: 10px;
+      font-size: 11px;
       color: rgba(255, 255, 255, 0.7);
-      max-width: 56px;
+      max-width: 64px;
       text-align: center;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -3523,7 +3556,7 @@ onUnmounted(() => {
 .recommend-tabs {
   display: flex;
   justify-content: space-around;
-  padding: 12px 20px;
+  padding: 12px 15px;
   background: #0a0a0a;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   position: sticky;
@@ -3557,7 +3590,7 @@ onUnmounted(() => {
 
 // 推荐视频
 .recommend-section {
-  padding: 0 6px 20px;
+  padding: 0;
   background: #0a0a0a;
 }
 
@@ -3565,9 +3598,9 @@ onUnmounted(() => {
 .video-list {
   display: grid;
   gap: clamp(10px, 3vw, 16px) clamp(6px, 2vw, 12px);
-  padding: clamp(6px, 2vw, 12px) clamp(4px, 1.5vw, 10px);
+  padding: 0 0 20px;
   background: #0a0a0a;
-  border-radius: 0 0 clamp(8px, 3vw, 14px) clamp(8px, 3vw, 14px);
+  border-radius: 0;
   
   &.double-column {
     grid-template-columns: repeat(2, 1fr);
