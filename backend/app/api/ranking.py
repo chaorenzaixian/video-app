@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
+from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -33,7 +34,7 @@ async def get_video_ranking(
     db: AsyncSession = Depends(get_db)
 ):
     """视频排行榜"""
-    query = select(Video).where(
+    query = select(Video).options(selectinload(Video.category)).where(
         Video.status == VideoStatus.PUBLISHED,
         Video.is_short != True
     )
