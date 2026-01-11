@@ -523,7 +523,79 @@ class VideoProcessor:
     
     @staticmethod
     def _run_transcode(video_id: int, file_path: str, hls_dir: str, output_path: str) -> str:
-        """同步转码（在线程池中运行）- 单码率版本"""
+        """同步转码（在线程池中运行）- 单码率版本，支持硬件加速"""
+        # 检测可用的硬件加速
+        hw_encoder = VideoProcessor._detect_hw_encoder()
+        
+        if hw_encoder == "qsv":
+            # Intel QSV 硬件加速
+            cmd = [
+                "ffmpeg",
+                "-hwaccel", "qsv",
+                "-i", file_path,
+                "-c:v", "h264_qsv",
+                "-c:a", "aac",
+                "-preset", "fast",
+                "-global_quality", "22",
+                "-hls_time", "10",
+                "-hls_list_size", "0",
+                "-hls_segment_filename", os.path.join(hls_dir, "segment_%03d.ts"),
+                "-y",
+                output_path
+            ]
+        elif hw_encoder == "nvenc":
+            # NVIDIA NVENC 硬件加速
+            cmd = [
+                "ffmpeg",
+                "-hwaccel", "cuda",
+                "-i", file_path,
+                "-c:v", "h264_nvenc",
+                "-c:a", "aac",
+                "-preset", "fast",
+                "-cq", "22",
+                "-hls_time", "10",
+                "-hls_list_size", "0",
+                "-hls_segment_filename", os.path.join(hls_dir, "segment_%03d.ts"),
+                "-y",
+                output_path
+            ]
+        else:
+            # 软件编码（CPU）
+            cmd = [
+                "ffmpeg",
+                "-i", file_path,
+                "-c:v", "libx264",
+                "-c:a", "aac",
+                "-preset", "fast",
+                "-crf", "22",
+                "-threads", "0",
+                "-hls_time", "10",
+                "-hls_list_size", "0",
+                "-hls_segment_filename", os.path.join(hls_dir, "segment_%03d.ts"),
+                "-y",
+                output_path
+            ]
+        
+        try:
+            print(f"[Video] 转码命令 ({hw_encoder or 'cpu'}): {' '.join(cmd[:8])}...")
+            result = subprocess.run(cmd, capture_output=True, timeout=1800)  # 30分钟超时
+            if result.returncode != 0:
+                error_msg = result.stderr.decode('utf-8', errors='ignore')
+                print(f"转码错误: {error_msg[:500]}")
+                # 如果硬件加速失败，回退到软件编码
+                if hw_encoder:
+                    print(f"[WARN] 硬件加速失败，回退到CPU编码...")
+                    return VideoProcessor._run_transcode_cpu(video_id, file_path, hls_dir, output_path)
+                return ""
+            print(f"[OK] 转码成功 ({hw_encoder or 'cpu'}): {output_path}")
+            return f"/uploads/hls/{video_id}/playlist.m3u8"
+        except Exception as e:
+            print(f"转码失败: {e}")
+            return ""
+    
+    @staticmethod
+    def _run_transcode_cpu(video_id: int, file_path: str, hls_dir: str, output_path: str) -> str:
+        """纯CPU软件转码（回退方案）"""
         cmd = [
             "ffmpeg",
             "-i", file_path,
@@ -531,6 +603,7 @@ class VideoProcessor:
             "-c:a", "aac",
             "-preset", "fast",
             "-crf", "22",
+            "-threads", "0",
             "-hls_time", "10",
             "-hls_list_size", "0",
             "-hls_segment_filename", os.path.join(hls_dir, "segment_%03d.ts"),
@@ -539,23 +612,59 @@ class VideoProcessor:
         ]
         
         try:
-            print(f"转码命令: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, timeout=1800)  # 30分钟超时
+            result = subprocess.run(cmd, capture_output=True, timeout=1800)
             if result.returncode != 0:
-                print(f"转码错误: {result.stderr.decode('utf-8', errors='ignore')}")
+                print(f"CPU转码错误: {result.stderr.decode('utf-8', errors='ignore')[:500]}")
                 return ""
-            print(f"转码成功: {output_path}")
             return f"/uploads/hls/{video_id}/playlist.m3u8"
         except Exception as e:
-            print(f"转码失败: {e}")
+            print(f"CPU转码失败: {e}")
             return ""
+    
+    @staticmethod
+    def _detect_hw_encoder() -> str:
+        """检测可用的硬件编码器"""
+        # 检测 Intel QSV
+        try:
+            result = subprocess.run(
+                ["ffmpeg", "-hide_banner", "-encoders"],
+                capture_output=True, timeout=10
+            )
+            encoders = result.stdout.decode('utf-8', errors='ignore')
+            
+            if "h264_qsv" in encoders:
+                # 进一步验证QSV是否真正可用
+                test_result = subprocess.run(
+                    ["ffmpeg", "-hide_banner", "-init_hw_device", "qsv=hw", "-f", "lavfi", "-i", "nullsrc=s=256x256:d=1", "-c:v", "h264_qsv", "-f", "null", "-"],
+                    capture_output=True, timeout=10
+                )
+                if test_result.returncode == 0:
+                    print("[HW] Intel QSV 硬件加速可用")
+                    return "qsv"
+            
+            if "h264_nvenc" in encoders:
+                print("[HW] NVIDIA NVENC 硬件加速可用")
+                return "nvenc"
+            
+            if "h264_amf" in encoders:
+                print("[HW] AMD AMF 硬件加速可用")
+                return "amf"
+                
+        except Exception as e:
+            print(f"[WARN] 硬件加速检测失败: {e}")
+        
+        print("[HW] 使用CPU软件编码")
+        return ""
 
     @staticmethod
     def _run_transcode_adaptive(video_id: int, file_path: str, hls_dir: str, video_height: int) -> str:
         """
         自适应码率转码（多清晰度HLS）
-        根据源视频质量生成多个清晰度版本
+        根据源视频质量生成多个清晰度版本，支持硬件加速
         """
+        # 检测硬件加速
+        hw_encoder = VideoProcessor._detect_hw_encoder()
+        
         # 根据源视频高度决定生成哪些清晰度
         qualities = []
         if video_height >= 1080:
@@ -584,24 +693,59 @@ class VideoProcessor:
             
             output_playlist = os.path.join(quality_dir, "playlist.m3u8")
             
-            cmd = [
-                "ffmpeg",
-                "-i", file_path,
-                "-c:v", "libx264",
-                "-c:a", "aac",
-                "-preset", "fast",
-                "-vf", f"scale=-2:{q['height']}",
-                "-b:v", q["bitrate"],
-                "-b:a", q["audio"],
-                "-hls_time", "10",
-                "-hls_list_size", "0",
-                "-hls_segment_filename", os.path.join(quality_dir, "segment_%03d.ts"),
-                "-y",
-                output_playlist
-            ]
+            # 根据硬件加速类型构建命令
+            if hw_encoder == "qsv":
+                cmd = [
+                    "ffmpeg",
+                    "-hwaccel", "qsv",
+                    "-i", file_path,
+                    "-c:v", "h264_qsv",
+                    "-c:a", "aac",
+                    "-vf", f"scale_qsv=-1:{q['height']}",
+                    "-b:v", q["bitrate"],
+                    "-b:a", q["audio"],
+                    "-hls_time", "10",
+                    "-hls_list_size", "0",
+                    "-hls_segment_filename", os.path.join(quality_dir, "segment_%03d.ts"),
+                    "-y",
+                    output_playlist
+                ]
+            elif hw_encoder == "nvenc":
+                cmd = [
+                    "ffmpeg",
+                    "-hwaccel", "cuda",
+                    "-i", file_path,
+                    "-c:v", "h264_nvenc",
+                    "-c:a", "aac",
+                    "-vf", f"scale=-2:{q['height']}",
+                    "-b:v", q["bitrate"],
+                    "-b:a", q["audio"],
+                    "-hls_time", "10",
+                    "-hls_list_size", "0",
+                    "-hls_segment_filename", os.path.join(quality_dir, "segment_%03d.ts"),
+                    "-y",
+                    output_playlist
+                ]
+            else:
+                cmd = [
+                    "ffmpeg",
+                    "-i", file_path,
+                    "-c:v", "libx264",
+                    "-c:a", "aac",
+                    "-preset", "fast",
+                    "-threads", "0",
+                    "-vf", f"scale=-2:{q['height']}",
+                    "-b:v", q["bitrate"],
+                    "-b:a", q["audio"],
+                    "-hls_time", "10",
+                    "-hls_list_size", "0",
+                    "-hls_segment_filename", os.path.join(quality_dir, "segment_%03d.ts"),
+                    "-y",
+                    output_playlist
+                ]
             
             try:
-                print(f"[Video] 转码 {quality_name}: video_id={video_id}")
+                print(f"[Video] 转码 {quality_name} ({hw_encoder or 'cpu'}): video_id={video_id}")
                 result = subprocess.run(cmd, capture_output=True, timeout=1800)
                 
                 if result.returncode == 0:
@@ -624,7 +768,7 @@ class VideoProcessor:
         with open(master_playlist_path, "w") as f:
             f.write(master_playlist_content)
         
-        print(f"[OK] 自适应码率转码完成: {success_count}/{len(qualities)} 个清晰度")
+        print(f"[OK] 自适应码率转码完成 ({hw_encoder or 'cpu'}): {success_count}/{len(qualities)} 个清晰度")
         return f"/uploads/hls/{video_id}/master.m3u8"
 
     @staticmethod

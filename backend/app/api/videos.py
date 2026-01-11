@@ -161,12 +161,14 @@ async def upload_video(
     description: Optional[str] = Form(None),
     category_id: Optional[int] = Form(None),
     is_vip_only: bool = Form(False),
+    coin_price: int = Form(0),  # 视频价格（金币）
+    pay_type: str = Form("free"),  # 付费类型: free/coins/vip_free
     tags: Optional[str] = Form(None),  # 逗号分隔的标签名称
     custom_cover_url: Optional[str] = Form(None),  # 自定义封面URL
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """上传视频（支持自定义封面）"""
+    """上传视频（支持自定义封面和价格设置）"""
     # 检查文件类型
     allowed_types = ["video/mp4", "video/webm", "video/avi", "video/mov", "video/mkv"]
     if file.content_type not in allowed_types:
@@ -198,6 +200,8 @@ async def upload_video(
         category_id=category_id,
         uploader_id=current_user.id,
         is_vip_only=is_vip_only,
+        coin_price=coin_price,
+        pay_type=pay_type if coin_price > 0 else "free",
         status=VideoStatus.PROCESSING,
         file_size=len(content)
     )
@@ -296,6 +300,8 @@ async def batch_upload_videos(
     files: List[UploadFile] = File(...),
     category_id: Optional[int] = Form(None),
     is_vip_only: bool = Form(False),
+    coin_price: int = Form(0),  # 视频价格（金币）
+    pay_type: str = Form("free"),  # 付费类型: free/coins/vip_free
     tags: Optional[str] = Form(None),
     title_prefix: Optional[str] = Form(None),  # 标题前缀
     current_user: User = Depends(get_current_user),
@@ -304,7 +310,7 @@ async def batch_upload_videos(
     """
     批量上传视频
     - 支持同时上传多个视频文件
-    - 统一设置分类、标签、VIP状态
+    - 统一设置分类、标签、VIP状态、价格
     - 标题默认使用文件名，可添加前缀
     """
     allowed_types = ["video/mp4", "video/webm", "video/avi", "video/mov", "video/mkv", 
@@ -363,6 +369,8 @@ async def batch_upload_videos(
                 category_id=category_id,
                 uploader_id=current_user.id,
                 is_vip_only=is_vip_only,
+                coin_price=coin_price,
+                pay_type=pay_type if coin_price > 0 else "free",
                 status=VideoStatus.PROCESSING,
                 file_size=len(content)
             )
@@ -858,6 +866,87 @@ async def get_user_liked_videos(
     videos = result.scalars().all()
     
     # 格式化时长
+    def format_duration(seconds):
+        if not seconds:
+            return "00:00"
+        mins = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"{mins}:{secs:02d}"
+    
+    items = [
+        {
+            "id": v.id,
+            "title": v.title,
+            "thumbnail": v.cover_url,
+            "duration": format_duration(v.duration),
+            "duration_seconds": v.duration,
+            "view_count": v.view_count or 0,
+            "like_count": v.like_count or 0,
+            "is_short": v.is_short,
+            "created_at": v.created_at.isoformat() if v.created_at else None
+        }
+        for v in videos
+    ]
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "has_more": offset + len(items) < total
+    }
+
+
+@router.get("/user/collected")
+async def get_user_collected_videos(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    video_type: str = Query("video", description="video=普通视频, short=短视频, all=全部"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取用户收藏的视频列表"""
+    from app.models.social import VideoFavorite
+    
+    # 构建查询
+    query = (
+        select(Video)
+        .join(VideoFavorite, Video.id == VideoFavorite.video_id)
+        .where(VideoFavorite.user_id == current_user.id)
+        .where(Video.status == VideoStatus.PUBLISHED)
+    )
+    
+    # 按视频类型过滤
+    if video_type == "video":
+        query = query.where(Video.is_short == False)
+    elif video_type == "short":
+        query = query.where(Video.is_short == True)
+    
+    # 按收藏时间倒序排列
+    query = query.order_by(VideoFavorite.created_at.desc())
+    
+    # 计算总数
+    count_query = (
+        select(func.count(Video.id))
+        .join(VideoFavorite, Video.id == VideoFavorite.video_id)
+        .where(VideoFavorite.user_id == current_user.id)
+        .where(Video.status == VideoStatus.PUBLISHED)
+    )
+    if video_type == "video":
+        count_query = count_query.where(Video.is_short == False)
+    elif video_type == "short":
+        count_query = count_query.where(Video.is_short == True)
+    
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # 分页
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+    
+    result = await db.execute(query)
+    videos = result.scalars().all()
+    
     def format_duration(seconds):
         if not seconds:
             return "00:00"

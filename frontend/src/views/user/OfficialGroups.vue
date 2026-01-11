@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <div class="header">
       <div class="back-btn" @click="router.back()">
-        <span class="icon">&lt;</span>
+        <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
       </div>
       <div class="title">加群开车</div>
       <div class="placeholder"></div>

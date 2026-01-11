@@ -31,20 +31,20 @@ const navItems = [
     exactMatch: true
   },
   { 
-    path: '/user/forbidden', 
+    path: '/user/darkweb-entry', 
     label: '禁区', 
     icon: '/images/backgrounds/home_1_0.webp', 
     activeIcon: '/images/backgrounds/home_1_1.webp' 
   },
   { 
-    path: '/user/soul', 
-    label: 'Soul', 
+    path: '/user/dating', 
+    label: '交友', 
     icon: '/images/backgrounds/home_2_0.webp', 
     activeIcon: '/images/backgrounds/home_2_1.webp' 
   },
   { 
     path: '/user/community', 
-    label: '广场', 
+    label: '社区', 
     icon: '/images/backgrounds/home_3_0.webp', 
     activeIcon: '/images/backgrounds/home_3_1.webp' 
   },
@@ -140,7 +140,7 @@ const navigateTo = (path) => {
   }
   
   .nav-label {
-    font-size: 12px;
+    font-size: 13px;
     letter-spacing: 0.5px;
     color: rgba(255, 255, 255, 0.45);
     transition: all 0.25s ease;
@@ -167,7 +167,7 @@ const navigateTo = (path) => {
     }
     
     .nav-label {
-      font-size: 13px;
+      font-size: 14px;
     }
   }
 }

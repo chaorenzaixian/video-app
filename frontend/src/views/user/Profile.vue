@@ -1,5 +1,11 @@
 <template>
   <div class="profile-page">
+    <!-- 顶部背景图 -->
+    <div class="profile-bg">
+      <img src="/images/backgrounds/profile_bg.webp" alt="" />
+      <div class="bg-overlay"></div>
+    </div>
+    
     <!-- 顶部栏 -->
     <header class="page-header">
       <div class="header-left">
@@ -9,7 +15,7 @@
         </div>
       </div>
       <div class="header-right">
-        <img src="/images/backgrounds/ic_service.webp" class="header-icon-img" alt="客服" @click="$router.push('/user/support')" />
+        <img src="/images/backgrounds/ic_service.webp" class="header-icon-img" alt="客服" @click="$router.push('/user/customer-service')" />
         <img src="/images/backgrounds/ic_setting.webp" class="header-icon-img" alt="设置" @click="$router.push('/user/settings')" />
       </div>
     </header>
@@ -52,16 +58,8 @@
           <span>{{ signingIn ? '签到中...' : '签到' }}</span>
         </div>
       </div>
-      <div class="stats-row">
-        <div class="stat-box">
-          <span class="stat-num">{{ user.cache_count || 0 }}</span>
-          <span class="stat-text">缓存视频</span>
-        </div>
-        <div class="stat-box">
-          <span class="stat-num">{{ user.ai_count || 0 }}</span>
-          <span class="stat-text">剩余AI脱衣次数</span>
-        </div>
-      </div>
+      <!-- 统计数据已隐藏，保留占位空间 -->
+      <div class="stats-row" style="height: 50px;"></div>
     </div>
 
     <!-- VIP推广条 -->
@@ -143,7 +141,7 @@
         </div>
         <span>我的购买</span>
       </div>
-      <div class="quick-item" @click="$router.push('/user/ai')">
+      <div class="quick-item" @click="showComingSoon">
         <div class="quick-icon-img">
           <img src="/images/backgrounds/ic_ai.webp" alt="AI女友" />
         </div>
@@ -280,7 +278,7 @@
       </div>
       
       <!-- 我的喜欢 -->
-      <div class="menu-row" @click="$router.push('/user/favorites')">
+      <div class="menu-row" @click="$router.push('/user/likes')">
         <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
         </svg>
@@ -534,6 +532,11 @@ const checkUpdate = () => {
   ElMessage.success('当前已是最新版本 v1.0.0')
 }
 
+// 正在开发中提示
+const showComingSoon = () => {
+  ElMessage.info('正在开发中，敬请期待')
+}
+
 // 选择桌面图标
 const selectDesktopIcon = (iconId) => {
   selectedIcon.value = iconId
@@ -720,6 +723,7 @@ $breakpoint-4k: 2560px;
   width: 100%;
   max-width: 100vw;
   margin: 0 auto;
+  position: relative;
   
   @media (min-width: $breakpoint-lg) {
     max-width: 750px;
@@ -742,8 +746,43 @@ $breakpoint-4k: 2560px;
   }
 }
 
+// 顶部背景图
+.profile-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 220px;
+  overflow: hidden;
+  z-index: 0;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.5);
+  }
+  
+  .bg-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(13, 13, 13, 0.3) 0%,
+      rgba(13, 13, 13, 0.5) 50%,
+      rgba(13, 13, 13, 0.9) 85%,
+      rgba(13, 13, 13, 1) 100%
+    );
+  }
+}
+
 // 顶部栏
 .page-header {
+  position: relative;
+  z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -807,6 +846,8 @@ $breakpoint-4k: 2560px;
 
 // 用户信息
 .user-section {
+  position: relative;
+  z-index: 10;
   padding: 0 clamp(14px, 5vw, 24px) clamp(4px, 1vw, 8px);
   
   .user-row {
@@ -1454,19 +1495,20 @@ $breakpoint-4k: 2560px;
     .menu-icon {
       width: clamp(18px, 5.5vw, 24px);
       height: clamp(18px, 5.5vw, 24px);
-      color: rgba(255, 255, 255, 0.7);
+      color: rgba(255, 255, 255, 0.55);
       margin-right: clamp(10px, 3.5vw, 16px);
     }
     
     .menu-text {
       flex: 1;
       font-size: clamp(14px, 3.5vw, 14px);
+      color: rgba(255, 255, 255, 0.85);
     }
     
     .menu-arrow {
       width: clamp(16px, 5vw, 22px);
       height: clamp(16px, 5vw, 22px);
-      color: rgba(255, 255, 255, 0.3);
+      color: rgba(255, 255, 255, 0.25);
     }
     
     .menu-badge {

@@ -2,7 +2,7 @@
   <div class="short-upload-page">
     <!-- 顶部导航 -->
     <header class="page-header">
-      <div class="back-btn" @click="handleBack">×</div>
+      <div class="back-btn" @click="handleBack"><img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" /></div>
       <h1 class="page-title">发布短视频</h1>
       <button 
         class="publish-btn" 

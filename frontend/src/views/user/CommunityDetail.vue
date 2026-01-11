@@ -2,11 +2,9 @@
   <div class="detail-page">
     <!-- 顶部导航 -->
     <div class="top-bar">
-      <span class="back" @click="$router.back()">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-        </svg>
-      </span>
+      <div class="back-btn" @click="goBack">
+        <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
+      </div>
       <span class="title">帖子详情</span>
       <span class="placeholder"></span>
     </div>
@@ -61,7 +59,25 @@
 
       <!-- 视频 -->
       <div v-if="post.video_url" class="video-wrapper">
-        <video :src="post.video_url" controls playsinline></video>
+        <video 
+          v-if="canPlayVideo" 
+          ref="videoRef"
+          :src="post.video_url" 
+          controls 
+          playsinline
+        ></video>
+        <div v-else class="video-locked">
+          <div class="video-cover">
+            <img :src="post.images?.[0] || '/images/default-cover.webp'" alt="封面" />
+            <div class="video-overlay">
+              <div class="vip-lock-text">本视频需要开通 VIP 预览</div>
+              <div class="vip-buttons">
+                <button class="buy-vip-btn" @click="goToVip">前往开通VIP</button>
+                <button class="share-vip-btn" @click="shareForVip">邀请好友得VIP</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -71,28 +87,31 @@
       :comment-count="post?.comment_count || 0"
       :loading="loadingComments"
       :has-more="hasMoreComments"
+      :post-id="postId"
       @like-comment="likeComment"
       @reply-comment="replyTo"
       @go-profile="goProfile"
+      @preview-image="previewCommentImage"
     />
 
     <!-- 底部操作栏 -->
     <div class="bottom-bar">
       <div class="input-wrapper" @click="openCommentInput">
+        <img :src="commentIcon" class="input-icon" />
         <span class="input-placeholder">请输入评论</span>
       </div>
       <div class="action-btns">
         <span class="action-item" @click="sharePost">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
-          分享
+          <img :src="shareIcon" class="action-icon" />
+          <span class="action-text">分享</span>
         </span>
-        <span class="action-item" @click="collectPost">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-          {{ formatCount(post?.collect_count || post?.view_count || 0) }}
+        <span class="action-item" :class="{ active: post?.is_collected }" @click="collectPost">
+          <img :src="post?.is_collected ? collectRedIcon : collectEmptyIcon" class="action-icon" />
+          <span class="action-text">{{ formatCount(post?.collect_count || 0) }}</span>
         </span>
-        <span class="action-item" :class="{ liked: post?.is_liked }" @click="likePost">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-          {{ formatCount(post?.like_count || 0) }}
+        <span class="action-item" :class="{ active: post?.is_liked }" @click="likePost">
+          <img :src="post?.is_liked ? likeRedIcon : likeEmptyIcon" class="action-icon" />
+          <span class="action-text">{{ formatCount(post?.like_count || 0) }}</span>
         </span>
       </div>
     </div>
@@ -109,6 +128,42 @@
     <div class="image-preview" v-if="previewVisible" @click="previewVisible = false">
       <img :src="previewImageUrl" />
     </div>
+
+    <!-- 分享弹窗 -->
+    <Teleport to="body">
+      <div class="share-modal-overlay" v-if="showShareModal" @click.self="showShareModal = false">
+        <div class="share-modal-content">
+          <button class="share-modal-close" @click="showShareModal = false">×</button>
+          
+          <div class="share-header">
+            <img src="/images/backgrounds/ic_launcher.webp" alt="Logo" class="share-logo" />
+            <div class="share-title-info">
+              <h3 class="share-site-name">Soul成人版</h3>
+              <p class="share-site-desc">全网最全成人视频平台</p>
+            </div>
+          </div>
+          
+          <div class="share-promo-image">
+            <img :src="post?.images?.[0] || '/images/default-cover.webp'" alt="推广图" />
+          </div>
+          
+          <div class="share-qr-section">
+            <div class="share-qrcode">
+              <img :src="shareQrCodeUrl" alt="二维码" />
+            </div>
+            <div class="share-invite-info">
+              <div class="invite-code">邀请码 <span>{{ userInviteCode }}</span></div>
+              <div class="official-url">官方网址:{{ shareBaseUrl }}</div>
+            </div>
+          </div>
+          
+          <div class="share-actions">
+            <button class="copy-link-btn" @click="copyShareLink">复制链接</button>
+            <button class="save-image-btn" @click="saveShareImage">保存图片</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -121,6 +176,14 @@ import api from '@/utils/api'
 import { getAvatarUrl } from '@/utils/avatar'
 import CommentsList from '@/components/community/CommentsList.vue'
 import CommentInput from '@/components/community/CommentInput.vue'
+
+// 图标导入
+import likeEmptyIcon from '@/assets/icons/like_empty.png'
+import likeRedIcon from '@/assets/icons/like_red.png'
+import collectEmptyIcon from '@/assets/icons/collect_empty.png'
+import collectRedIcon from '@/assets/icons/collect_red.png'
+import commentIcon from '@/assets/icons/comment.png'
+import shareIcon from '@/assets/icons/share_grey.png'
 
 const route = useRoute()
 const router = useRouter()
@@ -145,6 +208,25 @@ const postId = computed(() => route.params.id)
 const currentUserId = computed(() => userStore.user?.id)
 
 const post = ref(null)
+const videoRef = ref(null)
+
+// 判断用户是否是VIP
+const isUserVip = computed(() => userStore.user?.is_vip || userStore.user?.vip_level > 0)
+
+// 判断是否已购买该帖子视频
+const hasPurchased = computed(() => post.value?.has_purchased || false)
+
+// 判断是否可以播放视频
+const canPlayVideo = computed(() => {
+  // 如果没有视频，不需要判断
+  if (!post.value?.video_url) return false
+  // 如果是VIP用户，可以播放
+  if (isUserVip.value) return true
+  // 如果已购买，可以播放
+  if (hasPurchased.value) return true
+  // 默认不能播放（需要VIP）
+  return false
+})
 const comments = ref([])
 const replyTarget = ref(null)
 const loadingComments = ref(false)
@@ -152,9 +234,22 @@ const hasMoreComments = ref(true)
 const commentPage = ref(1)
 const showCommentInput = ref(false)
 
+// 分享相关
+const showShareModal = ref(false)
+const userInviteCode = ref('3AUUHR')
+const shareBaseUrl = computed(() => window.location.origin.replace(/^https?:\/\//, ''))
+const shareFullUrl = computed(() => `${window.location.origin}/user/community/${postId.value}?ref=${userInviteCode.value}`)
+const shareQrCodeUrl = computed(() => `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(shareFullUrl.value)}`)
+
 // 图片预览
 const previewVisible = ref(false)
 const previewImageUrl = ref('')
+
+// 预览评论图片
+const previewCommentImage = (url) => {
+  previewImageUrl.value = url
+  previewVisible.value = true
+}
 
 // 获取动态详情
 const fetchPost = async () => {
@@ -212,12 +307,52 @@ const likePost = async () => {
 
 // 收藏
 const collectPost = async () => {
-  ElMessage.info('收藏功能开发中')
+  try {
+    const res = await api.post(`/community/posts/${postId.value}/collect`)
+    post.value.is_collected = res.data.collected
+    post.value.collect_count = res.data.collect_count
+    ElMessage.success(res.data.collected ? '收藏成功' : '已取消收藏')
+  } catch (e) {
+    ElMessage.error('操作失败')
+  }
 }
 
 // 分享
 const sharePost = () => {
-  ElMessage.info('分享功能开发中')
+  showShareModal.value = true
+}
+
+// 复制分享链接
+const copyShareLink = () => {
+  navigator.clipboard.writeText(shareFullUrl.value).then(() => {
+    ElMessage.success('分享链接已复制，分享给好友注册后可获得3日VIP')
+  }).catch(() => {
+    ElMessage.info('请复制链接分享：' + shareFullUrl.value)
+  })
+}
+
+// 保存分享图片
+const saveShareImage = () => {
+  ElMessage.info('长按图片保存到相册')
+}
+
+// 返回上一页
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/user/community')
+  }
+}
+
+// 分享获得VIP
+const shareForVip = () => {
+  showShareModal.value = true
+}
+
+// 跳转VIP页面
+const goToVip = () => {
+  router.push('/user/vip')
 }
 
 // 关注用户
@@ -254,20 +389,33 @@ const openCommentInput = () => {
 
 // 回复评论
 const replyTo = (comment) => {
+  console.log('replyTo called:', comment)
   replyTarget.value = comment
   showCommentInput.value = true
 }
 
 // 提交评论
-const submitComment = async ({ content, replyTarget: target }) => {
+const submitComment = async ({ content, image, replyTarget: target }) => {
   try {
+    let imageUrl = null
+    
+    // 如果有图片，先上传
+    if (image) {
+      const formData = new FormData()
+      formData.append('file', image)
+      const uploadRes = await api.post('/community/upload/image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      imageUrl = uploadRes.data?.url || uploadRes.url
+    }
+    
     const payload = {
       content: content,
-      images: []
+      images: imageUrl ? [imageUrl] : []
     }
     if (target) {
       payload.parent_id = target.parent_id || target.id
-      payload.reply_to_user_id = target.user.id
+      payload.reply_to_user_id = target.user?.id
     }
     
     await api.post(`/community/posts/${postId.value}/comments`, payload)
@@ -335,16 +483,6 @@ onBeforeUnmount(() => {
   top: 0;
   z-index: 100;
 
-  .back {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    cursor: pointer;
-  }
-
   .title {
     color: #fff;
     font-size: 17px;
@@ -352,7 +490,7 @@ onBeforeUnmount(() => {
   }
 
   .placeholder {
-    width: 32px;
+    width: 36px;
   }
 }
 
@@ -467,9 +605,69 @@ onBeforeUnmount(() => {
 }
 
 .video-wrapper {
+  position: relative;
+  
   video {
     width: 100%;
     border-radius: 8px;
+  }
+  
+  .video-locked {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    
+    .video-cover {
+      position: relative;
+      
+      img {
+        width: 100%;
+        height: auto;
+        min-height: 200px;
+        object-fit: cover;
+        filter: blur(6px) brightness(0.6);
+      }
+      
+      .video-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        
+        .vip-lock-text {
+          color: #fff;
+          font-size: 16px;
+          font-weight: 500;
+        }
+        
+        .vip-buttons {
+          display: flex;
+          gap: 20px;
+          
+          button {
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+          }
+          
+          .buy-vip-btn {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+            color: #000;
+          }
+          
+          .share-vip-btn {
+            background: linear-gradient(90deg, #8b5cf6, #a855f7);
+            color: #fff;
+          }
+        }
+      }
+    }
   }
 }
 
@@ -606,19 +804,29 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
   background: #111;
-  border-top: 1px solid #222;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   gap: 12px;
 
   .input-wrapper {
     flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 10px 16px;
-    background: #222;
+    background: rgba(255, 255, 255, 0.06);
     border-radius: 20px;
     cursor: pointer;
 
+    .input-icon {
+      width: 20px;
+      height: 20px;
+      opacity: 0.6;
+    }
+
     .input-placeholder {
-      color: #666;
+      color: rgba(255, 255, 255, 0.4);
       font-size: 14px;
     }
   }
@@ -630,19 +838,23 @@ onBeforeUnmount(() => {
 
     .action-item {
       display: flex;
+      flex-direction: row;
       align-items: center;
       gap: 4px;
-      color: #888;
-      font-size: 13px;
       cursor: pointer;
 
-      svg {
-        width: 20px;
-        height: 20px;
+      .action-icon {
+        width: 26px;
+        height: 26px;
       }
 
-      &.liked {
-        color: #ff4757;
+      .action-text {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 13px;
+      }
+
+      &.active .action-text {
+        color: #ff6b6b;
       }
     }
   }
@@ -741,5 +953,165 @@ onBeforeUnmount(() => {
     max-height: 100%;
     object-fit: contain;
   }
+}
+
+/* 分享弹窗 */
+.share-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.share-modal-content {
+  background: #1a1a2e;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 340px;
+  padding: 24px 20px;
+  position: relative;
+}
+
+.share-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+.share-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.share-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.share-title-info {
+  .share-site-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 2px 0;
+  }
+  .share-site-desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+  }
+}
+
+.share-promo-image {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  
+  img {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.share-qr-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.share-qrcode {
+  flex-shrink: 0;
+  background: #fff;
+  padding: 6px;
+  border-radius: 8px;
+  
+  img {
+    width: 90px;
+    height: 90px;
+    border-radius: 4px;
+    display: block;
+  }
+}
+
+.share-invite-info {
+  .invite-code {
+    font-size: 16px;
+    color: #fff;
+    margin-bottom: 8px;
+    
+    span {
+      font-weight: 700;
+      color: #a855f7;
+      margin-left: 6px;
+    }
+  }
+  .official-url {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    word-break: break-all;
+  }
+}
+
+.share-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.copy-link-btn, .save-image-btn {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 50px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
+.copy-link-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.save-image-btn {
+  background: linear-gradient(90deg, #8b5cf6, #a855f7);
+  border: none;
+  color: #fff;
 }
 </style>

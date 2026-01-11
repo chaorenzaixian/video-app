@@ -3,7 +3,7 @@
     <!-- 顶部 -->
     <header class="page-header">
       <div class="back-btn" @click="$router.push('/user/profile')">
-        <span>←</span>
+        <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
       </div>
       <h1>观看历史</h1>
       <div class="clear-btn" @click="clearAll">清空</div>
@@ -90,8 +90,14 @@ const goToVideo = (id) => {
 }
 
 const deleteItem = async (id) => {
-  history.value = history.value.filter(h => h.id !== id)
-  ElMessage.success('已删除')
+  try {
+    await api.delete(`/users/me/history/${id}`)
+    history.value = history.value.filter(h => h.id !== id)
+    ElMessage.success('已删除')
+  } catch (error) {
+    console.error('删除失败:', error)
+    ElMessage.error('删除失败')
+  }
 }
 
 const clearAll = async () => {
@@ -101,9 +107,17 @@ const clearAll = async () => {
       cancelButtonText: '取消',
       type: 'warning'
     })
+    
+    // 调用后端 API 清空历史记录
+    await api.delete('/users/me/history')
     history.value = []
     ElMessage.success('已清空')
-  } catch {}
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('清空历史失败:', error)
+      ElMessage.error('清空失败')
+    }
+  }
 }
 
 // VIP等级图标映射

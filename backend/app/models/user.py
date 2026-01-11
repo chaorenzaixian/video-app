@@ -78,6 +78,9 @@ class User(Base):
     current_session_id = Column(String(64), nullable=True, index=True)  # 当前有效会话ID
     current_device_info = Column(String(500), nullable=True)  # 当前设备信息
     
+    # 通知
+    last_notification_read = Column(DateTime, nullable=True)  # 最后查看通知时间
+    
     # 关系
     vip = relationship("UserVIP", back_populates="user", uselist=False)
     videos = relationship("Video", back_populates="uploader")

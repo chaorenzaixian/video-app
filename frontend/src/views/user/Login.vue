@@ -2,7 +2,7 @@
   <div class="login-page">
     <!-- 返回按钮 -->
     <div class="back-btn" @click="$router.push('/user')">
-      <span>✕</span>
+      <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
     </div>
 
     <!-- Logo -->
@@ -181,14 +181,10 @@ const handleLogin = async () => {
 
   loading.value = true
   try {
-    const res = await api.post('/auth/login', {
+    await userStore.login({
       username: loginForm.username,
       password: loginForm.password
     })
-    
-    const data = res.data || res
-    userStore.setToken(data.access_token)
-    userStore.setUser(data.user || { username: loginForm.username })
     
     ElMessage.success('登录成功')
     router.push('/user')

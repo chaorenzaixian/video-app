@@ -2,7 +2,7 @@
   <div class="promotion-data-page">
     <!-- 顶部导航 -->
     <header class="page-header">
-      <div class="back-btn" @click="$router.back()">‹</div>
+      <div class="back-btn" @click="$router.back()"><img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" /></div>
       <h1 class="page-title">推广数据</h1>
       <div class="header-right" @click="$router.push('/user/earnings')">收益明细</div>
     </header>

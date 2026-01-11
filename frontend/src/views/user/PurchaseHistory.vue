@@ -2,7 +2,7 @@
   <div class="purchase-page">
     <!-- 顶部导航 -->
     <header class="page-header">
-      <div class="back-btn" @click="$router.back()">‹</div>
+      <div class="back-btn" @click="$router.back()"><img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" /></div>
       <h1>我的购买</h1>
       <div class="placeholder"></div>
     </header>

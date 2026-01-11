@@ -3,9 +3,7 @@
     <!-- 顶部导航 -->
     <header class="page-header">
       <div class="back-btn" @click="$router.back()">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-        </svg>
+        <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
       </div>
       <h1 class="page-title">我的消息</h1>
       <div class="header-right"></div>
@@ -80,7 +78,7 @@
           v-for="item in commentMessages" 
           :key="item.id" 
           class="message-item"
-          @click="goToVideo(item)"
+          @click="goToTarget(item)"
         >
           <div class="avatar-wrapper">
             <img :src="getAvatarUrl(item.avatar, item.user_id)" class="avatar" />
@@ -95,7 +93,9 @@
                 alt="VIP"
               />
             </div>
-            <span class="preview">{{ item.content }}</span>
+            <span class="preview">
+              {{ getCommentText(item) }}：{{ item.content }}
+            </span>
           </div>
           <span class="time">{{ formatTime(item.created_at) }}</span>
         </div>
@@ -110,7 +110,7 @@
           v-for="item in likeMessages" 
           :key="item.id" 
           class="message-item"
-          @click="goToVideo(item)"
+          @click="goToTarget(item)"
         >
           <div class="avatar-wrapper">
             <img :src="getAvatarUrl(item.avatar, item.user_id)" class="avatar" />
@@ -125,7 +125,10 @@
                 alt="VIP"
               />
             </div>
-            <span class="preview">赞了你的{{ item.type === 'video' ? '视频' : '评论' }}</span>
+            <span class="preview">
+              {{ getLikeText(item) }}
+              <template v-if="item.content">：{{ item.content }}</template>
+            </span>
           </div>
           <span class="time">{{ formatTime(item.created_at) }}</span>
         </div>
@@ -257,10 +260,12 @@ const fetchPrivateMessages = async () => {
 const fetchCommentMessages = async () => {
   try {
     const res = await api.get('/notifications/comments')
+    console.log('评论消息API响应:', res.data)
     commentMessages.value = res.data?.items || []
     unreadCounts.value.comment = res.data?.unread_count || 0
   } catch (error) {
-    console.log('获取评论消息失败')
+    console.log('获取评论消息失败', error)
+    console.log('错误详情:', error.response?.data)
     commentMessages.value = []
   }
 }
@@ -269,10 +274,11 @@ const fetchCommentMessages = async () => {
 const fetchLikeMessages = async () => {
   try {
     const res = await api.get('/notifications/likes')
+    console.log('点赞消息API响应:', res.data)
     likeMessages.value = res.data?.items || []
     unreadCounts.value.like = res.data?.unread_count || 0
   } catch (error) {
-    console.log('获取点赞消息失败')
+    console.log('获取点赞消息失败', error)
     likeMessages.value = []
   }
 }
@@ -289,25 +295,106 @@ const goToChat = (item) => {
   })
 }
 
-// 跳转到视频页面
-const goToVideo = (item) => {
-  if (item.video_id) {
-    if (item.is_short) {
-      router.push(`/shorts?id=${item.video_id}`)
-    } else {
-      router.push(`/user/video/${item.video_id}`)
-    }
+// 获取评论文本
+const getCommentText = (item) => {
+  const typeMap = {
+    'video': '视频',
+    'short': '短视频',
+    'post': '帖子',
+    'gallery': '图集',
+    'novel': '小说'
+  }
+  const targetName = typeMap[item.target_type] || '内容'
+  
+  if (item.notification_type === 'reply') {
+    return '回复了你的评论'
+  }
+  return `评论了你的${targetName}`
+}
+
+// 获取点赞文本
+const getLikeText = (item) => {
+  const typeMap = {
+    'video': '视频',
+    'short': '短视频',
+    'post': '帖子',
+    'gallery': '图集',
+    'novel': '小说',
+    'video_comment': '评论',
+    'post_comment': '评论',
+    'gallery_comment': '评论'
+  }
+  const targetName = typeMap[item.target_type] || '内容'
+  return `赞了你的${targetName}`
+}
+
+// 跳转到目标页面
+const goToTarget = (item) => {
+  const targetType = item.target_type
+  const targetId = item.target_id
+  
+  if (!targetId) return
+  
+  switch (targetType) {
+    case 'video':
+      router.push(`/user/video/${targetId}`)
+      break
+    case 'short':
+      router.push(`/shorts?id=${targetId}`)
+      break
+    case 'post':
+      router.push(`/user/community/${targetId}`)
+      break
+    case 'gallery':
+      router.push(`/gallery/${targetId}`)
+      break
+    case 'novel':
+      router.push(`/novel/${targetId}`)
+      break
+    case 'video_comment':
+      router.push(`/user/video/${targetId}`)
+      break
+    case 'post_comment':
+      router.push(`/user/community/${targetId}`)
+      break
+    case 'gallery_comment':
+      router.push(`/gallery/${targetId}`)
+      break
+    default:
+      break
   }
 }
 
 onMounted(async () => {
   loading.value = true
+  
+  // 先获取未读数量
+  try {
+    const countRes = await api.get('/notifications/unread-count')
+    unreadCounts.value = {
+      private: countRes.data?.private_messages || 0,
+      comment: countRes.data?.comments || 0,
+      like: countRes.data?.likes || 0
+    }
+  } catch (e) {
+    console.log('获取未读数量失败')
+  }
+  
   await Promise.all([
     fetchPrivateMessages(),
     fetchCommentMessages(),
     fetchLikeMessages()
   ])
   loading.value = false
+  
+  // 标记所有通知为已读
+  try {
+    await api.post('/notifications/mark-read?notification_type=all')
+    // 清空未读数量
+    unreadCounts.value = { private: 0, comment: 0, like: 0 }
+  } catch (e) {
+    console.log('标记已读失败')
+  }
 })
 </script>
 

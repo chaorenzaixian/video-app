@@ -2,7 +2,7 @@
   <div class="earnings-page">
     <!-- 顶部导航 -->
     <header class="page-header">
-      <div class="back-btn" @click="$router.back()">‹</div>
+      <div class="back-btn" @click="$router.back()"><img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" /></div>
       <h1 class="page-title">收益明细</h1>
       <div class="placeholder"></div>
     </header>

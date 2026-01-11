@@ -44,6 +44,7 @@ class ShortVideoResponse(BaseModel):
     duration: float = 0
     view_count: int = 0
     like_count: int = 0
+    favorite_count: int = 0
     comment_count: int = 0
     share_count: int = 0
     is_vip_only: bool = False
@@ -195,6 +196,7 @@ async def get_short_videos(
             duration=v.duration or 0,
             view_count=v.view_count or 0,
             like_count=v.like_count or 0,
+            favorite_count=v.favorite_count or 0,
             comment_count=v.comment_count or 0,
             share_count=v.share_count or 0,
             is_vip_only=v.is_vip_only or False,
@@ -362,6 +364,7 @@ async def get_short_video(
         duration=video.duration or 0,
         view_count=video.view_count or 0,
         like_count=video.like_count or 0,
+        favorite_count=video.favorite_count or 0,
         comment_count=video.comment_count or 0,
         share_count=video.share_count or 0,
         is_vip_only=video.is_vip_only or False,
@@ -440,14 +443,16 @@ async def favorite_short_video(
     if existing:
         # 取消收藏
         await db.delete(existing)
+        video.favorite_count = max(0, (video.favorite_count or 0) - 1)
         await db.commit()
-        return {"favorited": False}
+        return {"favorited": False, "favorite_count": video.favorite_count}
     else:
         # 收藏
         favorite = VideoFavorite(user_id=current_user.id, video_id=video_id)
         db.add(favorite)
+        video.favorite_count = (video.favorite_count or 0) + 1
         await db.commit()
-        return {"favorited": True}
+        return {"favorited": True, "favorite_count": video.favorite_count}
 
 
 # ========== VIP下载功能 ==========

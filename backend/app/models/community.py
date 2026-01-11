@@ -2,7 +2,7 @@
 社区功能数据模型 - 动态、话题、圈子
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON, Index
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON, Index, Float
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -29,6 +29,7 @@ class Post(Base):
     comment_count = Column(Integer, default=0)
     share_count = Column(Integer, default=0)
     view_count = Column(Integer, default=0)
+    collect_count = Column(Integer, default=0)
     
     # 状态
     is_top = Column(Boolean, default=False)  # 置顶
@@ -118,6 +119,24 @@ class PostLike(Base):
     
     __table_args__ = (
         Index('idx_post_like_unique', 'post_id', 'user_id', unique=True),
+    )
+
+
+class PostCollect(Base):
+    """动态收藏表"""
+    __tablename__ = "post_collects"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    post = relationship("Post", backref="collects")
+    user = relationship("User", backref="post_collects")
+    
+    __table_args__ = (
+        Index('idx_post_collect_unique', 'post_id', 'user_id', unique=True),
+        Index('idx_post_collect_user', 'user_id'),
     )
 
 
@@ -213,6 +232,8 @@ class Gallery(Base):
     # 统计
     view_count = Column(Integer, default=0)
     like_count = Column(Integer, default=0)
+    comment_count = Column(Integer, default=0)
+    collect_count = Column(Integer, default=0)
     image_count = Column(Integer, default=0)
     
     # 更新信息
@@ -262,6 +283,8 @@ class Novel(Base):
     # 统计
     view_count = Column(Integer, default=0)
     like_count = Column(Integer, default=0)
+    comment_count = Column(Integer, default=0)
+    collect_count = Column(Integer, default=0)
     
     # 章节信息
     chapter_count = Column(Integer, default=0)
@@ -294,3 +317,176 @@ class NovelChapter(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     novel = relationship("Novel", backref="chapters")
+
+
+# ========== 图集评论模型 ==========
+
+class GalleryComment(Base):
+    """图集评论"""
+    __tablename__ = "gallery_comments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    gallery_id = Column(Integer, ForeignKey("galleries.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # 内容
+    content = Column(Text, nullable=False)
+    image_url = Column(String(500), nullable=True)  # 评论图片
+    
+    # 回复
+    parent_id = Column(Integer, ForeignKey("gallery_comments.id", ondelete="CASCADE"), nullable=True)
+    
+    # 统计
+    like_count = Column(Integer, default=0)
+    reply_count = Column(Integer, default=0)
+    
+    # 状态
+    is_pinned = Column(Boolean, default=False)   # 是否置顶
+    is_hidden = Column(Boolean, default=False)   # 是否隐藏
+    is_official = Column(Boolean, default=False)  # 是否官方评论
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    gallery = relationship("Gallery", backref="comments")
+    user = relationship("User", backref="gallery_comments")
+    parent = relationship("GalleryComment", remote_side=[id], backref="replies")
+
+
+class GalleryLike(Base):
+    """图集点赞"""
+    __tablename__ = "gallery_likes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    gallery_id = Column(Integer, ForeignKey("galleries.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_gallery_like_unique', 'gallery_id', 'user_id', unique=True),
+    )
+
+
+class GalleryCollect(Base):
+    """图集收藏"""
+    __tablename__ = "gallery_collects"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    gallery_id = Column(Integer, ForeignKey("galleries.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_gallery_collect_unique', 'gallery_id', 'user_id', unique=True),
+    )
+
+
+class GalleryCommentLike(Base):
+    """图集评论点赞"""
+    __tablename__ = "gallery_comment_likes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("gallery_comments.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_gallery_comment_like_unique', 'comment_id', 'user_id', unique=True),
+    )
+
+
+class NovelLike(Base):
+    """小说点赞"""
+    __tablename__ = "novel_likes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    novel_id = Column(Integer, ForeignKey("novels.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_novel_like_unique', 'novel_id', 'user_id', unique=True),
+    )
+
+
+class NovelCollect(Base):
+    """小说收藏"""
+    __tablename__ = "novel_collects"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    novel_id = Column(Integer, ForeignKey("novels.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_novel_collect_unique', 'novel_id', 'user_id', unique=True),
+    )
+
+
+class NovelReadProgress(Base):
+    """小说阅读进度"""
+    __tablename__ = "novel_read_progress"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    novel_id = Column(Integer, ForeignKey("novels.id", ondelete="CASCADE"), nullable=False)
+    chapter_id = Column(Integer, ForeignKey("novel_chapters.id", ondelete="SET NULL"), nullable=True)
+    chapter_num = Column(Integer, default=1)  # 当前章节号
+    scroll_position = Column(Float, default=0)  # 滚动位置百分比 0-100
+    audio_position = Column(Float, default=0)  # 音频播放位置（秒）
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_novel_progress_unique', 'user_id', 'novel_id', unique=True),
+    )
+    
+    novel = relationship("Novel", backref="read_progress")
+    chapter = relationship("NovelChapter")
+
+
+# ========== 小说评论模型 ==========
+
+class NovelComment(Base):
+    """小说评论"""
+    __tablename__ = "novel_comments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    novel_id = Column(Integer, ForeignKey("novels.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # 内容
+    content = Column(Text, nullable=False)
+    image_url = Column(String(500), nullable=True)  # 评论图片
+    
+    # 回复
+    parent_id = Column(Integer, ForeignKey("novel_comments.id", ondelete="CASCADE"), nullable=True)
+    
+    # 统计
+    like_count = Column(Integer, default=0)
+    reply_count = Column(Integer, default=0)
+    
+    # 状态
+    is_pinned = Column(Boolean, default=False)   # 是否置顶
+    is_hidden = Column(Boolean, default=False)   # 是否隐藏
+    is_official = Column(Boolean, default=False)  # 是否官方评论
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    novel = relationship("Novel", backref="comments")
+    user = relationship("User", backref="novel_comments")
+    parent = relationship("NovelComment", remote_side=[id], backref="replies")
+
+
+class NovelCommentLike(Base):
+    """小说评论点赞"""
+    __tablename__ = "novel_comment_likes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("novel_comments.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_novel_comment_like_unique', 'comment_id', 'user_id', unique=True),
+    )

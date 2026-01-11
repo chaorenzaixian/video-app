@@ -70,7 +70,7 @@
             :key="topic.id"
             :class="['topic-card', { active: selectedTopic === topic.id }]"
             :style="topic.cover ? { backgroundImage: `url(${topic.cover})` } : {}"
-            @click="selectTopic(topic.id)"
+            @click="selectTopic(topic)"
           >
             <span class="topic-name">{{ topic.name }}</span>
             <span class="topic-count">{{ formatCount(topic.post_count) }}个帖子</span>
@@ -139,10 +139,10 @@
             </div>
           </div>
           <p class="post-text">{{ post.content }}</p>
-          <div v-if="post.images && post.images.length" class="post-images">
+          <div v-if="post.images && post.images.length" class="post-images" @click="goToDetail(post.id)">
             <div :class="['images-grid', `grid-${Math.min(post.images.length, 4)}`]">
               <div v-for="(img, idx) in post.images.slice(0, 4)" :key="idx" class="img-item">
-                <img :src="img" @click.stop="previewImage(post.images, idx)" />
+                <img :src="img" />
                 <span v-if="idx === 3 && post.images.length > 4" class="more-count">+{{ post.images.length - 4 }}</span>
               </div>
             </div>
@@ -164,7 +164,7 @@
         <div v-if="loading" class="loading">加载中...</div>
         <div v-else-if="!galleryItems.length" class="empty">暂无图集</div>
         <div v-else class="gallery-grid">
-          <div v-for="item in galleryItems" :key="item.id" class="gallery-item">
+          <div v-for="item in galleryItems" :key="item.id" class="gallery-item" @click="goToGalleryDetail(item.id)">
             <div class="gallery-cover">
               <img :src="item.cover" :alt="item.title" />
               <div class="gallery-info">
@@ -183,9 +183,10 @@
         <div v-if="loading" class="loading">加载中...</div>
         <div v-else-if="!novelItems.length" class="empty">暂无小说</div>
         <div v-else class="novel-grid">
-          <div v-for="item in novelItems" :key="item.id" class="novel-item">
+          <div v-for="item in novelItems" :key="item.id" class="novel-item" @click="goToNovelDetail(item)">
             <div class="novel-cover-wrap">
               <img :src="item.cover" :alt="item.title" class="novel-cover" />
+              <span v-if="selectedNovelType === 'audio'" class="audio-badge">🎧</span>
               <div class="novel-status" v-if="item.status === 'ongoing'">连载中</div>
             </div>
             <div class="novel-info">
@@ -232,7 +233,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
 import { getAvatarUrl } from '@/utils/avatar'
@@ -243,6 +244,7 @@ import { useActionLock, useDebounce } from '@/composables/useDebounce'
 import BottomNav from '@/components/common/BottomNav.vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 // 请求取消控制器 - 防止内存泄漏
@@ -258,8 +260,7 @@ const getVipIcon = (level) => getVipLevelIcon(level)
 const mainTabs = [
   { label: '社区', value: 'community', activeIcon: '/images/backgrounds/tab_one_active.webp' },
   { label: '图集', value: 'gallery', activeIcon: '/images/backgrounds/tab_two_active.webp' },
-  { label: '小说', value: 'novel', activeIcon: '/images/backgrounds/tab_three_active.webp' },
-  { label: '暗网禁区', value: 'darkweb' }
+  { label: '小说', value: 'novel', activeIcon: '/images/backgrounds/tab_three_active.webp' }
 ]
 
 const filterTabs = [
@@ -314,10 +315,12 @@ const selectCategory = (cat) => {
   fetchPosts(true)
 }
 
-// 选择二级话题
-const selectTopic = (topicId) => {
-  selectedTopic.value = selectedTopic.value === topicId ? null : topicId
-  fetchPosts(true)
+// 选择二级话题 - 跳转到话题列表页
+const selectTopic = (topic) => {
+  router.push({
+    path: `/user/community/topic/${topic.id}`,
+    query: { name: topic.name }
+  })
 }
 
 // 获取图标广告
@@ -457,6 +460,15 @@ const goPublishTextImage = () => {
 const goToUserProfile = (userId) => {
   if (userId) router.push(`/user/member/${userId}`)
 }
+const goToGalleryDetail = (id) => router.push(`/user/gallery/${id}`)
+const goToNovelDetail = (item) => {
+  // 有声小说跳转到专用播放器
+  if (selectedNovelType.value === 'audio') {
+    router.push(`/user/audio-novel/${item.id}`)
+  } else {
+    router.push(`/user/novel/${item.id}`)
+  }
+}
 const previewImage = (images, idx) => { /* 图片预览 */ }
 const openAdLink = (ad) => { if (ad.link) window.open(ad.link, '_blank') }
 
@@ -557,11 +569,31 @@ const selectNovelCategory = (catId) => {
 }
 
 onMounted(() => {
+  // 从URL参数读取tab
+  const tabParam = route.query.tab
+  if (tabParam && ['community', 'gallery', 'novel'].includes(tabParam)) {
+    activeMainTab.value = tabParam
+  }
+  
+  // 从URL参数读取小说类型
+  const typeParam = route.query.type
+  if (typeParam && ['text', 'audio'].includes(typeParam)) {
+    selectedNovelType.value = typeParam
+  }
+  
   fetchIconAds()
   fetchCategories()
-  fetchPosts(true)
   fetchGalleryCategories()
   fetchNovelCategories()
+  
+  // 根据当前tab加载数据
+  if (activeMainTab.value === 'community') {
+    fetchPosts(true)
+  } else if (activeMainTab.value === 'gallery') {
+    fetchGalleries()
+  } else if (activeMainTab.value === 'novel') {
+    fetchNovels()
+  }
 })
 </script>
 
@@ -603,7 +635,7 @@ onMounted(() => {
 }
 
 .tab-item .tab-icon {
-  height: 26px;
+  height: 30px;
   width: auto;
 }
 
@@ -612,8 +644,8 @@ onMounted(() => {
 }
 
 .search-btn img {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
 }
 
 /* 一级分类 */
@@ -1023,25 +1055,35 @@ onMounted(() => {
 }
 
 /* 图集列表 */
+.gallery-list {
+  padding: 12px;
+}
+
 .gallery-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  padding: 12px;
+  gap: 16px 12px;
 }
 
 .gallery-item {
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
 .gallery-cover {
   position: relative;
-  aspect-ratio: 3/4;
+  width: 100%;
+  padding-top: 133.33%; /* 3:4 比例 */
   border-radius: 8px;
   overflow: hidden;
+  background: #1a1a1a;
 }
 
 .gallery-cover img {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1052,7 +1094,7 @@ onMounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 4px 8px;
+  padding: 6px 8px;
   background: linear-gradient(transparent, rgba(0,0,0,0.8));
   display: flex;
   justify-content: space-between;
@@ -1069,15 +1111,43 @@ onMounted(() => {
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
+  font-weight: 500;
 }
 
 .gallery-title {
-  color: #ddd;
+  color: #eee;
   font-size: 13px;
-  margin: 8px 0 4px;
+  font-weight: 500;
+  margin: 8px 2px 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.3;
+}
+
+/* 图集列表响应式 */
+@media (min-width: 480px) {
+  .gallery-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (min-width: 768px) {
+  .gallery-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+  }
+  
+  .gallery-title {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gallery-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
 }
 
 /* 小说类型切换 */
@@ -1116,29 +1186,53 @@ onMounted(() => {
 }
 
 /* 小说列表 */
-.novel-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+.novel-list {
   padding: 12px;
+}
+
+.novel-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 16px 12px !important;
+  align-items: start !important;
 }
 
 .novel-item {
   cursor: pointer;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  overflow: hidden;
 }
 
 .novel-cover-wrap {
-  position: relative;
-  aspect-ratio: 3/4;
-  border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 8px;
+  position: relative !important;
+  width: 100% !important;
+  height: 0 !important;
+  padding-bottom: 133.33% !important; /* 3:4 比例 */
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  background: #1a1a1a !important;
 }
 
 .novel-cover {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.audio-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  z-index: 1;
 }
 
 .novel-status {
@@ -1150,25 +1244,32 @@ onMounted(() => {
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
+  font-weight: 500;
+  z-index: 1;
 }
 
 .novel-info {
-  padding: 0 4px;
+  padding: 8px 2px 0;
 }
 
 .novel-title {
-  color: #ddd;
+  color: #eee;
   font-size: 13px;
+  font-weight: 500;
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.3;
 }
 
 .novel-author {
   color: #888;
   font-size: 11px;
   margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .novel-chapters {

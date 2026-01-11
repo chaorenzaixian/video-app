@@ -448,48 +448,13 @@ const selectFromDrawer = (catId) => {
   selectCategory(catId)
 }
 
-// 获取分类列表
-const fetchCategories = async () => {
-  try {
-    const res = await axios.get('/api/v1/videos/categories', { signal: abortSignal })
-    if (res.data && res.data.length > 0) {
-      const allCategories = res.data
-      
-      // 提取所有推荐分类（一级和二级）
-      const featured = []
-      const extractFeatured = (list) => {
-        for (const cat of list) {
-          if (cat.is_featured) {
-            featured.push({ id: cat.id, name: cat.name })
-          }
-          if (cat.children && cat.children.length > 0) {
-            extractFeatured(cat.children)
-          }
-        }
-      }
-      extractFeatured(allCategories)
-      featuredCategories.value = featured
-      
-      // 添加"推荐"作为第一个选项，保留完整数据包含children
-      categories.value = [
-        { id: 0, name: '推荐', children: [] },
-        ...allCategories.filter(cat => !cat.parent_id || cat.level === 1)
-      ]
-    }
-  } catch (e) {
-    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
-      console.error('获取分类失败', e)
-    }
-  }
-}
-
 // 功能入口（默认数据，会被后台数据覆盖）
 const funcItems = ref([
   { id: 1, name: '广场', image: '', link: '' },
   { id: 2, name: '会员中心', image: '', link: '/user/vip' },
   { id: 3, name: '社区广场', image: '', link: '' },
   { id: 4, name: '分享邀请', image: '', link: '' },
-  { id: 5, name: '排行榜', image: '', link: '' }
+  { id: 5, name: '排行榜', image: '/images/icons/ranking_icon.webp', link: '/user/ranking' }
 ])
 
 // 广告位
@@ -515,90 +480,128 @@ const scrollContainer = ref(null)
 
 // 获取网站设置
 const fetchSiteSettings = async () => {
-  try {
-    const res = await axios.get('/api/v1/settings/site', { signal: abortSignal })
-    if (res.data) {
-      siteSettings.value = res.data
-    }
-  } catch (e) {
-    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
-      console.error('获取网站设置失败', e)
-    }
-  }
+  // 已合并到 fetchHomeInit
 }
 
 // 获取功能入口
 const fetchFuncEntries = async () => {
-  try {
-    const res = await axios.get('/api/v1/ads/func-entries', { signal: abortSignal })
-    if (res.data && res.data.length > 0) {
-      // 添加 imageError 标记用于图片加载失败时显示占位符
-      funcItems.value = res.data.map(item => ({
-        ...item,
-        imageError: false
-      }))
-    }
-  } catch (e) {
-    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
-      console.error('获取功能入口失败', e)
-    }
-  }
+  // 已合并到 fetchHomeInit
 }
 
 // 获取广告位
 const fetchIconAds = async () => {
-  try {
-    const res = await axios.get('/api/v1/ads/icons', { signal: abortSignal })
-    if (res.data) {
-      adRow1.value = res.data.slice(0, 5)
-      adRow2.value = res.data.slice(5, 10)
-      // 数据加载完成后启动滚动动画
-      timers.setTimeout(() => {
-        startScrollAnimation()
-      }, 500)
-    }
-  } catch (e) {
-    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
-      console.error('获取广告位失败', e)
-    }
-  }
+  // 已合并到 fetchHomeInit
 }
 
 // 获取公告
 const fetchAnnouncements = async () => {
+  // 已合并到 fetchHomeInit
+}
+
+// 获取分类列表
+const fetchCategories = async () => {
+  // 已合并到 fetchHomeInit
+}
+
+// ========== 首页聚合接口（合并6个请求为1个） ==========
+const fetchHomeInit = async () => {
+  loadingVideos.value = true
   try {
-    const res = await axios.get('/api/v1/ads/announcements', { signal: abortSignal })
-    if (res.data && res.data.length > 0) {
-      announcements.value = res.data
-      // 合并所有公告内容为滚动文字
-      announcementText.value = res.data.map(a => a.content).join(' 🔸 ')
+    const sortBy = videoFilters[activeVideoFilter.value].key
+    const res = await axios.get('/api/v1/home/init', {
+      params: {
+        category_id: activeCategory.value === 0 ? null : activeCategory.value,
+        sort_by: sortBy,
+        limit: 20
+      },
+      signal: abortSignal
+    })
+    
+    const data = res.data
+    if (data) {
+      // 网站设置
+      if (data.site_settings) {
+        siteSettings.value = {
+          siteName: data.site_settings.site_name || '视频站',
+          logo: data.site_settings.logo || ''
+        }
+      }
+      
+      // 分类
+      if (data.categories && data.categories.length > 0) {
+        const allCategories = data.categories
+        
+        // 提取所有推荐分类
+        const featured = []
+        const extractFeatured = (list) => {
+          for (const cat of list) {
+            if (cat.is_featured) {
+              featured.push({ id: cat.id, name: cat.name })
+            }
+            if (cat.children && cat.children.length > 0) {
+              extractFeatured(cat.children)
+            }
+          }
+        }
+        extractFeatured(allCategories)
+        featuredCategories.value = featured
+        
+        categories.value = [
+          { id: 0, name: '推荐', children: [] },
+          ...allCategories
+        ]
+      }
+      
+      // 功能入口
+      if (data.func_entries && data.func_entries.length > 0) {
+        funcItems.value = data.func_entries.map(item => ({
+          ...item,
+          imageError: false
+        }))
+      }
+      
+      // 图标广告
+      if (data.icon_ads) {
+        adRow1.value = data.icon_ads.slice(0, 5)
+        adRow2.value = data.icon_ads.slice(5, 10)
+      }
+      
+      // 公告
+      if (data.announcements && data.announcements.length > 0) {
+        announcements.value = data.announcements
+        announcementText.value = data.announcements.map(a => a.content).join(' 🔸 ')
+      }
+      
+      // 视频列表
+      if (data.videos) {
+        videos.value = data.videos
+      }
     }
   } catch (e) {
     if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
-      console.error('获取公告失败', e)
+      console.error('获取首页数据失败', e)
     }
+  } finally {
+    loadingVideos.value = false
+    // 数据加载完成后启动滚动动画
+    timers.setTimeout(() => {
+      startScrollAnimation()
+    }, 500)
   }
 }
 
-// 获取视频列表
+// 获取视频列表（切换分类/筛选时单独调用）
 const fetchVideos = async () => {
   loadingVideos.value = true
   try {
     const sortBy = videoFilters[activeVideoFilter.value].key
     const params = { sort_by: sortBy, limit: 20 }
-    // 分类筛选
-    if (activeCategory.value === 0) {
-      // 选择"推荐"，显示所有视频（热门推荐时优先显示推荐视频）
-      // 不再限制 is_featured，显示所有已发布视频
-    } else {
-      // 选择了某个一级分类，显示该分类下所有视频（包括二级分类的视频）
+    if (activeCategory.value !== 0) {
       params.category_id = activeCategory.value
     }
-    const res = await axios.get('/api/v1/videos', { params, signal: abortSignal })
-    if (res.data && res.data.items) {
-      videos.value = res.data.items
-    } else if (Array.isArray(res.data)) {
-      videos.value = res.data
+    const res = await axios.get('/api/v1/home/videos', { params, signal: abortSignal })
+    if (res.data && res.data.videos) {
+      videos.value = res.data.videos
     }
   } catch (e) {
     if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
@@ -856,12 +859,8 @@ const handleBannerClick = (banner) => {
 }
 
 onMounted(() => {
-  fetchSiteSettings()
-  fetchCategories()
-  fetchFuncEntries()
-  fetchIconAds()
-  fetchVideos()
-  fetchAnnouncements()
+  // 使用聚合接口，1个请求替代6个
+  fetchHomeInit()
   fetchBanners()
   
   timers.setTimeout(() => {

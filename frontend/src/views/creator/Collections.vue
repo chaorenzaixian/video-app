@@ -1,7 +1,7 @@
 <template>
   <div class="collections-page">
     <div class="nav-header">
-      <button class="back-btn" @click="$router.push('/creator')">‹</button>
+      <button class="back-btn" @click="$router.push('/creator')"><img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" /></button>
       <h1>视频合集</h1>
       <button class="add-btn" @click="showCreateModal = true">+创建</button>
     </div>

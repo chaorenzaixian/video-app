@@ -2,7 +2,7 @@
   <div class="short-video-page">
     <!-- 顶部导航 -->
     <header class="short-header">
-      <div class="back-btn" @click="goBack">‹</div>
+      <div class="back-btn" @click="goBack"><img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" /></div>
       <div class="header-tabs">
         <span 
           :class="['tab-item', { active: activeTab === 'recommend' }]"
@@ -89,13 +89,13 @@
             </div>
             
             <!-- 点赞 -->
-            <div class="action-item" @click.stop="handleLike(video)">
-              <div :class="['icon-wrapper', { liked: video.is_liked }]">
-                <svg viewBox="0 0 24 24" :fill="video.is_liked ? '#fe2c55' : 'white'">
+            <div class="action-item" @click.stop="handleLike(index)">
+              <div :class="['icon-wrapper', { liked: videos[index].is_liked }]">
+                <svg viewBox="0 0 24 24" :fill="videos[index].is_liked ? '#fe2c55' : 'white'">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                 </svg>
               </div>
-              <span class="count">{{ formatCount(video.like_count) }}</span>
+              <span class="count">{{ formatCount(videos[index].like_count) }}</span>
             </div>
             
             <!-- 评论 -->
@@ -109,13 +109,13 @@
             </div>
             
             <!-- 收藏 -->
-            <div class="action-item" @click.stop="handleFavorite(video)">
-              <div :class="['icon-wrapper', { favorited: video.is_favorited }]">
-                <svg viewBox="0 0 24 24" :fill="video.is_favorited ? '#ffc107' : 'white'">
+            <div class="action-item" @click.stop="handleFavorite(index)">
+              <div :class="['icon-wrapper', { favorited: videos[index].is_favorited }]">
+                <svg viewBox="0 0 24 24" :fill="videos[index].is_favorited ? '#ffc107' : 'white'">
                   <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
                 </svg>
               </div>
-              <span class="count">{{ formatCount(video.favorite_count || 0) }}</span>
+              <span class="count">{{ formatCount(videos[index].favorite_count || 0) }}</span>
             </div>
             
             <!-- 分享 -->
@@ -273,12 +273,49 @@
               </div>
               <div class="comment-meta">
                 <span class="time">{{ formatCommentTime(comment.created_at) }}</span>
+                <span class="reply-btn" @click.stop="setReplyTo(comment)">回复</span>
                 <span 
                   :class="['like-btn', { liked: comment.is_liked }]" 
                   @click.stop="likeComment(comment)"
                 >
                   {{ comment.is_liked ? '❤️' : '🤍' }} {{ comment.like_count || 0 }}
                 </span>
+              </div>
+              
+              <!-- 回复列表 -->
+              <div v-if="comment.reply_count > 0" class="replies-section">
+                <div 
+                  v-if="!comment.showReplies" 
+                  class="view-replies-btn"
+                  @click.stop="loadReplies(comment)"
+                >
+                  查看 {{ comment.reply_count }} 条回复 ▼
+                </div>
+                <div v-else class="replies-list">
+                  <div v-for="reply in comment.replies" :key="reply.id" class="reply-item">
+                    <img :src="getAvatarUrl(reply.user_avatar, reply.user_id)" class="reply-avatar clickable" @click="goToProfile(reply.user_id)" />
+                    <div class="reply-body">
+                      <div class="reply-user">
+                        <span class="username clickable" @click="goToProfile(reply.user_id)">{{ reply.user_nickname || reply.user_name }}</span>
+                        <img v-if="reply.user_vip_level > 0" :src="getVipLevelIcon(reply.user_vip_level)" class="vip-badge-xs" />
+                      </div>
+                      <div class="reply-text">{{ reply.content }}</div>
+                      <div v-if="reply.image_url" class="reply-image" @click="previewCommentImage(reply.image_url)">
+                        <img :src="reply.image_url" alt="reply image" />
+                      </div>
+                      <div class="reply-meta">
+                        <span class="time">{{ formatCommentTime(reply.created_at) }}</span>
+                        <span class="reply-btn" @click.stop="setReplyTo(comment, reply)">回复</span>
+                        <span :class="['like-btn', { liked: reply.is_liked }]" @click.stop="likeComment(reply)">
+                          {{ reply.is_liked ? '❤️' : '🤍' }} {{ reply.like_count || 0 }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="hide-replies-btn" @click.stop="comment.showReplies = false">
+                    收起回复 ▲
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -296,6 +333,12 @@
           
           <!-- VIP评论输入区 -->
           <div v-else class="input-area">
+            <!-- 回复提示 -->
+            <div v-if="replyTo" class="reply-hint">
+              <span>回复 @{{ replyTo.user_nickname || replyTo.user_name }}</span>
+              <span class="cancel-reply" @click="cancelReply">×</span>
+            </div>
+            
             <!-- 图片预览 -->
             <div v-if="commentImage" class="image-preview">
               <img :src="commentImagePreview" alt="preview" />
@@ -306,7 +349,7 @@
               <input 
                 type="text" 
                 v-model="commentText" 
-                placeholder="说点什么吧..."
+                :placeholder="replyTo ? `回复 @${replyTo.user_nickname || replyTo.user_name}` : '说点什么吧...'"
                 @keyup.enter="submitComment"
                 ref="commentInputRef"
               />
@@ -485,6 +528,8 @@ const showEmojiPicker = ref(false)
 const commentImage = ref(null)
 const commentImagePreview = ref('')
 const submittingComment = ref(false)
+const replyTo = ref(null)  // 回复目标
+const replyParentId = ref(null)  // 回复的父评论ID
 
 // 表情列表
 const emojiList = [
@@ -905,11 +950,22 @@ const handleDoubleTap = (video) => {
 // 操作锁，防止重复点击
 const actionLocks = ref({})
 
-// 点赞（带防抖）
-const handleLike = async (video) => {
+// 点赞
+const handleLike = async (index) => {
+  const video = videos.value[index]
+  if (!video) return
+  
   const lockKey = `like_${video.id}`
   if (actionLocks.value[lockKey]) return
   actionLocks.value[lockKey] = true
+  
+  // 保存原始状态
+  const wasLiked = video.is_liked
+  const oldCount = video.like_count || 0
+  
+  // 立即更新UI
+  video.is_liked = !wasLiked
+  video.like_count = wasLiked ? Math.max(0, oldCount - 1) : oldCount + 1
   
   try {
     const res = await api.post(`/shorts/${video.id}/like`)
@@ -917,31 +973,45 @@ const handleLike = async (video) => {
     video.is_liked = data.liked
     video.like_count = data.like_count
   } catch (error) {
+    // 回滚
+    video.is_liked = wasLiked
+    video.like_count = oldCount
     ElMessage.error('操作失败')
   } finally {
-    timers.setTimeout(() => {
-      actionLocks.value[lockKey] = false
-    }, 500)
+    actionLocks.value[lockKey] = false
   }
 }
 
-// 收藏（带防抖）
-const handleFavorite = async (video) => {
+// 收藏
+const handleFavorite = async (index) => {
+  const video = videos.value[index]
+  if (!video) return
+  
   const lockKey = `favorite_${video.id}`
   if (actionLocks.value[lockKey]) return
   actionLocks.value[lockKey] = true
+  
+  // 保存原始状态
+  const wasFavorited = video.is_favorited
+  const oldCount = video.favorite_count || 0
+  
+  // 立即更新UI
+  video.is_favorited = !wasFavorited
+  video.favorite_count = wasFavorited ? Math.max(0, oldCount - 1) : oldCount + 1
   
   try {
     const res = await api.post(`/shorts/${video.id}/favorite`)
     const data = res.data || res
     video.is_favorited = data.favorited
-    ElMessage.success(data.favorited ? '已收藏' : '已取消收藏')
+    video.favorite_count = data.favorite_count
+    ElMessage.success(data.favorited ? '收藏成功' : '已取消收藏')
   } catch (error) {
+    // 回滚
+    video.is_favorited = wasFavorited
+    video.favorite_count = oldCount
     ElMessage.error('操作失败')
   } finally {
-    timers.setTimeout(() => {
-      actionLocks.value[lockKey] = false
-    }, 500)
+    actionLocks.value[lockKey] = false
   }
 }
 
@@ -1267,16 +1337,27 @@ const submitComment = async () => {
       imageUrl = uploadRes.data?.url || uploadRes.url
     }
     
-    await api.post('/comments', {
+    const commentData = {
       content: commentText.value,
       video_id: currentVideo.value.id,
       image_url: imageUrl
-    })
-    ElMessage.success('评论成功')
+    }
+    
+    // 如果是回复，添加 parent_id
+    if (replyParentId.value) {
+      commentData.parent_id = replyParentId.value
+    }
+    
+    await api.post('/comments', commentData)
+    ElMessage.success(replyParentId.value ? '回复成功' : '评论成功')
     commentText.value = ''
     commentImage.value = null
     commentImagePreview.value = ''
     showEmojiPicker.value = false
+    
+    // 清除回复状态
+    cancelReply()
+    
     currentVideo.value.comment_count++
     
     // 重新获取评论
@@ -1287,6 +1368,41 @@ const submitComment = async () => {
     ElMessage.error(errorMsg)
   } finally {
     submittingComment.value = false
+  }
+}
+
+// 设置回复目标
+const setReplyTo = (comment, reply = null) => {
+  if (reply) {
+    // 回复某条回复，但 parent_id 仍然是顶级评论
+    replyTo.value = reply
+    replyParentId.value = comment.id
+  } else {
+    // 回复顶级评论
+    replyTo.value = comment
+    replyParentId.value = comment.id
+  }
+  // 聚焦输入框
+  nextTick(() => {
+    commentInputRef.value?.focus()
+  })
+}
+
+// 取消回复
+const cancelReply = () => {
+  replyTo.value = null
+  replyParentId.value = null
+}
+
+// 加载回复列表
+const loadReplies = async (comment) => {
+  try {
+    const res = await api.get(`/comments/replies/${comment.id}`)
+    comment.replies = res.data?.items || res.data || []
+    comment.showReplies = true
+  } catch (error) {
+    console.error('加载回复失败:', error)
+    ElMessage.error('加载回复失败')
   }
 }
 
@@ -2308,6 +2424,16 @@ watch(() => route.path, (newPath, oldPath) => {
             color: rgba(255, 255, 255, 0.35);
           }
           
+          .reply-btn {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            
+            &:hover {
+              color: #fe2c55;
+            }
+          }
+          
           .like-btn {
             font-size: 12px;
             color: rgba(255, 255, 255, 0.45);
@@ -2320,6 +2446,120 @@ watch(() => route.path, (newPath, oldPath) => {
             
             &.liked {
               color: #ff6b6b;
+            }
+          }
+        }
+        
+        // 回复列表
+        .replies-section {
+          margin-top: 10px;
+          padding-left: 0;
+          
+          .view-replies-btn, .hide-replies-btn {
+            font-size: 12px;
+            color: #fe2c55;
+            cursor: pointer;
+            padding: 5px 0;
+          }
+          
+          .replies-list {
+            .reply-item {
+              display: flex;
+              gap: 10px;
+              padding: 10px 0;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+              
+              &:last-of-type {
+                border-bottom: none;
+              }
+              
+              .reply-avatar {
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                object-fit: cover;
+                flex-shrink: 0;
+                
+                &.clickable {
+                  cursor: pointer;
+                }
+              }
+              
+              .reply-body {
+                flex: 1;
+                min-width: 0;
+                
+                .reply-user {
+                  display: flex;
+                  align-items: center;
+                  gap: 4px;
+                  margin-bottom: 4px;
+                  
+                  .username {
+                    font-size: 12px;
+                    color: rgba(255, 255, 255, 0.6);
+                    
+                    &.clickable {
+                      cursor: pointer;
+                    }
+                  }
+                  
+                  .vip-badge-xs {
+                    height: 12px;
+                    width: auto;
+                  }
+                }
+                
+                .reply-text {
+                  font-size: 13px;
+                  color: rgba(255, 255, 255, 0.9);
+                  line-height: 1.5;
+                  word-break: break-word;
+                }
+                
+                .reply-image {
+                  margin-top: 8px;
+                  
+                  img {
+                    max-width: 120px;
+                    max-height: 120px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                  }
+                }
+                
+                .reply-meta {
+                  display: flex;
+                  gap: 15px;
+                  align-items: center;
+                  margin-top: 6px;
+                  
+                  .time {
+                    font-size: 11px;
+                    color: rgba(255, 255, 255, 0.3);
+                  }
+                  
+                  .reply-btn {
+                    font-size: 11px;
+                    color: rgba(255, 255, 255, 0.5);
+                    cursor: pointer;
+                    
+                    &:hover {
+                      color: #fe2c55;
+                    }
+                  }
+                  
+                  .like-btn {
+                    font-size: 11px;
+                    color: rgba(255, 255, 255, 0.4);
+                    cursor: pointer;
+                    
+                    &.liked {
+                      color: #ff6b6b;
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -2414,6 +2654,34 @@ watch(() => route.path, (newPath, oldPath) => {
     }
     
     .input-area {
+      .reply-hint {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        background: rgba(254, 44, 85, 0.1);
+        border-radius: 8px;
+        font-size: 12px;
+        color: #fe2c55;
+        
+        .cancel-reply {
+          width: 18px;
+          height: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 50%;
+          cursor: pointer;
+          font-size: 14px;
+          
+          &:hover {
+            background: rgba(255, 255, 255, 0.2);
+          }
+        }
+      }
+      
       .image-preview {
         position: relative;
         margin-bottom: 10px;

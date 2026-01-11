@@ -467,6 +467,12 @@ const handleUpload = async () => {
       formData.append('tags', form.tags.join(','))
     }
     
+    // 付费设置
+    formData.append('pay_type', form.pay_type)
+    if (form.pay_type !== 'free') {
+      formData.append('coin_price', form.coin_price)
+    }
+    
     // 如果选择了手动封面或上传封面，传递封面URL
     if (coverMode.value !== 'auto' && selectedCover.value) {
       formData.append('custom_cover_url', selectedCover.value)

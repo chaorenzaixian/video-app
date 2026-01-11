@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <div class="nav-header">
       <button class="back-btn" @click="$router.back()">
-        <span>‹</span>
+        <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
       </button>
       <h1>金币充值</h1>
       <button class="history-btn" @click="showHistory = true">充值记录</button>

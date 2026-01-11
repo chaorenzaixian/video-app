@@ -31,7 +31,7 @@
     </div>
 
     <!-- 视频列表区域 -->
-    <div class="video-section">
+    <div class="video-section" v-if="activeCategory === 0">
       <!-- 骨架屏加载状态 -->
       <div v-if="loading && videos.length === 0" class="video-list double-column">
         <div v-for="i in 6" :key="'skeleton-'+i" class="video-card skeleton">
@@ -87,6 +87,134 @@
       </div>
     </div>
 
+    <!-- 抖音列表 -->
+    <div class="video-section" v-if="activeCategory === 1">
+      <div v-if="loading && shortVideos.length === 0" class="loading-state">加载中...</div>
+      <div v-else-if="!loading && shortVideos.length === 0" class="empty-videos">
+        <span>暂无搜索结果</span>
+      </div>
+      <div v-else class="video-list double-column">
+        <div 
+          v-for="video in shortVideos" 
+          :key="video.id"
+          class="video-card"
+          @click="goToShortVideo(video.id)"
+        >
+          <div class="video-cover vertical">
+            <img :src="getCoverUrl(video.cover_url)" :alt="video.title"/>
+            <div class="cover-views">
+              <span class="play-icon">▶</span>
+              <span>{{ formatCount(video.view_count) }}</span>
+            </div>
+          </div>
+          <div class="video-info">
+            <p class="video-title">{{ video.title }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="view-more-btn" v-if="shortVideos.length && hasMoreShort" @click="loadMoreShort">
+        <span>查看更多</span>
+        <span class="arrow">›</span>
+      </div>
+    </div>
+
+    <!-- 帖子列表 -->
+    <div class="post-section" v-if="activeCategory === 2">
+      <div v-if="loading && posts.length === 0" class="loading-state">加载中...</div>
+      <div v-else-if="!loading && posts.length === 0" class="empty-videos">
+        <span>暂无搜索结果</span>
+      </div>
+      <div v-else class="post-list">
+        <div 
+          v-for="post in posts" 
+          :key="post.id"
+          class="post-card"
+          @click="goToPost(post.id)"
+        >
+          <div class="post-header">
+            <img :src="post.user?.avatar || '/images/avatars/icon_avatar_1.webp'" class="post-avatar" />
+            <div class="post-user-info">
+              <span class="post-username">{{ post.user?.nickname || '用户' }}</span>
+              <span class="post-time">{{ formatTime(post.created_at) }}</span>
+            </div>
+          </div>
+          <p class="post-content">{{ post.content }}</p>
+          <div v-if="post.images && post.images.length" class="post-images">
+            <img v-for="(img, idx) in post.images.slice(0, 3)" :key="idx" :src="img" class="post-img" />
+          </div>
+          <div class="post-stats">
+            <span>👁 {{ formatCount(post.view_count) }}</span>
+            <span>💬 {{ post.comment_count || 0 }}</span>
+            <span>❤️ {{ formatCount(post.like_count) }}</span>
+            <span v-if="post.topics && post.topics.length" class="post-topic-tag">#{{ post.topics[0].name }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="view-more-btn" v-if="posts.length && hasMorePost" @click="loadMorePost">
+        <span>查看更多</span>
+        <span class="arrow">›</span>
+      </div>
+    </div>
+
+    <!-- 小说列表 -->
+    <div class="novel-section" v-if="activeCategory === 3">
+      <div v-if="loading && novels.length === 0" class="loading-state">加载中...</div>
+      <div v-else-if="!loading && novels.length === 0" class="empty-videos">
+        <span>暂无搜索结果</span>
+      </div>
+      <div v-else class="novel-grid">
+        <div 
+          v-for="novel in novels" 
+          :key="novel.id"
+          class="novel-item"
+          @click="goToNovel(novel)"
+        >
+          <div class="novel-cover-wrap">
+            <img :src="novel.cover" :alt="novel.title" class="novel-cover" />
+            <span v-if="novel.novel_type === 'audio'" class="audio-badge">🎧</span>
+          </div>
+          <div class="novel-info">
+            <p class="novel-title">{{ novel.title }}</p>
+            <p class="novel-author">{{ novel.author || '佚名' }}</p>
+            <p class="novel-chapters">共{{ novel.chapter_count }}章</p>
+          </div>
+        </div>
+      </div>
+      <div class="view-more-btn" v-if="novels.length && hasMoreNovel" @click="loadMoreNovel">
+        <span>查看更多</span>
+        <span class="arrow">›</span>
+      </div>
+    </div>
+
+    <!-- 图集列表 -->
+    <div class="gallery-section" v-if="activeCategory === 4">
+      <div v-if="loading && galleries.length === 0" class="loading-state">加载中...</div>
+      <div v-else-if="!loading && galleries.length === 0" class="empty-videos">
+        <span>暂无搜索结果</span>
+      </div>
+      <div v-else class="gallery-grid">
+        <div 
+          v-for="gallery in galleries" 
+          :key="gallery.id"
+          class="gallery-item"
+          @click="goToGallery(gallery.id)"
+        >
+          <div class="gallery-cover">
+            <img :src="gallery.cover" :alt="gallery.title" />
+            <div class="gallery-info">
+              <span class="views">👁 {{ formatCount(gallery.view_count) }}</span>
+              <span class="count">📷 {{ gallery.image_count }}</span>
+            </div>
+          </div>
+          <p class="gallery-title">{{ gallery.title }}</p>
+        </div>
+      </div>
+      <div class="view-more-btn" v-if="galleries.length && hasMoreGallery" @click="loadMoreGallery">
+        <span>查看更多</span>
+        <span class="arrow">›</span>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -103,21 +231,40 @@ const activeTab = ref('search')
 const keyword = ref('')
 const activeCategory = ref(0)
 const loading = ref(false)
+
+// 视频相关
+const videos = ref([])
 const hasMore = ref(true)
 const page = ref(1)
+
+// 抖音相关
+const shortVideos = ref([])
+const hasMoreShort = ref(true)
+const pageShort = ref(1)
+
+// 帖子相关
+const posts = ref([])
+const hasMorePost = ref(true)
+const pagePost = ref(1)
+
+// 小说相关
+const novels = ref([])
+const hasMoreNovel = ref(true)
+const pageNovel = ref(1)
+
+// 图集相关
+const galleries = ref([])
+const hasMoreGallery = ref(true)
+const pageGallery = ref(1)
 
 // 分类标签
 const categories = ref([
   { key: 'video', label: '视频' },
   { key: 'douyin', label: '抖音' },
   { key: 'post', label: '帖子' },
-  { key: 'anime', label: '动漫' },
-  { key: 'manga', label: '漫画' },
+  { key: 'novel', label: '小说' },
   { key: 'gallery', label: '图集' }
 ])
-
-// 视频列表
-const videos = ref([])
 
 // 获取封面URL
 const getCoverUrl = (url) => {
@@ -147,64 +294,166 @@ const formatDuration = (seconds) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-// 跳转到视频
-const goToVideo = (id) => {
-  router.push(`/user/video/${id}`)
+// 格式化时间
+const formatTime = (time) => {
+  if (!time) return ''
+  const date = new Date(time)
+  const now = new Date()
+  const diff = (now - date) / 1000
+  if (diff < 60) return '刚刚'
+  if (diff < 3600) return Math.floor(diff / 60) + '分钟前'
+  if (diff < 86400) return Math.floor(diff / 3600) + '小时前'
+  return date.toLocaleDateString()
 }
 
-// 清除关键词
-const clearKeyword = () => {
-  keyword.value = ''
+// 跳转
+const goToVideo = (id) => router.push(`/user/video/${id}`)
+const goToShortVideo = (id) => router.push(`/user/short-video/${id}`)
+const goToPost = (id) => router.push(`/user/community/post/${id}`)
+const goToGallery = (id) => router.push(`/user/gallery/${id}`)
+const goToNovel = (novel) => {
+  if (novel.novel_type === 'audio') {
+    router.push(`/user/audio-novel/${novel.id}`)
+  } else {
+    router.push(`/user/novel/${novel.id}`)
+  }
 }
 
 // 搜索
 const handleSearch = async () => {
   if (!keyword.value.trim()) return
+  // 重置所有分页
   page.value = 1
-  await fetchVideos()
+  pageShort.value = 1
+  pagePost.value = 1
+  pageNovel.value = 1
+  pageGallery.value = 1
+  // 根据当前分类搜索
+  await searchByCategory()
 }
 
-// 获取视频列表
-const fetchVideos = async () => {
-  if (!keyword.value.trim()) return
-  
+// 根据分类搜索
+const searchByCategory = async () => {
+  const cat = categories.value[activeCategory.value].key
   loading.value = true
   try {
-    const res = await api.get('/videos', {
-      params: {
-        search: keyword.value.trim(),
-        page: page.value,
-        page_size: 20
-      }
-    })
-    const items = (res.data?.items || res.data || []).map(v => ({
-      ...v,
-      tag: v.category_name || '国产',
-      comment_count: v.comment_count || 0
-    }))
-    
-    if (page.value === 1) {
-      videos.value = items
-    } else {
-      videos.value = [...videos.value, ...items]
-    }
-    
-    hasMore.value = items.length >= 20
-  } catch (error) {
-    console.error('搜索失败:', error)
-    if (page.value === 1) {
-      videos.value = []
+    switch (cat) {
+      case 'video':
+        await fetchVideos()
+        break
+      case 'douyin':
+        await fetchShortVideos()
+        break
+      case 'post':
+        await fetchPosts()
+        break
+      case 'novel':
+        await fetchNovels()
+        break
+      case 'gallery':
+        await fetchGalleries()
+        break
     }
   } finally {
     loading.value = false
   }
 }
 
-// 加载更多
-const loadMore = async () => {
-  page.value++
-  await fetchVideos()
+// 获取视频列表
+const fetchVideos = async () => {
+  if (!keyword.value.trim()) return
+  try {
+    const res = await api.get('/videos', {
+      params: { search: keyword.value.trim(), page: page.value, page_size: 20 }
+    })
+    const items = (res.data?.items || res.data || []).map(v => ({
+      ...v,
+      tag: v.category_name || '国产',
+      comment_count: v.comment_count || 0
+    }))
+    videos.value = page.value === 1 ? items : [...videos.value, ...items]
+    hasMore.value = items.length >= 20
+  } catch (e) {
+    console.error('搜索视频失败:', e)
+    if (page.value === 1) videos.value = []
+  }
 }
+
+// 获取抖音列表
+const fetchShortVideos = async () => {
+  if (!keyword.value.trim()) return
+  try {
+    const res = await api.get('/short-videos', {
+      params: { search: keyword.value.trim(), page: pageShort.value, page_size: 20 }
+    })
+    const items = res.data?.items || res.data || []
+    shortVideos.value = pageShort.value === 1 ? items : [...shortVideos.value, ...items]
+    hasMoreShort.value = items.length >= 20
+  } catch (e) {
+    console.error('搜索抖音失败:', e)
+    if (pageShort.value === 1) shortVideos.value = []
+  }
+}
+
+// 获取帖子列表
+const fetchPosts = async () => {
+  if (!keyword.value.trim()) return
+  try {
+    const res = await api.get('/community/posts', {
+      params: { search: keyword.value.trim(), page: pagePost.value, page_size: 20 }
+    })
+    const items = res.data || []
+    posts.value = pagePost.value === 1 ? items : [...posts.value, ...items]
+    hasMorePost.value = items.length >= 20
+  } catch (e) {
+    console.error('搜索帖子失败:', e)
+    if (pagePost.value === 1) posts.value = []
+  }
+}
+
+// 获取小说列表
+const fetchNovels = async () => {
+  if (!keyword.value.trim()) return
+  try {
+    const res = await api.get('/gallery-novel/novel/list', {
+      params: { search: keyword.value.trim(), page: pageNovel.value, page_size: 20 }
+    })
+    const items = res.data || []
+    novels.value = pageNovel.value === 1 ? items : [...novels.value, ...items]
+    hasMoreNovel.value = items.length >= 20
+  } catch (e) {
+    console.error('搜索小说失败:', e)
+    if (pageNovel.value === 1) novels.value = []
+  }
+}
+
+// 获取图集列表
+const fetchGalleries = async () => {
+  if (!keyword.value.trim()) return
+  try {
+    const res = await api.get('/gallery-novel/gallery/list', {
+      params: { search: keyword.value.trim(), page: pageGallery.value, page_size: 20 }
+    })
+    const items = res.data || []
+    galleries.value = pageGallery.value === 1 ? items : [...galleries.value, ...items]
+    hasMoreGallery.value = items.length >= 20
+  } catch (e) {
+    console.error('搜索图集失败:', e)
+    if (pageGallery.value === 1) galleries.value = []
+  }
+}
+
+// 加载更多
+const loadMore = async () => { page.value++; await fetchVideos() }
+const loadMoreShort = async () => { pageShort.value++; await fetchShortVideos() }
+const loadMorePost = async () => { pagePost.value++; await fetchPosts() }
+const loadMoreNovel = async () => { pageNovel.value++; await fetchNovels() }
+const loadMoreGallery = async () => { pageGallery.value++; await fetchGalleries() }
+
+// 监听分类切换
+watch(activeCategory, () => {
+  searchByCategory()
+})
 
 // 监听路由参数变化
 watch(() => route.query.keyword, (newKeyword) => {
@@ -215,7 +464,6 @@ watch(() => route.query.keyword, (newKeyword) => {
 }, { immediate: true })
 
 onMounted(() => {
-  // 从路由获取关键词
   if (route.query.keyword) {
     keyword.value = route.query.keyword
     handleSearch()
@@ -679,5 +927,239 @@ onMounted(() => {
     font-size: 18px;
     color: #a855f7;
   }
+}
+
+// 加载状态
+.loading-state {
+  text-align: center;
+  padding: 40px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+// 帖子列表
+.post-section {
+  padding: 0 12px;
+}
+
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.post-card {
+  background: #151520;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  
+  .post-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    
+    .post-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .post-user-info {
+      margin-left: 12px;
+      display: flex;
+      flex-direction: column;
+      
+      .post-username {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 500;
+      }
+      
+      .post-time {
+        color: #666;
+        font-size: 12px;
+      }
+    }
+  }
+  
+  .post-content {
+    color: #ddd;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .post-images {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    
+    .post-img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+  }
+  
+  .post-stats {
+    display: flex;
+    gap: 20px;
+    color: #666;
+    font-size: 13px;
+    align-items: center;
+    
+    .post-topic-tag {
+      margin-left: auto;
+      padding: 4px 12px;
+      background: transparent;
+      border: 1px solid rgba(168, 85, 247, 0.5);
+      border-radius: 12px;
+      color: #a855f7;
+      font-size: 12px;
+    }
+  }
+}
+
+// 小说列表
+.novel-section {
+  padding: 0 12px;
+}
+
+.novel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px 12px;
+  align-items: start;
+}
+
+.novel-item {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  
+  .novel-cover-wrap {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 133.33%;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1a1a1a;
+    
+    .novel-cover {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .audio-badge {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 6px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+  }
+  
+  .novel-info {
+    padding: 8px 0;
+    
+    .novel-title {
+      color: #eee;
+      font-size: 13px;
+      font-weight: 500;
+      margin: 0 0 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .novel-author {
+      color: #888;
+      font-size: 11px;
+      margin: 0 0 2px;
+    }
+    
+    .novel-chapters {
+      color: #666;
+      font-size: 11px;
+      margin: 0;
+    }
+  }
+}
+
+// 图集列表
+.gallery-section {
+  padding: 0 12px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px 12px;
+  align-items: start;
+}
+
+.gallery-item {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  
+  .gallery-cover {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 133.33%;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1a1a1a;
+    
+    img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .gallery-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 6px 8px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #fff;
+    }
+  }
+  
+  .gallery-title {
+    color: #eee;
+    font-size: 13px;
+    margin: 8px 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// 抖音竖屏封面
+.video-cover.vertical {
+  aspect-ratio: 9/16;
 }
 </style>

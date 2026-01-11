@@ -1,7 +1,7 @@
 <template>
   <div class="creator-videos-page">
     <div class="nav-header">
-      <button class="back-btn" @click="$router.push('/creator')">‹</button>
+      <button class="back-btn" @click="$router.push('/creator')"><img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" /></button>
       <h1>我的作品</h1>
       <button class="upload-btn" @click="$router.push('/creator/upload')">+上传</button>
     </div>

@@ -95,6 +95,12 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/user/ranking',
+    name: 'Ranking',
+    component: () => import('@/views/user/Ranking.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/user/history',
     name: 'UserHistory',
     component: () => import('@/views/user/History.vue'),
@@ -104,6 +110,12 @@ const routes = [
     path: '/user/favorites',
     name: 'UserFavorites',
     component: () => import('@/views/user/Favorites.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/user/likes',
+    name: 'UserLikes',
+    component: () => import('@/views/user/Likes.vue'),
     meta: { requiresAuth: false }
   },
   {
@@ -172,6 +184,60 @@ const routes = [
     name: 'CommunityDetail',
     component: () => import('@/views/user/CommunityDetail.vue'),
     meta: { requiresAuth: false }
+  },
+  {
+    path: '/user/community/topic/:id',
+    name: 'PostCategory',
+    component: () => import('@/views/user/PostCategory.vue'),
+    meta: { requiresAuth: false }
+  },
+  // 图集详情
+  {
+    path: '/user/gallery/:id',
+    name: 'GalleryDetail',
+    component: () => import('@/views/user/GalleryDetail.vue'),
+    meta: { requiresAuth: false }
+  },
+  // 小说详情
+  {
+    path: '/user/novel/:id',
+    name: 'NovelDetail',
+    component: () => import('@/views/user/NovelDetail.vue'),
+    meta: { requiresAuth: false }
+  },
+  // 有声小说播放器
+  {
+    path: '/user/audio-novel/:id',
+    name: 'AudioNovelPlayer',
+    component: () => import('@/views/user/AudioNovelPlayer.vue'),
+    meta: { requiresAuth: false, hideNav: true }
+  },
+  // 交友页面
+  {
+    path: '/user/dating',
+    name: 'Dating',
+    component: () => import('@/views/user/Dating.vue'),
+    meta: { requiresAuth: true }
+  },
+  // 暗网入口页面
+  {
+    path: '/user/darkweb-entry',
+    name: 'DarkwebEntry',
+    component: () => import('@/views/user/DarkwebEntry.vue'),
+    meta: { requiresAuth: true }
+  },
+  // 暗网视频专区
+  {
+    path: '/user/darkweb',
+    name: 'Darkweb',
+    component: () => import('@/views/user/Darkweb.vue'),
+    meta: { requiresAuth: true, hideNav: true }
+  },
+  {
+    path: '/user/darkweb/video/:id',
+    name: 'DarkwebPlayer',
+    component: () => import('@/views/user/DarkwebPlayer.vue'),
+    meta: { requiresAuth: true, hideNav: true }
   },
   {
     path: '/user/tasks',
@@ -676,6 +742,32 @@ const routes = [
         name: 'NovelManage',
         component: () => import('@/views/admin/NovelManage.vue'),
         meta: { title: '小说管理', icon: 'Reading' }
+      },
+      {
+        path: 'novel-statistics',
+        name: 'NovelStatistics',
+        component: () => import('@/views/admin/NovelStatistics.vue'),
+        meta: { title: '阅读统计', icon: 'DataAnalysis' }
+      },
+      {
+        path: 'audio-novel-manage',
+        name: 'AudioNovelManage',
+        component: () => import('@/views/admin/AudioNovelManage.vue'),
+        meta: { title: '有声小说', icon: 'Headset' }
+      },
+      // 暗网视频管理
+      {
+        path: 'darkweb-manage',
+        name: 'DarkwebManage',
+        component: () => import('@/views/admin/DarkwebManage.vue'),
+        meta: { title: '暗网视频', icon: 'Lock' }
+      },
+      // 交友管理
+      {
+        path: 'dating-manage',
+        name: 'DatingManage',
+        component: () => import('@/views/admin/DatingManage.vue'),
+        meta: { title: '交友管理', icon: 'ChatDotRound' }
       }
     ]
   },
@@ -688,7 +780,15 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    // 如果是浏览器后退，恢复位置
+    if (savedPosition) {
+      return savedPosition
+    }
+    // 否则滚动到顶部
+    return { top: 0, left: 0 }
+  }
 })
 
 // 路由守卫

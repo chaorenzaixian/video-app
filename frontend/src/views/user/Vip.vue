@@ -2,7 +2,7 @@
   <div class="vip-page">
     <!-- 顶部导航 -->
     <header class="page-header">
-      <button class="back-btn" @click="$router.back()">‹</button>
+      <button class="back-btn" @click="$router.back()"><img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" /></button>
       <h1>会员中心</h1>
       <button class="record-btn" @click="showRecords = true">充值记录</button>
     </header>

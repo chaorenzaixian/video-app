@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <header class="page-header">
       <div class="back-btn" @click="goBack">
-        <span>‹</span>
+        <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
       </div>
       <h1 class="page-title">邀请记录</h1>
       <div class="header-right" @click="contactService">联系客服</div>

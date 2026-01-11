@@ -127,6 +127,18 @@
           <el-menu-item index="/novel-manage">小说管理</el-menu-item>
         </el-sub-menu>
         
+        <!-- 暗网专区 -->
+        <el-menu-item index="/darkweb-manage">
+          <el-icon><Lock /></el-icon>
+          <span>暗网视频</span>
+        </el-menu-item>
+        
+        <!-- 交友管理 -->
+        <el-menu-item index="/dating-manage">
+          <el-icon><ChatDotRound /></el-icon>
+          <span>交友管理</span>
+        </el-menu-item>
+        
         <!-- 数据中心 -->
         <el-sub-menu index="data">
           <template #title>
@@ -212,6 +224,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessageBox } from 'element-plus'
+import { Fold, Expand, ArrowDown, SwitchButton, Refresh, User, Lock } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()

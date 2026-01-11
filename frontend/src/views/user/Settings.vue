@@ -3,9 +3,7 @@
     <!-- 顶部导航 -->
     <header class="page-header">
       <div class="back-btn" @click="$router.back()">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-        </svg>
+        <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
       </div>
       <h1 class="page-title">设置中心</h1>
       <div class="header-right"></div>

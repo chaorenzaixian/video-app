@@ -1,9 +1,9 @@
-linear-gradient(53deg, #03A9F4, #3F51B5)<template>
-  <div class="promotion-page">
+<template>
+  <div class="promotion-page" ref="pageRef">
     <!-- 顶部导航 -->
     <header class="page-header">
       <div class="back-btn" @click="goBack">
-        <span>‹</span>
+        <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
       </div>
       <h1 class="page-title">分享推广</h1>
       <div class="header-right" @click="goToRecords">邀请记录</div>
@@ -88,12 +88,38 @@ linear-gradient(53deg, #03A9F4, #3F51B5)<template>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated, nextTick, onBeforeMount } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/utils/api'
 // 二维码使用在线API生成，最稳定可靠
 
 const router = useRouter()
+
+// 页面引用
+const pageRef = ref(null)
+
+// 强制滚动到顶部 - 多种方式确保生效
+const forceScrollToTop = () => {
+  // 方式1: window.scrollTo
+  window.scrollTo(0, 0)
+  
+  // 方式2: documentElement
+  document.documentElement.scrollTop = 0
+  
+  // 方式3: body
+  document.body.scrollTop = 0
+  
+  // 方式4: 页面容器
+  if (pageRef.value) {
+    pageRef.value.scrollTop = 0
+  }
+  
+  // 方式5: 滚动到页面顶部元素
+  const header = document.querySelector('.page-header')
+  if (header) {
+    header.scrollIntoView({ behavior: 'instant', block: 'start' })
+  }
+}
 
 // 数据
 const inviteCode = ref('')
@@ -178,10 +204,35 @@ const goToAgent = () => {
   router.push('/user/agent')
 }
 
+// 组件挂载前就开始滚动
+onBeforeMount(() => {
+  forceScrollToTop()
+})
+
 onMounted(() => {
+  // 立即滚动
+  forceScrollToTop()
+  
+  // DOM更新后再滚动
+  nextTick(() => {
+    forceScrollToTop()
+  })
+  
+  // 延迟滚动确保所有资源加载完成
+  setTimeout(forceScrollToTop, 0)
+  setTimeout(forceScrollToTop, 50)
+  setTimeout(forceScrollToTop, 100)
+  setTimeout(forceScrollToTop, 200)
+  
   fetchInviteCode()
   fetchStats()
   fetchConfig()
+})
+
+// 页面激活时也滚动到顶部（处理keep-alive缓存情况）
+onActivated(() => {
+  forceScrollToTop()
+  nextTick(forceScrollToTop)
 })
 </script>
 
@@ -193,8 +244,10 @@ onMounted(() => {
   background-size: 100% auto;
   background-position: top center;
   background-repeat: no-repeat;
+  background-attachment: fixed;
   color: #fff;
   padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  padding-top: 0;
 }
 
 // 顶部导航
@@ -204,6 +257,10 @@ onMounted(() => {
   justify-content: space-between;
   padding: 16px;
   padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: transparent;
   
   .back-btn {
     font-size: 32px;
@@ -230,7 +287,7 @@ onMounted(() => {
 
 // 主卡片 - 缩小15%
 .promo-card {
-  margin: 60px 28px 18px;
+  margin: 16px 28px 18px;
   border-radius: 16px;
   overflow: hidden;
   position: relative;

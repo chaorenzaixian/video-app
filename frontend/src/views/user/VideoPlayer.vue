@@ -2,9 +2,7 @@
   <div class="video-player-page">
     <!-- 返回按钮 -->
     <div class="back-btn" @click="goBack">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-      </svg>
+      <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
     </div>
 
     <!-- 视频播放器 -->
@@ -1673,12 +1671,21 @@ const onVideoEnded = () => {
 }
 
 const toggleLike = async () => {
+  // 乐观更新 - 立即反馈
+  const wasLiked = isLiked.value
+  const oldCount = video.value.like_count || 0
+  isLiked.value = !wasLiked
+  video.value.like_count = wasLiked ? Math.max(0, oldCount - 1) : oldCount + 1
+  
   try {
     const res = await api.post(`/videos/${video.value.id}/like`)
     const data = res.data || res
     isLiked.value = data.liked
     video.value.like_count = data.like_count
   } catch (error) {
+    // 回滚
+    isLiked.value = wasLiked
+    video.value.like_count = oldCount
     console.error('点赞失败:', error)
     if (error.response?.status === 401) {
       ElMessage.warning('请先登录后再点赞')
@@ -1687,12 +1694,22 @@ const toggleLike = async () => {
 }
 
 const toggleFavorite = async () => {
+  // 乐观更新 - 立即反馈
+  const wasFavorited = isFavorited.value
+  const oldCount = video.value.favorite_count || 0
+  isFavorited.value = !wasFavorited
+  video.value.favorite_count = wasFavorited ? Math.max(0, oldCount - 1) : oldCount + 1
+  
   try {
     const res = await api.post(`/videos/${video.value.id}/favorite`)
     const data = res.data || res
     isFavorited.value = data.favorited
     video.value.favorite_count = data.favorite_count
+    ElMessage.success(data.favorited ? '收藏成功' : '已取消收藏')
   } catch (error) {
+    // 回滚
+    isFavorited.value = wasFavorited
+    video.value.favorite_count = oldCount
     console.error('收藏失败:', error)
     if (error.response?.status === 401) {
       ElMessage.warning('请先登录后再收藏')

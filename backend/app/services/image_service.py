@@ -106,15 +106,20 @@ class ImageService:
                 else:
                     return content, ".gif"
             
-            # 转换为 RGB（处理 RGBA、P 等模式）
-            if img.mode in ('RGBA', 'LA', 'P'):
+            # 处理不同图片模式
+            if img.mode == 'RGBA' or (img.mode == 'P' and 'transparency' in img.info):
+                # 保留透明通道
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                # RGBA模式直接保存为webp，保留透明度
+            elif img.mode in ('LA', 'P'):
                 # 创建白色背景
                 background = Image.new('RGB', img.size, (255, 255, 255))
                 if img.mode == 'P':
                     img = img.convert('RGBA')
                 background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
                 img = background
-            elif img.mode != 'RGB':
+            elif img.mode != 'RGB' and img.mode != 'RGBA':
                 img = img.convert('RGB')
             
             # 自动旋转（根据 EXIF）
@@ -127,7 +132,7 @@ class ImageService:
             # 输出
             output = BytesIO()
             if convert_webp:
-                img.save(output, format='WEBP', quality=quality, method=4)
+                img.save(output, format='WEBP', quality=quality, method=4, lossless=(img.mode == 'RGBA'))
                 return output.getvalue(), ".webp"
             else:
                 img.save(output, format='JPEG', quality=quality, optimize=True)
@@ -171,14 +176,19 @@ class ImageService:
         try:
             img = Image.open(BytesIO(content))
             
-            # 转换模式
-            if img.mode in ('RGBA', 'LA', 'P'):
+            # 处理不同图片模式，保留透明通道
+            has_alpha = False
+            if img.mode == 'RGBA' or (img.mode == 'P' and 'transparency' in img.info):
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                has_alpha = True
+            elif img.mode in ('LA', 'P'):
                 background = Image.new('RGB', img.size, (255, 255, 255))
                 if img.mode == 'P':
                     img = img.convert('RGBA')
                 background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
                 img = background
-            elif img.mode != 'RGB':
+            elif img.mode != 'RGB' and img.mode != 'RGBA':
                 img = img.convert('RGB')
             
             # 自动旋转
@@ -189,7 +199,7 @@ class ImageService:
                 thumb.thumbnail(size, Image.Resampling.LANCZOS)
                 
                 output = BytesIO()
-                thumb.save(output, format='WEBP', quality=80, method=4)
+                thumb.save(output, format='WEBP', quality=80, method=4, lossless=has_alpha)
                 result[name] = output.getvalue()
                 
         except Exception as e:

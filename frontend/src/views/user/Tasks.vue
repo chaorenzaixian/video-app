@@ -2,7 +2,7 @@
   <div class="tasks-page">
     <!-- 顶部导航 -->
     <header class="page-header">
-      <div class="back-btn" @click="$router.push('/user/profile')">‹</div>
+      <div class="back-btn" @click="$router.push('/user/profile')"><img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" /></div>
       <nav class="header-tabs">
         <span class="tab-item" @click="$router.push('/user/agent')">代理赚钱</span>
         <span class="tab-item active">福利任务</span>
@@ -223,7 +223,7 @@
     <div v-if="showHistory" class="history-page">
       <!-- 顶部导航 -->
       <header class="history-header">
-        <div class="back-btn" @click="showHistory = false">‹</div>
+        <div class="back-btn" @click="showHistory = false"><img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" /></div>
         <h1 class="header-title">会员兑换</h1>
         <div class="placeholder"></div>
       </header>

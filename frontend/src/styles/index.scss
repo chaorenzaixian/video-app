@@ -141,6 +141,22 @@ img, video, iframe {
   --accent-gradient: linear-gradient(90deg, #a855f7, #7c3aed);
 }
 
+/* 全局用户昵称渐变金色样式 */
+.nickname,
+.username,
+.user-name,
+.user-nickname,
+.author-name,
+.comment-user .username,
+.reply-user .username,
+.message-content .nickname {
+  background: linear-gradient(135deg, #ffd700, #ffb347, #ffa500);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 500;
+}
+
 /* 隐藏滚动条但保留滚动功能 */
 ::-webkit-scrollbar {
   width: 0;
@@ -448,3 +464,25 @@ img, video, iframe {
 }
 
 
+
+.no-icon-message .el-message__icon { display: none !important; }
+
+/* ============================================
+   全局返回按钮样式
+   ============================================ */
+
+.back-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  
+  .back-icon {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+  }
+}

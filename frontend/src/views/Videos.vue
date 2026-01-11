@@ -191,16 +191,16 @@
             
             <el-button link type="primary" @click="editVideo(row)">编辑</el-button>
             
-            <!-- 重新转码按钮 -->
+            <!-- 重新转码按钮 - 失败或处理中都可以重试 -->
             <el-button 
-              v-if="row.status === 'FAILED'" 
+              v-if="row.status === 'FAILED' || row.status === 'PROCESSING'" 
               link 
               type="warning"
               @click="retryTranscode(row)"
               :loading="row._retrying"
             >
               <el-icon><RefreshRight /></el-icon>
-              重试
+              重新转码
             </el-button>
             
             <el-popconfirm title="确定删除这个视频吗？" @confirm="deleteVideo(row)">

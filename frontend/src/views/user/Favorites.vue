@@ -3,11 +3,9 @@
     <!-- 顶部导航 -->
     <header class="page-header">
       <div class="back-btn" @click="$router.back()">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-        </svg>
+        <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
       </div>
-      <h1 class="page-title">我的喜欢</h1>
+      <h1 class="page-title">我的收藏</h1>
       <div class="header-right" @click="toggleEdit">{{ isEditing ? '完成' : '编辑' }}</div>
     </header>
 
@@ -32,24 +30,57 @@
         <p>加载中...</p>
       </div>
       
-      <div v-else-if="favorites.length > 0" class="favorites-grid">
-        <div v-for="item in favorites" :key="item.id" class="favorite-item" @click="goToVideo(item)">
-          <!-- 选择框 -->
-          <div v-if="isEditing" class="checkbox" @click.stop="toggleSelect(item)">
-            <div :class="['check-box', { checked: selectedIds.includes(item.id) }]">
-              <svg v-if="selectedIds.includes(item.id)" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-              </svg>
+      <div v-else-if="favorites.length > 0" class="favorites-grid" :class="{ 'post-list': activeTab === 'post' }">
+        <!-- 帖子列表样式 -->
+        <template v-if="activeTab === 'post'">
+          <div v-for="item in favorites" :key="item.id" class="post-item" @click="goToVideo(item)">
+            <div v-if="isEditing" class="checkbox" @click.stop="toggleSelect(item)">
+              <div :class="['check-box', { checked: selectedIds.includes(item.id) }]">
+                <svg v-if="selectedIds.includes(item.id)" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+              </div>
+            </div>
+            <div class="post-header">
+              <img :src="getAvatarUrl(item.user_avatar, item.user_id)" class="post-avatar" />
+              <span class="post-nickname">{{ item.user_nickname }}</span>
+            </div>
+            <p class="post-content">{{ item.content }}</p>
+            <div v-if="item.images && item.images.length > 0" class="post-images">
+              <img v-for="(img, idx) in item.images.slice(0, 3)" :key="idx" :src="img" class="post-img" />
+            </div>
+            <div class="post-stats">
+              <span>❤️ {{ item.like_count || 0 }}</span>
+              <span>💬 {{ item.comment_count || 0 }}</span>
+              <span v-if="item.topics && item.topics.length" class="post-topic-tag">#{{ item.topics[0].name }}</span>
             </div>
           </div>
-          
-          <div class="thumbnail">
-            <img :src="item.thumbnail || '/images/backgrounds/no_data.webp'" alt="" />
-            <span class="duration">{{ item.duration }}</span>
-            <span v-if="item.is_short" class="short-tag">短视频</span>
+        </template>
+        
+        <!-- 其他类型列表样式 -->
+        <template v-else>
+          <div v-for="item in favorites" :key="item.id" class="favorite-item" @click="goToVideo(item)">
+            <!-- 选择框 -->
+            <div v-if="isEditing" class="checkbox" @click.stop="toggleSelect(item)">
+              <div :class="['check-box', { checked: selectedIds.includes(item.id) }]">
+                <svg v-if="selectedIds.includes(item.id)" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+              </div>
+            </div>
+            
+            <div class="thumbnail">
+              <img :src="item.thumbnail || item.cover || '/images/backgrounds/no_data.webp'" alt="" />
+              <span v-if="activeTab === 'video' || activeTab === 'short'" class="duration">{{ item.duration }}</span>
+              <span v-if="activeTab === 'gallery'" class="duration">{{ item.image_count }}张</span>
+              <span v-if="activeTab === 'novel'" class="duration">{{ item.chapter_count }}章</span>
+              <span v-if="item.is_short" class="short-tag">短视频</span>
+              <span v-if="activeTab === 'gallery' || activeTab === 'novel'" class="status-tag">{{ item.status }}</span>
+            </div>
+            <h3 class="title">{{ item.title }}</h3>
+            <p v-if="activeTab === 'novel' && item.author" class="author">{{ item.author }}</p>
           </div>
-          <h3 class="title">{{ item.title }}</h3>
-        </div>
+        </template>
       </div>
       
       <!-- 空状态 -->
@@ -79,12 +110,18 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
+import { useUserStore } from '@/stores/user'
+import { getAvatarUrl } from '@/utils/avatar'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 const tabs = [
   { key: 'video', label: '影视' },
-  { key: 'short', label: '短视频' }
+  { key: 'short', label: '短视频' },
+  { key: 'gallery', label: '图集' },
+  { key: 'novel', label: '小说' },
+  { key: 'post', label: '帖子' }
 ]
 
 const activeTab = ref('video')
@@ -99,7 +136,7 @@ const isAllSelected = computed(() => {
   return favorites.value.length > 0 && selectedIds.value.length === favorites.value.length
 })
 
-// 获取点赞的视频列表
+// 获取收藏列表
 const fetchFavorites = async (reset = false) => {
   if (loading.value) return
   if (!reset && !hasMore.value) return
@@ -112,13 +149,32 @@ const fetchFavorites = async (reset = false) => {
       favorites.value = []
     }
     
-    const res = await api.get('/videos/user/liked', {
-      params: {
-        page: page.value,
-        page_size: 20,
-        video_type: activeTab.value
-      }
-    })
+    let res
+    if (activeTab.value === 'gallery') {
+      // 获取收藏的图集
+      res = await api.get('/gallery-novel/user/collected/galleries', {
+        params: { page: page.value, page_size: 20 }
+      })
+    } else if (activeTab.value === 'novel') {
+      // 获取收藏的小说
+      res = await api.get('/gallery-novel/user/collected/novels', {
+        params: { page: page.value, page_size: 20 }
+      })
+    } else if (activeTab.value === 'post') {
+      // 获取收藏的帖子
+      res = await api.get('/community/user/collected/posts', {
+        params: { page: page.value, page_size: 20 }
+      })
+    } else {
+      // 获取收藏的视频
+      res = await api.get('/videos/user/collected', {
+        params: {
+          page: page.value,
+          page_size: 20,
+          video_type: activeTab.value
+        }
+      })
+    }
     
     const data = res.data || res
     if (data.items && data.items.length > 0) {
@@ -129,7 +185,7 @@ const fetchFavorites = async (reset = false) => {
       hasMore.value = false
     }
   } catch (error) {
-    console.error('获取喜欢列表失败:', error)
+    console.error('获取收藏列表失败:', error)
   } finally {
     loading.value = false
   }
@@ -166,9 +222,17 @@ const deleteSelected = async () => {
   }
   
   try {
-    // 批量取消点赞
+    // 根据类型批量取消收藏
     for (const id of selectedIds.value) {
-      await api.post(`/videos/${id}/like`)
+      if (activeTab.value === 'gallery') {
+        await api.post(`/gallery-novel/gallery/${id}/collect`)
+      } else if (activeTab.value === 'novel') {
+        await api.post(`/gallery-novel/novel/${id}/collect`)
+      } else if (activeTab.value === 'post') {
+        await api.post(`/community/posts/${id}/collect`)
+      } else {
+        await api.post(`/videos/${id}/favorite`)
+      }
     }
     
     favorites.value = favorites.value.filter(item => !selectedIds.value.includes(item.id))
@@ -180,14 +244,20 @@ const deleteSelected = async () => {
   }
 }
 
-// 点击视频跳转
+// 点击项目跳转
 const goToVideo = (item) => {
   if (isEditing.value) {
     toggleSelect(item)
     return
   }
   
-  if (item.is_short) {
+  if (activeTab.value === 'gallery') {
+    router.push(`/gallery/${item.id}`)
+  } else if (activeTab.value === 'novel') {
+    router.push(`/novel/${item.id}`)
+  } else if (activeTab.value === 'post') {
+    router.push(`/user/community/post/${item.id}`)
+  } else if (item.is_short) {
     router.push(`/shorts/${item.id}`)
   } else {
     router.push(`/user/video/${item.id}`)
@@ -196,11 +266,23 @@ const goToVideo = (item) => {
 
 // 监听标签切换
 watch(activeTab, () => {
+  selectedIds.value = []
+  isEditing.value = false
   fetchFavorites(true)
 })
 
+// 监听用户登录状态
+watch(() => userStore.token, (newToken) => {
+  if (newToken) {
+    fetchFavorites(true)
+  }
+})
+
 onMounted(() => {
-  fetchFavorites(true)
+  // 有token就请求
+  if (userStore.token) {
+    fetchFavorites(true)
+  }
 })
 </script>
 
@@ -385,6 +467,17 @@ onMounted(() => {
         padding: 2px 6px;
         border-radius: 3px;
       }
+      
+      .status-tag {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        font-size: 10px;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
     }
     
     .title {
@@ -392,13 +485,21 @@ onMounted(() => {
       color: #fff;
       margin: 0;
       padding: 8px;
+      padding-bottom: 4px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       line-height: 1.4;
-      height: 36px;
-      display: flex;
-      align-items: center;
+    }
+    
+    .author {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      margin: 0;
+      padding: 0 8px 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 }
@@ -477,6 +578,90 @@ onMounted(() => {
     border-radius: 20px;
     font-size: 14px;
     cursor: pointer;
+  }
+}
+
+// 帖子列表样式
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.post-item {
+  position: relative;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  
+  .checkbox {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+  }
+  
+  .post-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    
+    .post-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .post-nickname {
+      font-size: 14px;
+      color: #fff;
+      font-weight: 500;
+    }
+  }
+  
+  .post-content {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.5;
+    margin: 0 0 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .post-images {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    
+    .post-img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+  }
+  
+  .post-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    align-items: center;
+    
+    .post-topic-tag {
+      margin-left: auto;
+      padding: 3px 10px;
+      background: transparent;
+      border: 1px solid rgba(168, 85, 247, 0.5);
+      border-radius: 10px;
+      color: #a855f7;
+      font-size: 11px;
+    }
   }
 }
 </style>

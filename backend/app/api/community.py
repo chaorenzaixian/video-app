@@ -152,7 +152,7 @@ async def check_is_followed(db: AsyncSession, follower_id: int, following_id: in
         select(UserFollow).where(
             UserFollow.follower_id == follower_id,
             UserFollow.following_id == following_id
-        )
+        ).limit(1)
     )
     return result.scalar_one_or_none() is not None
 
@@ -249,7 +249,11 @@ async def get_posts(
         query = query.where(Post.is_hot == True)
     
     if topic_id:
-        query = query.where(Post.topic_ids.contains([topic_id]))
+        # PostgreSQL JSON 数组查询
+        from sqlalchemy import cast, String
+        query = query.where(
+            func.cast(Post.topic_ids, String).like(f'%{topic_id}%')
+        )
     
     if user_id:
         query = query.where(Post.user_id == user_id)
@@ -406,9 +410,19 @@ async def get_post_detail(
     
     is_liked = False
     is_followed = False
+    is_collected = False
     if current_user:
         is_liked = await check_is_liked(db, post.id, current_user.id)
         is_followed = await check_is_followed(db, current_user.id, post.user_id)
+        # 检查是否已收藏
+        from app.models.community import PostCollect
+        collect_result = await db.execute(
+            select(PostCollect).where(
+                PostCollect.post_id == post.id,
+                PostCollect.user_id == current_user.id
+            )
+        )
+        is_collected = collect_result.scalar_one_or_none() is not None
     
     # 获取话题信息
     topics = []
@@ -440,6 +454,7 @@ async def get_post_detail(
         "comment_count": post.comment_count,
         "share_count": post.share_count,
         "view_count": post.view_count,
+        "collect_count": post.collect_count or 0,
         "is_top": post.is_top,
         "is_hot": post.is_hot,
         "visibility": post.visibility,
@@ -447,7 +462,8 @@ async def get_post_detail(
         "location": post.location,
         "created_at": post.created_at,
         "is_liked": is_liked,
-        "is_followed": is_followed
+        "is_followed": is_followed,
+        "is_collected": is_collected
     }
     
     return response_data
@@ -507,6 +523,198 @@ async def like_post(
         post.like_count += 1
         await db.commit()
         return {"liked": True, "like_count": post.like_count}
+
+
+@router.post("/posts/{post_id}/collect")
+async def collect_post(
+    post_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """收藏/取消收藏动态"""
+    from app.models.community import PostCollect
+    
+    result = await db.execute(select(Post).where(Post.id == post_id))
+    post = result.scalar_one_or_none()
+    
+    if not post or post.status == "deleted":
+        raise HTTPException(status_code=404, detail="动态不存在")
+    
+    # 检查是否已收藏
+    collect_result = await db.execute(
+        select(PostCollect).where(PostCollect.post_id == post_id, PostCollect.user_id == current_user.id)
+    )
+    existing_collect = collect_result.scalar_one_or_none()
+    
+    if existing_collect:
+        # 取消收藏
+        await db.delete(existing_collect)
+        post.collect_count = max(0, (post.collect_count or 0) - 1)
+        await db.commit()
+        return {"collected": False, "collect_count": post.collect_count}
+    else:
+        # 收藏
+        collect = PostCollect(post_id=post_id, user_id=current_user.id)
+        db.add(collect)
+        post.collect_count = (post.collect_count or 0) + 1
+        await db.commit()
+        return {"collected": True, "collect_count": post.collect_count}
+
+
+@router.get("/user/collected/posts")
+async def get_user_collected_posts(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取用户收藏的帖子列表"""
+    from app.models.community import PostCollect
+    
+    # 构建查询
+    query = (
+        select(Post)
+        .join(PostCollect, Post.id == PostCollect.post_id)
+        .where(PostCollect.user_id == current_user.id)
+        .where(Post.status == "published")
+        .order_by(desc(PostCollect.created_at))
+    )
+    
+    # 计算总数
+    count_query = (
+        select(func.count(Post.id))
+        .join(PostCollect, Post.id == PostCollect.post_id)
+        .where(PostCollect.user_id == current_user.id)
+        .where(Post.status == "published")
+    )
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # 分页
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    posts = result.scalars().all()
+    
+    # 收集所有话题ID
+    all_topic_ids = set()
+    for post in posts:
+        topic_ids_list = post.topic_ids or []
+        if isinstance(topic_ids_list, str):
+            try:
+                import json
+                topic_ids_list = json.loads(topic_ids_list)
+            except:
+                topic_ids_list = []
+        for tid in topic_ids_list:
+            all_topic_ids.add(tid)
+    
+    # 批量获取话题信息
+    topics_map = {}
+    if all_topic_ids:
+        topic_result = await db.execute(
+            select(Topic).where(Topic.id.in_(all_topic_ids))
+        )
+        for t in topic_result.scalars().all():
+            topics_map[t.id] = {"id": t.id, "name": t.name}
+    
+    # 获取用户信息
+    items = []
+    for post in posts:
+        user_result = await db.execute(select(User).where(User.id == post.user_id))
+        user = user_result.scalar_one_or_none()
+        
+        # 获取帖子话题
+        topics = []
+        topic_ids_list = post.topic_ids or []
+        if isinstance(topic_ids_list, str):
+            try:
+                import json
+                topic_ids_list = json.loads(topic_ids_list)
+            except:
+                topic_ids_list = []
+        for tid in topic_ids_list:
+            if tid in topics_map:
+                topics.append(topics_map[tid])
+        
+        items.append({
+            "id": post.id,
+            "content": post.content[:100] + "..." if len(post.content) > 100 else post.content,
+            "images": post.images or [],
+            "video_url": post.video_url,
+            "like_count": post.like_count or 0,
+            "comment_count": post.comment_count or 0,
+            "collect_count": post.collect_count or 0,
+            "user_id": post.user_id,
+            "user_nickname": user.nickname if user else "用户",
+            "user_avatar": user.avatar if user else None,
+            "topics": topics,
+            "created_at": post.created_at.isoformat() if post.created_at else None
+        })
+    
+    return {
+        "items": items,
+        "total": total,
+        "has_more": (page * page_size) < total
+    }
+
+
+@router.get("/user/liked/posts")
+async def get_user_liked_posts(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取用户点赞的帖子列表"""
+    # 构建查询
+    query = (
+        select(Post)
+        .join(PostLike, Post.id == PostLike.post_id)
+        .where(PostLike.user_id == current_user.id)
+        .where(Post.status == "published")
+        .order_by(desc(PostLike.created_at))
+    )
+    
+    # 计算总数
+    count_query = (
+        select(func.count(Post.id))
+        .join(PostLike, Post.id == PostLike.post_id)
+        .where(PostLike.user_id == current_user.id)
+        .where(Post.status == "published")
+    )
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # 分页
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    posts = result.scalars().all()
+    
+    # 获取用户信息
+    items = []
+    for post in posts:
+        user_result = await db.execute(select(User).where(User.id == post.user_id))
+        user = user_result.scalar_one_or_none()
+        
+        items.append({
+            "id": post.id,
+            "content": post.content[:100] + "..." if len(post.content) > 100 else post.content,
+            "images": post.images or [],
+            "video_url": post.video_url,
+            "like_count": post.like_count or 0,
+            "comment_count": post.comment_count or 0,
+            "collect_count": getattr(post, 'collect_count', 0) or 0,
+            "user_id": post.user_id,
+            "user_nickname": user.nickname if user else "用户",
+            "user_avatar": user.avatar if user else None,
+            "created_at": post.created_at.isoformat() if post.created_at else None
+        })
+    
+    return {
+        "items": items,
+        "total": total,
+        "has_more": (page * page_size) < total
+    }
 
 
 # ========== 评论API ==========
@@ -1047,6 +1255,42 @@ async def get_topics(
         ))
     
     return response
+
+
+@router.get("/topics/{topic_id}", response_model=TopicResponse)
+async def get_topic_detail(
+    topic_id: int,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取单个话题详情"""
+    result = await db.execute(select(Topic).where(Topic.id == topic_id))
+    topic = result.scalar_one_or_none()
+    
+    if not topic:
+        raise HTTPException(status_code=404, detail="话题不存在")
+    
+    # 检查是否关注
+    is_followed = False
+    if current_user:
+        follow_result = await db.execute(
+            select(TopicFollow).where(
+                TopicFollow.topic_id == topic_id,
+                TopicFollow.user_id == current_user.id
+            )
+        )
+        is_followed = follow_result.scalar_one_or_none() is not None
+    
+    return TopicResponse(
+        id=topic.id,
+        name=topic.name,
+        cover=topic.cover,
+        description=topic.description,
+        post_count=topic.post_count,
+        follow_count=topic.follow_count,
+        is_hot=topic.is_hot,
+        is_followed=is_followed
+    )
 
 
 @router.post("/topics/{topic_id}/follow")

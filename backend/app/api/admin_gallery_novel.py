@@ -909,3 +909,216 @@ async def delete_chapter(
     await db.commit()
     
     return {"message": "删除成功"}
+
+
+# ========== 阅读数据统计 ==========
+
+@router.get("/novel/statistics")
+async def get_novel_statistics(
+    admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取小说阅读统计数据"""
+    from app.models.community import NovelReadProgress, NovelLike, NovelCollect
+    from datetime import timedelta
+    
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    month_start = today_start - timedelta(days=30)
+    
+    # 小说总数
+    total_novels = await db.scalar(select(func.count(Novel.id)).where(Novel.is_active == True))
+    
+    # 章节总数
+    total_chapters = await db.scalar(select(func.count(NovelChapter.id)))
+    
+    # 总浏览量
+    total_views = await db.scalar(select(func.sum(Novel.view_count)).where(Novel.is_active == True)) or 0
+    
+    # 总点赞数
+    total_likes = await db.scalar(select(func.sum(Novel.like_count)).where(Novel.is_active == True)) or 0
+    
+    # 阅读用户数（有阅读进度的用户）
+    reading_users = await db.scalar(select(func.count(func.distinct(NovelReadProgress.user_id))))
+    
+    # 今日新增阅读用户
+    today_readers = await db.scalar(
+        select(func.count(func.distinct(NovelReadProgress.user_id)))
+        .where(NovelReadProgress.updated_at >= today_start)
+    )
+    
+    # 文字小说数量
+    text_novels = await db.scalar(
+        select(func.count(Novel.id)).where(Novel.is_active == True, Novel.novel_type == 'text')
+    )
+    
+    # 有声小说数量
+    audio_novels = await db.scalar(
+        select(func.count(Novel.id)).where(Novel.is_active == True, Novel.novel_type == 'audio')
+    )
+    
+    return {
+        "total_novels": total_novels or 0,
+        "total_chapters": total_chapters or 0,
+        "total_views": total_views,
+        "total_likes": total_likes,
+        "reading_users": reading_users or 0,
+        "today_readers": today_readers or 0,
+        "text_novels": text_novels or 0,
+        "audio_novels": audio_novels or 0
+    }
+
+
+@router.get("/novel/ranking")
+async def get_novel_ranking(
+    rank_type: str = Query("views", description="views/likes/reading"),
+    novel_type: Optional[str] = Query(None, description="text/audio"),
+    limit: int = Query(20, ge=1, le=100),
+    admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取小说排行榜"""
+    from app.models.community import NovelReadProgress
+    
+    query = select(Novel).where(Novel.is_active == True)
+    
+    if novel_type:
+        query = query.where(Novel.novel_type == novel_type)
+    
+    if rank_type == "views":
+        query = query.order_by(desc(Novel.view_count))
+    elif rank_type == "likes":
+        query = query.order_by(desc(Novel.like_count))
+    else:
+        # 按阅读人数排序（需要子查询）
+        query = query.order_by(desc(Novel.view_count))  # 简化处理
+    
+    query = query.limit(limit)
+    result = await db.execute(query)
+    novels = result.scalars().all()
+    
+    ranking = []
+    for idx, n in enumerate(novels):
+        # 获取阅读人数
+        reader_count = await db.scalar(
+            select(func.count(func.distinct(NovelReadProgress.user_id)))
+            .where(NovelReadProgress.novel_id == n.id)
+        )
+        
+        ranking.append({
+            "rank": idx + 1,
+            "id": n.id,
+            "title": n.title,
+            "author": n.author,
+            "cover": n.cover,
+            "novel_type": n.novel_type,
+            "chapter_count": n.chapter_count,
+            "view_count": n.view_count or 0,
+            "like_count": n.like_count or 0,
+            "reader_count": reader_count or 0,
+            "status": n.status
+        })
+    
+    return ranking
+
+
+@router.get("/novel/reading-progress")
+async def get_reading_progress_stats(
+    novel_id: Optional[int] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取用户阅读进度统计"""
+    from app.models.community import NovelReadProgress
+    
+    query = select(NovelReadProgress)
+    count_query = select(func.count(NovelReadProgress.id))
+    
+    if novel_id:
+        query = query.where(NovelReadProgress.novel_id == novel_id)
+        count_query = count_query.where(NovelReadProgress.novel_id == novel_id)
+    
+    total = await db.scalar(count_query)
+    
+    query = query.order_by(desc(NovelReadProgress.updated_at))
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    
+    result = await db.execute(query)
+    progress_list = result.scalars().all()
+    
+    items = []
+    for p in progress_list:
+        # 获取用户信息
+        user_result = await db.execute(select(User).where(User.id == p.user_id))
+        user = user_result.scalar_one_or_none()
+        
+        # 获取小说信息
+        novel_result = await db.execute(select(Novel).where(Novel.id == p.novel_id))
+        novel = novel_result.scalar_one_or_none()
+        
+        items.append({
+            "id": p.id,
+            "user_id": p.user_id,
+            "user_nickname": user.nickname if user else "未知用户",
+            "novel_id": p.novel_id,
+            "novel_title": novel.title if novel else "未知小说",
+            "chapter_num": p.chapter_num,
+            "scroll_position": round(p.scroll_position, 1),
+            "audio_position": round(p.audio_position, 1),
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None
+        })
+    
+    return {
+        "items": items,
+        "total": total or 0,
+        "page": page,
+        "page_size": page_size
+    }
+
+
+@router.get("/novel/chapter-stats/{novel_id}")
+async def get_chapter_stats(
+    novel_id: int,
+    admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取小说各章节阅读统计"""
+    from app.models.community import NovelReadProgress
+    
+    # 获取小说信息
+    novel_result = await db.execute(select(Novel).where(Novel.id == novel_id))
+    novel = novel_result.scalar_one_or_none()
+    if not novel:
+        raise HTTPException(status_code=404, detail="小说不存在")
+    
+    # 获取所有章节
+    chapters_result = await db.execute(
+        select(NovelChapter).where(NovelChapter.novel_id == novel_id).order_by(NovelChapter.chapter_num)
+    )
+    chapters = chapters_result.scalars().all()
+    
+    chapter_stats = []
+    for c in chapters:
+        # 统计读到这一章的用户数
+        reader_count = await db.scalar(
+            select(func.count(NovelReadProgress.id))
+            .where(NovelReadProgress.novel_id == novel_id, NovelReadProgress.chapter_num >= c.chapter_num)
+        )
+        
+        chapter_stats.append({
+            "chapter_id": c.id,
+            "chapter_num": c.chapter_num,
+            "title": c.title,
+            "is_free": c.is_free,
+            "reader_count": reader_count or 0
+        })
+    
+    return {
+        "novel_id": novel_id,
+        "novel_title": novel.title,
+        "total_chapters": len(chapters),
+        "chapters": chapter_stats
+    }

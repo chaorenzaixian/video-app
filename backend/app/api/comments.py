@@ -308,6 +308,89 @@ async def list_video_comments(
     )
 
 
+@router.get("/replies/{parent_id}", response_model=CommentListResponse)
+async def list_comment_replies(
+    parent_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取评论的回复列表"""
+    # 检查父评论是否存在
+    parent_result = await db.execute(select(Comment).where(Comment.id == parent_id))
+    parent_comment = parent_result.scalar_one_or_none()
+    
+    if not parent_comment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="评论不存在"
+        )
+    
+    # 获取回复
+    query = select(Comment).where(
+        Comment.parent_id == parent_id,
+        Comment.is_hidden == False
+    )
+    
+    # 统计总数
+    count_query = select(func.count()).select_from(query.subquery())
+    result = await db.execute(count_query)
+    total = result.scalar()
+    
+    # 排序和分页
+    query = query.order_by(Comment.created_at).offset((page - 1) * page_size).limit(page_size)
+    
+    result = await db.execute(query)
+    replies = result.scalars().all()
+    
+    items = []
+    for reply in replies:
+        # 获取用户信息
+        user_result = await db.execute(select(User).where(User.id == reply.user_id))
+        user = user_result.scalar_one()
+        
+        # 获取用户VIP等级
+        user_vip_level = await get_user_vip_level(db, reply.user_id)
+        
+        # 检查当前用户是否点赞
+        is_liked = False
+        if current_user:
+            like_result = await db.execute(
+                select(CommentLike).where(
+                    CommentLike.comment_id == reply.id,
+                    CommentLike.user_id == current_user.id
+                )
+            )
+            is_liked = like_result.scalar_one_or_none() is not None
+        
+        items.append(CommentResponse(
+            id=reply.id,
+            content=reply.content,
+            image_url=reply.image_url,
+            video_id=reply.video_id,
+            user_id=reply.user_id,
+            user_name=user.nickname or user.username,
+            user_nickname=user.nickname or user.username,
+            user_avatar=user.avatar,
+            user_vip_level=user_vip_level,
+            parent_id=reply.parent_id,
+            like_count=reply.like_count,
+            reply_count=reply.reply_count,
+            is_pinned=reply.is_pinned,
+            is_official=reply.is_official if hasattr(reply, 'is_official') else False,
+            is_liked=is_liked,
+            created_at=reply.created_at
+        ))
+    
+    return CommentListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size
+    )
+
+
 @router.post("/{comment_id}/like")
 async def like_comment(
     comment_id: int,

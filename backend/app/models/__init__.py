@@ -47,6 +47,7 @@ from app.models.admin_log import AdminLog
 from app.models.content import Banner, Notice, NoticeRead
 from app.models.vip import VipCard, VipPrivilege, VipPurchaseRecord
 from app.models.chat import ChatSession, ChatMessage, QuickReply
+from app.models.darkweb import DarkwebCategory, DarkwebTag, DarkwebVideo, DarkwebView
 
 __all__ = [
     "User", "UserVIP", "LoginQRToken", "TrustedDevice", "DeviceSwitchLog",
@@ -78,5 +79,7 @@ __all__ = [
     # 社区功能
     "Post", "PostComment", "PostLike", "PostCommentLike", "Topic", "TopicFollow",
     # 客服聊天
-    "ChatSession", "ChatMessage", "QuickReply"
+    "ChatSession", "ChatMessage", "QuickReply",
+    # 暗网视频专区
+    "DarkwebCategory", "DarkwebTag", "DarkwebVideo", "DarkwebView"
 ]
