@@ -1,15 +1,15 @@
 <template>
   <div class="audio-novel-manage">
-    <!-- 顶部操作�?-->
+    <!-- 顶部操作栏 -->
     <el-card shadow="never" class="toolbar-card">
       <div class="toolbar">
         <div class="filters">
           <el-select v-model="filters.category_id" placeholder="选择分类" clearable style="width: 150px">
             <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
-          <el-select v-model="filters.status" placeholder="状�? clearable style="width: 100px">
-            <el-option label="连载�? value="ongoing" />
-            <el-option label="已完�? value="completed" />
+          <el-select v-model="filters.status" placeholder="状态" clearable style="width: 100px">
+            <el-option label="连载中" value="ongoing" />
+            <el-option label="已完结" value="completed" />
           </el-select>
           <el-input v-model="filters.keyword" placeholder="搜索标题" clearable style="width: 180px" @keyup.enter="loadNovels" />
           <el-button type="primary" @click="loadNovels">搜索</el-button>
@@ -35,8 +35,8 @@
             <div class="novel-cell">
               <div class="title">{{ row.title }}</div>
               <div class="meta">
-                <span>作�? {{ row.author || '佚名' }}</span>
-                <span>分类: {{ row.category_name || '未分�? }}</span>
+                <span>作者: {{ row.author || '佚名' }}</span>
+                <span>分类: {{ row.category_name || '未分类' }}</span>
               </div>
             </div>
           </template>
@@ -44,9 +44,9 @@
         <el-table-column label="章节/音频" width="150">
           <template #default="{ row }">
             <div class="chapter-info">
-              <span>{{ row.chapter_count }}�?/span>
+              <span>{{ row.chapter_count }}章</span>
               <el-tag :type="row.audio_count === row.chapter_count ? 'success' : 'warning'" size="small">
-                {{ row.audio_count || 0 }}个音�?
+                {{ row.audio_count || 0 }}个音频
               </el-tag>
             </div>
           </template>
@@ -59,10 +59,10 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="状�? width="100">
+        <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 'completed' ? 'success' : 'primary'" size="small">
-              {{ row.status === 'completed' ? '已完�? : '连载�? }}
+              {{ row.status === 'completed' ? '已完结' : '连载中' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -95,7 +95,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="作�?>
+            <el-form-item label="作者">
               <el-input v-model="form.author" placeholder="作者名" />
             </el-form-item>
           </el-col>
@@ -131,10 +131,10 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="状�?>
+            <el-form-item label="状态">
               <el-select v-model="form.status" style="width: 100%">
-                <el-option label="连载�? value="ongoing" />
-                <el-option label="已完�? value="completed" />
+                <el-option label="连载中" value="ongoing" />
+                <el-option label="已完结" value="completed" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -150,8 +150,8 @@
           </el-col>
         </el-row>
 
-        <el-form-item label="简�?>
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="小说简�? />
+        <el-form-item label="简介">
+          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="小说简介" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -178,7 +178,7 @@
               <div v-if="row.audio_url" class="audio-cell">
                 <audio :src="row.audio_url" controls style="height: 30px; width: 150px"></audio>
               </div>
-              <el-tag v-else type="info" size="small">未上�?/el-tag>
+              <el-tag v-else type="info" size="small">未上传</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="免费" width="70">
@@ -206,8 +206,8 @@
         </el-table>
 
         <div class="manager-footer">
-          <span>�?{{ chapters.length }} �?/span>
-          <span>已上传音�? {{ chapters.filter(c => c.audio_url).length }} �?/span>
+          <span>共 {{ chapters.length }} 章</span>
+          <span>已上传音频: {{ chapters.filter(c => c.audio_url).length }} 个</span>
         </div>
       </div>
     </el-dialog>
@@ -215,7 +215,7 @@
     <!-- 添加章节弹窗 -->
     <el-dialog v-model="chapterDialogVisible" title="添加章节" width="500px">
       <el-form :model="chapterForm" label-width="80px">
-        <el-form-item label="章节�?>
+        <el-form-item label="章节号">
           <el-input-number v-model="chapterForm.chapter_num" :min="1" style="width: 100%" />
         </el-form-item>
         <el-form-item label="标题" required>
@@ -237,7 +237,7 @@
     <!-- 编辑章节弹窗 -->
     <el-dialog v-model="editChapterDialogVisible" title="编辑章节" width="500px">
       <el-form :model="editChapterForm" label-width="80px">
-        <el-form-item label="章节�?>
+        <el-form-item label="章节号">
           <el-input-number v-model="editChapterForm.chapter_num" :min="1" style="width: 100%" />
         </el-form-item>
         <el-form-item label="标题" required>
@@ -260,8 +260,8 @@
     <el-dialog v-model="batchUploadVisible" title="批量上传音频" width="600px">
       <el-alert type="info" :closable="false" style="margin-bottom: 16px">
         <template #title>
-          <div>上传规则：音频文件名需包含章节号，�?"�?�?mp3"�?001.mp3"�?chapter_1.mp3"</div>
-          <div>系统会自动匹配章节号并关联音�?/div>
+          <div>上传规则：音频文件名需包含章节号，如 "第1章.mp3"、"001.mp3"、"chapter_1.mp3"</div>
+          <div>系统会自动匹配章节号并关联音频</div>
         </template>
       </el-alert>
       
@@ -277,14 +277,14 @@
         drag
       >
         <el-icon class="el-icon--upload"><Upload /></el-icon>
-        <div class="el-upload__text">拖拽音频文件到此处，�?em>点击上传</em></div>
+        <div class="el-upload__text">拖拽音频文件到此处，或<em>点击上传</em></div>
         <template #tip>
           <div class="el-upload__tip">支持 mp3, wav, ogg, m4a 格式</div>
         </template>
       </el-upload>
 
       <div v-if="batchUploadResults.length" class="batch-results">
-        <div class="result-title">上传结果�?/div>
+        <div class="result-title">上传结果：</div>
         <div v-for="(r, i) in batchUploadResults" :key="i" class="result-item">
           <el-icon :color="r.success ? '#67c23a' : '#f56c6c'">
             <component :is="r.success ? 'CircleCheck' : 'CircleClose'" />
@@ -295,7 +295,7 @@
 
       <template #footer>
         <el-button @click="batchUploadVisible = false">关闭</el-button>
-        <el-button type="primary" @click="submitBatchUpload" :loading="batchUploading">开始上�?/el-button>
+        <el-button type="primary" @click="submitBatchUpload" :loading="batchUploading">开始上传</el-button>
       </template>
     </el-dialog>
   </div>
@@ -309,7 +309,7 @@ import api from '@/utils/api'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
-// 状�?
+// 状态
 const loading = ref(false)
 const saving = ref(false)
 const novels = ref([])
@@ -317,7 +317,7 @@ const categories = ref([])
 const chapters = ref([])
 const currentNovel = ref(null)
 
-// 筛�?
+// 筛选
 const filters = reactive({
   category_id: '',
   status: '',
@@ -331,7 +331,7 @@ const pagination = reactive({
   total: 0
 })
 
-// 弹窗状�?
+// 弹窗状态
 const dialogVisible = ref(false)
 const audioManagerVisible = ref(false)
 const chapterDialogVisible = ref(false)
@@ -382,7 +382,7 @@ const uploadHeaders = computed(() => ({
 // 加载分类
 const loadCategories = async () => {
   try {
-    const res = await api.get('/api/admin/gallery-novel/categories', { params: { type: 'novel' } })
+    const res = await api.get('/admin/gallery-novel/categories', { params: { type: 'novel' } })
     categories.value = res.data || []
   } catch (e) {
     console.error('加载分类失败', e)
@@ -399,7 +399,7 @@ const loadNovels = async () => {
       novel_type: 'audio',
       ...filters
     }
-    const res = await api.get('/api/admin/gallery-novel/novels', { params })
+    const res = await api.get('/admin/gallery-novel/novels', { params })
     novels.value = res.data?.items || []
     pagination.total = res.data?.total || 0
   } catch (e) {
@@ -446,16 +446,16 @@ const showEditDialog = (row) => {
 // 保存小说
 const saveNovel = async () => {
   if (!form.title) {
-    ElMessage.warning('请输入标�?)
+    ElMessage.warning('请输入标题')
     return
   }
   saving.value = true
   try {
     if (form.id) {
-      await api.put(`/api/admin/gallery-novel/novel/${form.id}`, form)
+      await api.put(`/admin/gallery-novel/novel/${form.id}`, form)
       ElMessage.success('更新成功')
     } else {
-      await api.post('/api/admin/gallery-novel/novel', form)
+      await api.post('/admin/gallery-novel/novel', form)
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
@@ -470,8 +470,8 @@ const saveNovel = async () => {
 // 删除小说
 const deleteNovel = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定删除�?{row.title}》？`, '提示', { type: 'warning' })
-    await api.delete(`/api/admin/gallery-novel/novel/${row.id}`)
+    await ElMessageBox.confirm(`确定删除《${row.title}》？`, '提示', { type: 'warning' })
+    await api.delete(`/admin/gallery-novel/novel/${row.id}`)
     ElMessage.success('删除成功')
     loadNovels()
   } catch (e) {
@@ -489,7 +489,7 @@ const showAudioManager = async (row) => {
 // 加载章节
 const loadChapters = async (novelId) => {
   try {
-    const res = await api.get(`/api/admin/gallery-novel/novel/${novelId}/chapters`)
+    const res = await api.get(`/admin/gallery-novel/novel/${novelId}/chapters`)
     chapters.value = res.data || []
   } catch (e) {
     ElMessage.error('加载章节失败')
@@ -511,14 +511,14 @@ const showAddChapterDialog = () => {
 // 保存章节
 const saveChapter = async () => {
   if (!chapterForm.title) {
-    ElMessage.warning('请输入章节标�?)
+    ElMessage.warning('请输入章节标题')
     return
   }
   saving.value = true
   try {
-    await api.post(`/api/admin/gallery-novel/novel/${currentNovel.value.id}/chapter`, {
+    await api.post(`/admin/gallery-novel/novel/${currentNovel.value.id}/chapter`, {
       ...chapterForm,
-      content: '' // 有声小说不需要文字内�?
+      content: '' // 有声小说不需要文字内容
     })
     ElMessage.success('添加成功')
     chapterDialogVisible.value = false
@@ -542,29 +542,29 @@ const showEditChapterDialog = (row) => {
   editChapterDialogVisible.value = true
 }
 
-// 更新编辑的章�?
+// 更新编辑的章节
 const updateEditChapter = async () => {
   if (!editChapterForm.title) {
-    ElMessage.warning('请输入章节标�?)
+    ElMessage.warning('请输入章节标题')
     return
   }
   saving.value = true
   try {
-    await api.put(`/api/admin/gallery-novel/chapter/${editChapterForm.id}`, editChapterForm)
+    await api.put(`/admin/gallery-novel/chapter/${editChapterForm.id}`, editChapterForm)
     ElMessage.success('更新成功')
     editChapterDialogVisible.value = false
     loadChapters(currentNovel.value.id)
   } catch (e) {
     ElMessage.error('更新失败')
   } finally {
-    saving.value = false
+    saving.value = true
   }
 }
 
 // 更新章节（免费开关）
 const updateChapter = async (row) => {
   try {
-    await api.put(`/api/admin/gallery-novel/chapter/${row.id}`, {
+    await api.put(`/admin/gallery-novel/chapter/${row.id}`, {
       is_free: row.is_free
     })
   } catch (e) {
@@ -576,7 +576,7 @@ const updateChapter = async (row) => {
 const deleteChapter = async (row) => {
   try {
     await ElMessageBox.confirm(`确定删除章节"${row.title}"？`, '提示', { type: 'warning' })
-    await api.delete(`/api/admin/gallery-novel/chapter/${row.id}`)
+    await api.delete(`/admin/gallery-novel/chapter/${row.id}`)
     ElMessage.success('删除成功')
     loadChapters(currentNovel.value.id)
   } catch (e) {
@@ -591,7 +591,7 @@ const handleCoverSuccess = (res) => {
   }
 }
 
-// 图片上传前检�?
+// 图片上传前检查
 const beforeImageUpload = (file) => {
   const isImage = file.type.startsWith('image/')
   const isLt5M = file.size / 1024 / 1024 < 5
@@ -606,7 +606,7 @@ const beforeImageUpload = (file) => {
   return true
 }
 
-// 音频上传前检�?
+// 音频上传前检查
 const beforeAudioUpload = (file) => {
   const validTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a']
   const isAudio = validTypes.includes(file.type) || /\.(mp3|wav|ogg|m4a)$/i.test(file.name)
@@ -626,7 +626,7 @@ const beforeAudioUpload = (file) => {
 const handleAudioUploadSuccess = async (res, row) => {
   if (res.url) {
     try {
-      await api.put(`/api/admin/gallery-novel/chapter/${row.id}`, {
+      await api.put(`/admin/gallery-novel/chapter/${row.id}`, {
         audio_url: res.url
       })
       row.audio_url = res.url
@@ -654,13 +654,13 @@ const handleBatchAudioSuccess = async (res, file) => {
     return
   }
 
-  // 从文件名提取章节�?
+  // 从文件名提取章节号
   const chapterNum = extractChapterNum(file.name)
   if (!chapterNum) {
     batchUploadResults.value.push({
       filename: file.name,
       success: false,
-      message: '无法识别章节�?
+      message: '无法识别章节号'
     })
     return
   }
@@ -678,14 +678,14 @@ const handleBatchAudioSuccess = async (res, file) => {
 
   // 更新章节音频
   try {
-    await api.put(`/api/admin/gallery-novel/chapter/${chapter.id}`, {
+    await api.put(`/admin/gallery-novel/chapter/${chapter.id}`, {
       audio_url: res.url
     })
     chapter.audio_url = res.url
     batchUploadResults.value.push({
       filename: file.name,
       success: true,
-      message: `已关联到�?{chapterNum}章`
+      message: `已关联到第${chapterNum}章`
     })
   } catch (e) {
     batchUploadResults.value.push({
@@ -696,11 +696,11 @@ const handleBatchAudioSuccess = async (res, file) => {
   }
 }
 
-// 从文件名提取章节�?
+// 从文件名提取章节号
 const extractChapterNum = (filename) => {
-  // 匹配各种格式：第1章�?01、chapter_1�?.mp3 �?
+  // 匹配各种格式：第1章、001、chapter_1、1.mp3 等
   const patterns = [
-    /�?\d+)�?,
+    /第(\d+)章/,
     /chapter[_\-]?(\d+)/i,
     /^(\d+)\./,
     /^(\d{2,3})[_\-]/,
