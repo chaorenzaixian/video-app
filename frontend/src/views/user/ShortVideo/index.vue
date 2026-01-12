@@ -217,7 +217,6 @@ const playCurrentVideo = () => {
   const timeSincePause = Date.now() - lastPauseTime
   if (lastPauseTime > 0 && timeSincePause < 500) return
   
-  // 暂停其他视频
   Object.entries(slideRefs.value).forEach(([idx, slide]) => {
     if (parseInt(idx) !== currentIndex.value) slide?.pause?.()
   })
@@ -276,7 +275,7 @@ const handleDoubleTap = (index) => {
 }
 
 // 时间更新
-const onTimeUpdate = (index, { currentTime, duration }) => {
+const onTimeUpdate = (index, { currentTime }) => {
   if (index !== currentIndex.value) return
   const video = videos.value[index]
   
@@ -347,8 +346,7 @@ const goToSlide = (index) => {
     const newVideo = videos.value[index]
     trialRemaining.value = getTrialSeconds(newVideo)
     
-    const newSlide = slideRefs.value[index]
-    newSlide?.seek?.(0)
+    slideRefs.value[index]?.seek?.(0)
     
     if (playTimerId) { timers.clearTimeout(playTimerId); playTimerId = null }
     playTimerId = timers.setTimeout(() => {
@@ -360,7 +358,6 @@ const goToSlide = (index) => {
     timers.setTimeout(() => { isAnimating.value = false }, 300)
   }
 }
-</script>
 
 // 点赞
 const handleLike = async (index) => {
@@ -470,19 +467,9 @@ const handleDownload = async (video) => {
     
     ElMessage.info(`正在下载: ${info.title} (${info.file_size_mb || 0}MB)`)
     
-    // 保存下载记录
     const saved = localStorage.getItem('video_downloads')
     const downloads = saved ? JSON.parse(saved) : []
-    const record = {
-      id: `short_${video.id}_${Date.now()}`,
-      videoId: video.id,
-      title: video.title,
-      thumbnail: video.cover_url,
-      duration: video.duration,
-      type: 'short',
-      status: 'completed',
-      downloadTime: Date.now()
-    }
+    const record = { id: `short_${video.id}_${Date.now()}`, videoId: video.id, title: video.title, thumbnail: video.cover_url, duration: video.duration, type: 'short', status: 'completed', downloadTime: Date.now() }
     const existIndex = downloads.findIndex(d => d.videoId === record.videoId && d.type === record.type)
     if (existIndex > -1) downloads[existIndex] = record
     else downloads.unshift(record)
@@ -582,7 +569,7 @@ const stopAllVideos = () => {
         videoEl.removeAttribute('src')
         videoEl.load()
       }
-    } catch (e) {}
+    } catch (e) { /* ignore */ }
   })
   slideRefs.value = {}
 }
@@ -659,11 +646,6 @@ watch(activeTab, () => fetchVideos(true))
 watch(() => route.path, (newPath, oldPath) => {
   if (oldPath?.includes('/short') && !newPath?.includes('/short')) stopAllVideos()
 })
-
-// 监听视频播放状态
-watch(() => slideRefs.value[currentIndex.value]?.getVideoElement?.()?.paused, (paused) => {
-  if (paused !== undefined) isPlaying.value = !paused
-}, { deep: true })
 </script>
 
 <style lang="scss" scoped>
