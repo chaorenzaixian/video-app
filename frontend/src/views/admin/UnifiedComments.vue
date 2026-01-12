@@ -130,12 +130,13 @@
           </template>
         </el-table-column>
         
-        <el-table-column label="特殊标记" width="100" align="center">
+        <el-table-column label="特殊标记" width="120" align="center">
           <template #default="{ row }">
             <div class="tags-cell">
+              <img v-if="row.is_god" src="/images/god_comment.webp" class="god-badge" title="神评" />
               <el-tag v-if="row.is_pinned" type="warning" size="small">置顶</el-tag>
               <el-tag v-if="row.is_official" type="success" size="small">官方</el-tag>
-              <span v-if="!row.is_pinned && !row.is_official" class="text-muted">-</span>
+              <span v-if="!row.is_pinned && !row.is_official && !row.is_god" class="text-muted">-</span>
             </div>
           </template>
         </el-table-column>
@@ -146,9 +147,12 @@
           </template>
         </el-table-column>
         
-        <el-table-column label="操作" width="200" fixed="right" align="center">
+        <el-table-column label="操作" width="260" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-btns">
+              <el-button link :type="row.is_god ? 'danger' : 'primary'" size="small" @click="toggleGod(row)">
+                {{ row.is_god ? '取消神评' : '神评' }}
+              </el-button>
               <el-button link :type="row.is_pinned ? 'info' : 'warning'" size="small" @click="togglePin(row)">
                 {{ row.is_pinned ? '取消置顶' : '置顶' }}
               </el-button>
@@ -351,6 +355,16 @@ const toggleHidden = async (row) => {
   }
 }
 
+const toggleGod = async (row) => {
+  try {
+    await api.put(`/admin/unified-comments/${row.content_type}/${row.id}`, { is_god: !row.is_god })
+    row.is_god = !row.is_god
+    ElMessage.success(row.is_god ? '已设为神评' : '已取消神评')
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
+
 const deleteComment = async (row) => {
   try {
     await api.delete(`/admin/unified-comments/${row.content_type}/${row.id}`)
@@ -507,6 +521,12 @@ onMounted(() => {
   flex-direction: column;
   gap: 4px;
   align-items: center;
+  
+  .god-badge {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+  }
 }
 
 .action-btns {

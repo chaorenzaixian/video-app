@@ -87,6 +87,7 @@ class PostComment(Base):
     # 状态
     is_top = Column(Boolean, default=False)
     status = Column(String(20), default="visible")  # visible/hidden/deleted
+    is_god = Column(Boolean, default=False)      # 是否神评
     
     # 时间
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -344,6 +345,7 @@ class GalleryComment(Base):
     is_pinned = Column(Boolean, default=False)   # 是否置顶
     is_hidden = Column(Boolean, default=False)   # 是否隐藏
     is_official = Column(Boolean, default=False)  # 是否官方评论
+    is_god = Column(Boolean, default=False)      # 是否神评
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -469,6 +471,7 @@ class NovelComment(Base):
     is_pinned = Column(Boolean, default=False)   # 是否置顶
     is_hidden = Column(Boolean, default=False)   # 是否隐藏
     is_official = Column(Boolean, default=False)  # 是否官方评论
+    is_god = Column(Boolean, default=False)      # 是否神评
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

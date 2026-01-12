@@ -33,6 +33,7 @@ class UpdateCommentRequest(BaseModel):
     is_hidden: Optional[bool] = None
     is_pinned: Optional[bool] = None
     is_official: Optional[bool] = None
+    is_god: Optional[bool] = None
 
 
 @router.get("/stats")
@@ -162,6 +163,7 @@ async def get_unified_comments(
                 "is_hidden": comment.is_hidden or False,
                 "is_pinned": comment.is_pinned or False,
                 "is_official": getattr(comment, 'is_official', False),
+                "is_god": getattr(comment, 'is_god', False),
                 "created_at": comment.created_at.isoformat() if comment.created_at else None
             })
     
@@ -207,6 +209,7 @@ async def get_unified_comments(
                 "is_hidden": comment.status == "hidden",
                 "is_pinned": getattr(comment, 'is_pinned', False),
                 "is_official": getattr(comment, 'is_official', False),
+                "is_god": getattr(comment, 'is_god', False),
                 "created_at": comment.created_at.isoformat() if comment.created_at else None
             })
     
@@ -252,6 +255,7 @@ async def get_unified_comments(
                 "is_hidden": comment.is_hidden or False,
                 "is_pinned": comment.is_pinned or False,
                 "is_official": comment.is_official or False,
+                "is_god": comment.is_god or False,
                 "created_at": comment.created_at.isoformat() if comment.created_at else None
             })
     
@@ -297,6 +301,7 @@ async def get_unified_comments(
                 "is_hidden": comment.is_hidden or False,
                 "is_pinned": comment.is_pinned or False,
                 "is_official": comment.is_official or False,
+                "is_god": comment.is_god or False,
                 "created_at": comment.created_at.isoformat() if comment.created_at else None
             })
     
@@ -325,7 +330,7 @@ async def update_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_admin_user)
 ):
-    """Update comment status (hide/show, pin, official)"""
+    """Update comment status (hide/show, pin, official, god)"""
     if content_type == "video" or content_type == "short":
         result = await db.execute(select(Comment).where(Comment.id == comment_id))
         comment = result.scalar_one_or_none()
@@ -336,8 +341,10 @@ async def update_comment(
             comment.is_hidden = update_data.is_hidden
         if update_data.is_pinned is not None:
             comment.is_pinned = update_data.is_pinned
-        if update_data.is_official is not None and hasattr(comment, 'is_official'):
+        if update_data.is_official is not None:
             comment.is_official = update_data.is_official
+        if update_data.is_god is not None:
+            comment.is_god = update_data.is_god
     
     elif content_type == "post":
         result = await db.execute(select(PostComment).where(PostComment.id == comment_id))
@@ -351,6 +358,8 @@ async def update_comment(
             comment.is_pinned = update_data.is_pinned
         if update_data.is_official is not None and hasattr(comment, 'is_official'):
             comment.is_official = update_data.is_official
+        if update_data.is_god is not None:
+            comment.is_god = update_data.is_god
     
     elif content_type == "gallery":
         result = await db.execute(select(GalleryComment).where(GalleryComment.id == comment_id))
@@ -364,6 +373,8 @@ async def update_comment(
             comment.is_pinned = update_data.is_pinned
         if update_data.is_official is not None:
             comment.is_official = update_data.is_official
+        if update_data.is_god is not None:
+            comment.is_god = update_data.is_god
     
     elif content_type == "novel":
         result = await db.execute(select(NovelComment).where(NovelComment.id == comment_id))
@@ -377,6 +388,8 @@ async def update_comment(
             comment.is_pinned = update_data.is_pinned
         if update_data.is_official is not None:
             comment.is_official = update_data.is_official
+        if update_data.is_god is not None:
+            comment.is_god = update_data.is_god
     
     else:
         raise HTTPException(status_code=400, detail="Invalid content type")
