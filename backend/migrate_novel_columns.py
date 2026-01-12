@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""添加小说和图集表缺失的列"""
+"""添加小说、图集和帖子表缺失的列"""
 import asyncio
 from sqlalchemy import text
 import sys
@@ -34,6 +34,13 @@ async def migrate():
             print('Added collect_count column to galleries')
         except Exception as e:
             print(f'galleries.collect_count: {e}')
+        
+        # posts 表
+        try:
+            await conn.execute(text('ALTER TABLE posts ADD COLUMN IF NOT EXISTS collect_count INTEGER DEFAULT 0'))
+            print('Added collect_count column to posts')
+        except Exception as e:
+            print(f'posts.collect_count: {e}')
     
     print('Migration completed!')
 
