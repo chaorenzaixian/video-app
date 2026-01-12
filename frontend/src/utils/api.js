@@ -4,23 +4,25 @@ import router from '@/router'
 
 // 检测运行环境，返回对应的 API 地址
 const getBaseURL = () => {
-  const hostname = window.location.hostname
-  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
-  const isServerIP = hostname === '38.47.218.137'
-  
-  if (isServerIP) {
-    // 生产环境：使用 Nginx 反向代理
-    return '/api/v1'
+  // 优先使用环境变量
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
   }
   
+  const hostname = window.location.hostname
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
+  
   if (!isLocalhost) {
-    // 开发环境 IP 访问（手机 WebView 调试）
-    return `http://${hostname}:8001/api/v1`
+    // 生产环境或远程访问：使用 Nginx 反向代理
+    return '/api/v1'
   }
   
   // 本地开发使用 vite 代理
   return '/api/v1'
 }
+
+// 请求去重管理
+const pendingRequests = new Map()
 
 const api = axios.create({
   baseURL: getBaseURL(),
@@ -37,6 +39,24 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+    // 请求去重（仅对GET请求和非文件上传请求）
+    if (config.method === 'get' || (config.method === 'post' && !config.headers['Content-Type']?.includes('multipart'))) {
+      const key = `${config.method}:${config.url}:${JSON.stringify(config.params || {})}`
+      
+      // 如果有相同请求正在进行，取消当前请求
+      if (pendingRequests.has(key)) {
+        const controller = pendingRequests.get(key)
+        controller.abort()
+      }
+      
+      // 创建新的AbortController
+      const controller = new AbortController()
+      pendingRequests.set(key, controller)
+      config.signal = controller.signal
+      config._requestKey = key
+    }
+    
     return config
   },
   error => {
@@ -47,9 +67,23 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
   response => {
+    // 请求完成，移除pending
+    if (response.config._requestKey) {
+      pendingRequests.delete(response.config._requestKey)
+    }
     return response
   },
   error => {
+    // 请求完成，移除pending
+    if (error.config?._requestKey) {
+      pendingRequests.delete(error.config._requestKey)
+    }
+    
+    // 如果是取消的请求，不显示错误
+    if (axios.isCancel(error) || error.name === 'CanceledError') {
+      return Promise.reject(error)
+    }
+    
     const { response } = error
     
     if (response) {
@@ -82,6 +116,9 @@ api.interceptors.response.use(
             ElMessage.error(detail || '请求参数错误')
           }
           break
+        case 429:
+          ElMessage.warning('请求过于频繁，请稍后再试')
+          break
         case 500:
           ElMessage.error('服务器错误，请稍后重试')
           break
@@ -91,7 +128,7 @@ api.interceptors.response.use(
         default:
           ElMessage.error(response.data?.detail || '请求失败')
       }
-    } else {
+    } else if (error.message !== 'canceled') {
       ElMessage.error('网络错误，请检查网络连接')
     }
     

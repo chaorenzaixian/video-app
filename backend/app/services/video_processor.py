@@ -23,6 +23,10 @@ _cpu_count = multiprocessing.cpu_count()
 _max_workers = max(2, min(8, _cpu_count))
 _executor = ThreadPoolExecutor(max_workers=_max_workers)
 
+# 并发控制信号量：限制同时处理的视频数量，防止服务器过载
+# 最多同时处理2个视频（转码是CPU密集型操作）
+_processing_semaphore = asyncio.Semaphore(2)
+
 
 class VideoProcessor:
     """视频处理器"""
@@ -35,7 +39,15 @@ class VideoProcessor:
         2. 生成缩略图（若无自定义封面）
         3. 转码为HLS
         4. AI分析内容
+        
+        使用信号量控制并发，防止服务器过载
         """
+        async with _processing_semaphore:
+            await VideoProcessor._do_process_video(video_id, file_path, skip_thumbnail)
+    
+    @staticmethod
+    async def _do_process_video(video_id: int, file_path: str, skip_thumbnail: bool = False):
+        """实际的视频处理逻辑"""
         async with AsyncSessionLocal() as db:
             try:
                 # 获取视频记录

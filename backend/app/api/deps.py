@@ -9,6 +9,7 @@ from typing import Optional
 
 from app.core.database import get_db
 from app.core.security import decode_token
+from app.core.token_blacklist import TokenBlacklist
 from app.models.user import User, UserRole
 
 security = HTTPBearer()
@@ -20,6 +21,14 @@ async def get_current_user(
 ) -> User:
     """获取当前用户"""
     token = credentials.credentials
+    
+    # 检查令牌是否在黑名单中
+    if await TokenBlacklist.is_blacklisted(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="令牌已失效，请重新登录"
+        )
+    
     payload = decode_token(token)
     
     if payload is None:
@@ -39,6 +48,13 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="无效的令牌内容"
+        )
+    
+    # 检查用户是否被全局黑名单（强制登出所有设备）
+    if await TokenBlacklist.is_user_blacklisted(int(user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="账号已在其他地方登出，请重新登录"
         )
     
     result = await db.execute(select(User).where(User.id == int(user_id)))

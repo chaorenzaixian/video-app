@@ -2,7 +2,7 @@
 评论相关模型
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -10,6 +10,13 @@ from app.core.database import Base
 class Comment(Base):
     """评论表"""
     __tablename__ = "comments"
+    __table_args__ = (
+        # 复合索引：优化评论列表查询
+        Index('idx_comment_video_created', 'video_id', 'created_at'),
+        Index('idx_comment_video_hidden', 'video_id', 'is_hidden'),
+        Index('idx_comment_user_created', 'user_id', 'created_at'),
+        Index('idx_comment_parent_id', 'parent_id'),
+    )
     
     id = Column(Integer, primary_key=True, index=True)
     
@@ -40,6 +47,7 @@ class Comment(Base):
     video = relationship("Video", back_populates="comments")
     user = relationship("User", back_populates="comments")
     parent = relationship("Comment", remote_side=[id], backref="replies")
+    likes = relationship("CommentLike", backref="comment", lazy="dynamic")
 
 
 class CommentLike(Base):
