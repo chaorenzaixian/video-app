@@ -557,10 +557,15 @@ const routes = [
         meta: { title: '标签管理', icon: 'PriceTag' }
       },
       {
+        path: 'unified-comments',
+        name: 'UnifiedComments',
+        component: () => import('@/views/admin/UnifiedComments.vue'),
+        meta: { title: '评论管理中心', icon: 'ChatDotRound' }
+      },
+      {
         path: 'comments',
         name: 'Comments',
-        component: () => import('@/views/Comments.vue'),
-        meta: { title: '评论管理', icon: 'ChatDotRound' }
+        redirect: 'unified-comments'
       },
       {
         path: 'comment-announcement',
@@ -736,8 +741,7 @@ const routes = [
       {
         path: 'community-comments',
         name: 'CommunityComments',
-        component: () => import('@/views/admin/CommunityComments.vue'),
-        meta: { title: '评论管理', icon: 'ChatLineSquare' }
+        redirect: 'unified-comments'
       },
       // 图集小说管理
       {

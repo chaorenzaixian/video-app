@@ -110,7 +110,7 @@
             <el-icon><ChatDotRound /></el-icon>
             <span>互动管理</span>
           </template>
-          <el-menu-item index="/admin/comments">评论管理</el-menu-item>
+          <el-menu-item index="/admin/unified-comments">评论管理中心</el-menu-item>
           <el-menu-item index="/admin/comment-announcement">评论公告</el-menu-item>
         </el-sub-menu>
         
@@ -122,7 +122,6 @@
           </template>
           <el-menu-item index="/admin/community-posts">帖子管理</el-menu-item>
           <el-menu-item index="/admin/community-topics">话题管理</el-menu-item>
-          <el-menu-item index="/admin/community-comments">评论管理</el-menu-item>
           <el-menu-item index="/admin/gallery-manage">图集管理</el-menu-item>
           <el-menu-item index="/admin/novel-manage">小说管理</el-menu-item>
         </el-sub-menu>

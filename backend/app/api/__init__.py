@@ -17,6 +17,7 @@ from app.api import (
     dating,  # 交友模块
     admin_dating,  # 交友后台管理
     ranking,  # 排行榜
+    admin_unified_comments,  # 统一评论管理
     # 新增的后台管理模块
     admin_finance, admin_logs, admin_content, admin_video_ops, admin_creator_mgmt
 )
@@ -66,6 +67,7 @@ api_router.include_router(admin_finance.router, tags=["后台-财务管理"])
 api_router.include_router(admin_logs.router, tags=["后台-操作日志"])
 api_router.include_router(admin_content.router, tags=["后台-内容管理"])
 api_router.include_router(admin_community.router, tags=["后台-社区管理"])
+api_router.include_router(admin_unified_comments.router, tags=["后台-统一评论管理"])
 api_router.include_router(admin_darkweb.router, tags=["后台-暗网视频管理"])
 api_router.include_router(admin_dating.router, tags=["后台-交友管理"])
 api_router.include_router(watermark.router, tags=["水印管理"])
