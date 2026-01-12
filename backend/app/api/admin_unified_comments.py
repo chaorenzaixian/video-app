@@ -225,9 +225,9 @@ async def get_unified_comments(
                 User.nickname.ilike(f"%{keyword}%")
             ))
         if status == "visible":
-            conditions.append(GalleryComment.status == "visible")
+            conditions.append(GalleryComment.is_hidden == False)
         elif status == "hidden":
-            conditions.append(GalleryComment.status == "hidden")
+            conditions.append(GalleryComment.is_hidden == True)
         if start_dt:
             conditions.append(GalleryComment.created_at >= start_dt)
         if end_dt:
@@ -249,9 +249,9 @@ async def get_unified_comments(
                 "parent_id": comment.parent_id,
                 "like_count": comment.like_count or 0,
                 "reply_count": comment.reply_count or 0,
-                "is_hidden": comment.status == "hidden",
-                "is_pinned": getattr(comment, 'is_pinned', False),
-                "is_official": getattr(comment, 'is_official', False),
+                "is_hidden": comment.is_hidden or False,
+                "is_pinned": comment.is_pinned or False,
+                "is_official": comment.is_official or False,
                 "created_at": comment.created_at.isoformat() if comment.created_at else None
             })
     
@@ -270,9 +270,9 @@ async def get_unified_comments(
                 User.nickname.ilike(f"%{keyword}%")
             ))
         if status == "visible":
-            conditions.append(NovelComment.status == "visible")
+            conditions.append(NovelComment.is_hidden == False)
         elif status == "hidden":
-            conditions.append(NovelComment.status == "hidden")
+            conditions.append(NovelComment.is_hidden == True)
         if start_dt:
             conditions.append(NovelComment.created_at >= start_dt)
         if end_dt:
@@ -294,9 +294,9 @@ async def get_unified_comments(
                 "parent_id": comment.parent_id,
                 "like_count": comment.like_count or 0,
                 "reply_count": comment.reply_count or 0,
-                "is_hidden": comment.status == "hidden",
-                "is_pinned": getattr(comment, 'is_pinned', False),
-                "is_official": getattr(comment, 'is_official', False),
+                "is_hidden": comment.is_hidden or False,
+                "is_pinned": comment.is_pinned or False,
+                "is_official": comment.is_official or False,
                 "created_at": comment.created_at.isoformat() if comment.created_at else None
             })
     
@@ -359,10 +359,10 @@ async def update_comment(
             raise HTTPException(status_code=404, detail="Comment not found")
         
         if update_data.is_hidden is not None:
-            comment.status = "hidden" if update_data.is_hidden else "visible"
-        if update_data.is_pinned is not None and hasattr(comment, 'is_pinned'):
+            comment.is_hidden = update_data.is_hidden
+        if update_data.is_pinned is not None:
             comment.is_pinned = update_data.is_pinned
-        if update_data.is_official is not None and hasattr(comment, 'is_official'):
+        if update_data.is_official is not None:
             comment.is_official = update_data.is_official
     
     elif content_type == "novel":
@@ -372,10 +372,10 @@ async def update_comment(
             raise HTTPException(status_code=404, detail="Comment not found")
         
         if update_data.is_hidden is not None:
-            comment.status = "hidden" if update_data.is_hidden else "visible"
-        if update_data.is_pinned is not None and hasattr(comment, 'is_pinned'):
+            comment.is_hidden = update_data.is_hidden
+        if update_data.is_pinned is not None:
             comment.is_pinned = update_data.is_pinned
-        if update_data.is_official is not None and hasattr(comment, 'is_official'):
+        if update_data.is_official is not None:
             comment.is_official = update_data.is_official
     
     else:
@@ -502,14 +502,14 @@ async def batch_hide_comments(
                 result = await db.execute(select(GalleryComment).where(GalleryComment.id == item.id))
                 comment = result.scalar_one_or_none()
                 if comment:
-                    comment.status = "hidden"
+                    comment.is_hidden = True
                     hidden_count += 1
             
             elif item.type == "novel":
                 result = await db.execute(select(NovelComment).where(NovelComment.id == item.id))
                 comment = result.scalar_one_or_none()
                 if comment:
-                    comment.status = "hidden"
+                    comment.is_hidden = True
                     hidden_count += 1
         except Exception as e:
             print(f"Failed to hide comment {item.type}/{item.id}: {e}")
