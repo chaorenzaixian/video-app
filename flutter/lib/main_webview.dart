@@ -24,10 +24,10 @@ void main() {
 
 // ==================== 配置 ====================
 class AppConfig {
-  // 🚀 生产环境配置
-  static const String baseUrl = 'https://ssoul.cc';
-  static const String apiBaseUrl = 'https://ssoul.cc';
-  static const String webUrl = '$baseUrl/user';
+  // 🚀 生产环境配置 - 当前使用IP访问
+  static const String baseUrl = 'http://38.47.218.137';
+  static const String apiBaseUrl = 'http://38.47.218.137';
+  static const String webUrl = '$baseUrl/#/user';
   
   // 开屏广告配置
   static const int splashDuration = 3; // 默认开屏时长（秒）

@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = ""
     
     # CORS 配置（逗号分隔的域名列表，* 表示允许所有）
-    # 生产环境建议设置具体域名：https://ssoul.cc,https://www.ssoul.cc
+    # 生产环境建议设置具体域名，当前使用IP访问
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000"
     
     # 数据库配置 - 默认使用 SQLite（本地开发）

@@ -6,10 +6,9 @@ import router from '@/router'
 const getBaseURL = () => {
   const hostname = window.location.hostname
   const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
-  const isProduction = hostname === 'ssoul.cc' || hostname === 'www.ssoul.cc'
-  const isServerIP = hostname === '38.181.44.148' || hostname === '38.47.218.137'
+  const isServerIP = hostname === '38.47.218.137'
   
-  if (isProduction || isServerIP) {
+  if (isServerIP) {
     // 生产环境：使用 Nginx 反向代理
     return '/api/v1'
   }

@@ -31,7 +31,7 @@ APP_CONFIG = {
     "description": "Soul视频App - 精彩内容尽在掌握",
     "organization": "Soul Entertainment",
     "identifier": "cc.ssoul",
-    "base_url": "https://ssoul.cc"
+    "base_url": "http://38.47.218.137"  # 当前使用IP访问
 }
 
 
