@@ -25,13 +25,13 @@ const routes = [
   {
     path: '/user/vip',
     name: 'UserVip',
-    component: () => import(/* webpackPrefetch: true */ '@/views/user/Vip.vue'),
+    component: () => import(/* webpackPrefetch: true */ '@/views/user/Vip/index.vue'),
     meta: { requiresAuth: false }
   },
   {
     path: '/user/profile',
     name: 'UserProfile',
-    component: () => import(/* webpackPrefetch: true */ '@/views/user/Profile.vue'),
+    component: () => import(/* webpackPrefetch: true */ '@/views/user/Profile/index.vue'),
     meta: { requiresAuth: false }
   },
   // 用户登录页面已移除，使用自动注册+扫码登录
@@ -171,7 +171,7 @@ const routes = [
   {
     path: '/user/community',
     name: 'Community',
-    component: () => import('@/views/user/Community.vue'),
+    component: () => import('@/views/user/Community/index.vue'),
     meta: { requiresAuth: false }
   },
   {
