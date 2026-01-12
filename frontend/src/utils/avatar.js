@@ -1,53 +1,55 @@
 /**
- * 头像工具函数
- * 统一管理默认头像分配逻辑
+ * 头像URL处理工具
  */
 
 /**
- * 根据用户ID获取默认头像路径
- * 共52个预设头像，根据用户ID取模分配
- * @param {number|string} userId - 用户ID
- * @returns {string} 头像路径
+ * 获取头像URL
+ * @param {string} avatar - 用户头像路径
+ * @param {number|string} userId - 用户ID（用于生成默认头像）
+ * @returns {string} 完整的头像URL
  */
-export const getDefaultAvatarPath = (userId) => {
-  const totalAvatars = 52
-  const id = parseInt(userId)
-  // 如果userId无效（NaN、空字符串等），使用第一个默认头像
-  const validId = isNaN(id) || id <= 0 ? 1 : id
-  const index = validId % totalAvatars
+export function getAvatarUrl(avatar, userId) {
+  if (avatar) {
+    return avatar.startsWith('/') ? avatar : '/' + avatar
+  }
+  
+  // 根据用户ID生成默认头像
+  const index = (parseInt(userId) || 1) % 52
   
   if (index < 17) {
-    // icon_avatar_1.webp 到 icon_avatar_17.webp
     return `/images/avatars/icon_avatar_${index + 1}.webp`
   } else if (index < 32) {
-    // DM_20251217202131_001.JPEG 到 DM_20251217202131_015.JPEG
-    const num = String(index - 17 + 1).padStart(3, '0')
-    return `/images/avatars/DM_20251217202131_${num}.JPEG`
+    return `/images/avatars/DM_20251217202131_${String(index - 17 + 1).padStart(3, '0')}.JPEG`
   } else {
-    // DM_20251217202341_001 到 DM_20251217202341_020，扩展名不一致
-    const num = String(index - 32 + 1).padStart(3, '0')
-    // 某些文件是.webp，某些是.JPEG，需要根据实际文件判断
-    const webpFiles = ['002', '006', '015', '018']
-    const ext = webpFiles.includes(num) ? 'webp' : 'JPEG'
-    return `/images/avatars/DM_20251217202341_${num}.${ext}`
+    return `/images/avatars/DM_20251217202341_${String(index - 32 + 1).padStart(3, '0')}.JPEG`
   }
 }
 
 /**
- * 获取用户头像URL
- * 优先使用自定义头像，否则根据用户ID分配默认头像
- * @param {string|null} avatar - 用户自定义头像URL
- * @param {number|string} userId - 用户ID
- * @returns {string} 头像URL
+ * 获取VIP等级图标
+ * @param {number} level - VIP等级
+ * @returns {string} VIP图标路径
  */
-export const getAvatarUrl = (avatar, userId) => {
-  // 检查avatar是否有有效值（非空字符串）
-  if (avatar && avatar.trim() !== '') {
-    // 处理相对路径
-    if (avatar.startsWith('/') || avatar.startsWith('http')) {
-      return avatar
-    }
-    return '/' + avatar
+export function getVipIcon(level) {
+  const icons = {
+    1: '/images/vip/vip1.webp',
+    2: '/images/vip/vip2.webp',
+    3: '/images/vip/vip3.webp',
+    4: '/images/vip/vip4.webp',
+    5: '/images/vip/vip5.webp',
+    6: '/images/vip/vip6.webp',
   }
-  return getDefaultAvatarPath(userId)
+  return icons[level] || ''
+}
+
+/**
+ * 获取默认封面图
+ * @param {string} coverUrl - 封面URL
+ * @returns {string} 封面URL或默认图
+ */
+export function getCoverUrl(coverUrl) {
+  if (!coverUrl) return '/placeholder.webp'
+  return coverUrl.startsWith('http') || coverUrl.startsWith('/') 
+    ? coverUrl 
+    : '/' + coverUrl
 }
