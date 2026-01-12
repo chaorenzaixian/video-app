@@ -222,7 +222,7 @@ async def get_home_init(
                     id=child.id,
                     name=child.name,
                     icon=child.icon,
-                    is_featured=child.is_featured if hasattr(child, 'is_featured') else False
+                    is_featured=bool(child.is_featured) if hasattr(child, 'is_featured') and child.is_featured is not None else False
                 )
                 for child in child_categories
                 if child.parent_id == parent.id
@@ -231,7 +231,7 @@ async def get_home_init(
                 id=parent.id,
                 name=parent.name,
                 icon=parent.icon,
-                is_featured=parent.is_featured if hasattr(parent, 'is_featured') else False,
+                is_featured=bool(parent.is_featured) if hasattr(parent, 'is_featured') and parent.is_featured is not None else False,
                 children=children
             ))
         
