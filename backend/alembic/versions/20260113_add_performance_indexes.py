@@ -1,7 +1,7 @@
 """添加性能优化索引
 
 Revision ID: 20260113_perf_idx
-Revises: 20260113_add_soft_delete
+Revises: 20260113_soft_delete
 Create Date: 2026-01-13
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers
 revision = '20260113_perf_idx'
-down_revision = '20260113_add_soft_delete'
+down_revision = '20260113_soft_delete'
 branch_labels = None
 depends_on = None
 
