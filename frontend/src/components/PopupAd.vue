@@ -108,7 +108,7 @@ const handleClick = async () => {
 }
 
 onMounted(() => {
-  setTimeout(fetchPopupAd, 1000)
+  fetchPopupAd()
 })
 </script>
 
