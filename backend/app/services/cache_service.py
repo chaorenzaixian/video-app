@@ -246,3 +246,162 @@ def cached(key_template: str, ttl: int = CacheTTL.MEDIUM):
             return result
         return wrapper
     return decorator
+
+
+def cache_aside(
+    key_template: str, 
+    ttl: int = CacheTTL.MEDIUM,
+    skip_none: bool = True
+):
+    """
+    Cache-Aside 模式装饰器（增强版）
+    
+    特点:
+    - 支持跳过None结果
+    - 支持强制刷新缓存
+    - 自动处理缓存失效
+    
+    用法:
+    @cache_aside("user:vip:{user_id}", ttl=300)
+    async def get_user_vip(user_id: int, force_refresh: bool = False):
+        ...
+    """
+    def decorator(func: Callable):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # 检查是否强制刷新
+            force_refresh = kwargs.pop('force_refresh', False)
+            
+            # 构建缓存键
+            try:
+                cache_key = key_template.format(**kwargs)
+            except KeyError:
+                # 如果模板参数不匹配，直接执行函数
+                return await func(*args, **kwargs)
+            
+            # 非强制刷新时尝试从缓存获取
+            if not force_refresh:
+                cached_data = await CacheService.get(cache_key)
+                if cached_data is not None:
+                    return cached_data
+            
+            # 执行原函数
+            result = await func(*args, **kwargs)
+            
+            # 存入缓存（可选跳过None）
+            if result is not None or not skip_none:
+                await CacheService.set(cache_key, result, ttl)
+            
+            return result
+        return wrapper
+    return decorator
+
+
+class CacheInvalidator:
+    """缓存失效管理器"""
+    
+    @staticmethod
+    async def invalidate_video(video_id: int) -> None:
+        """使视频相关缓存失效"""
+        await CacheService.delete(CacheKeys.VIDEO_DETAIL.format(id=video_id))
+        # 清除视频列表缓存
+        await CacheService.delete_pattern("video:list:*")
+        await CacheService.delete_pattern("home:recommend:*")
+    
+    @staticmethod
+    async def invalidate_user(user_id: int) -> None:
+        """使用户相关缓存失效"""
+        await CacheService.delete(CacheKeys.USER_INFO.format(id=user_id))
+        await CacheService.delete(CacheKeys.USER_VIP.format(id=user_id))
+    
+    @staticmethod
+    async def invalidate_categories() -> None:
+        """使分类缓存失效"""
+        await CacheService.delete(CacheKeys.CATEGORIES)
+        await CacheService.delete_pattern("category:*")
+    
+    @staticmethod
+    async def invalidate_home() -> None:
+        """使首页缓存失效"""
+        await CacheService.delete(CacheKeys.HOME_BANNERS)
+        await CacheService.delete(CacheKeys.HOME_ANNOUNCEMENTS)
+        await CacheService.delete_pattern("home:recommend:*")
+    
+    @staticmethod
+    async def invalidate_community(post_id: int = None) -> None:
+        """使社区缓存失效"""
+        if post_id:
+            await CacheService.delete(CacheKeys.COMMUNITY_POST_DETAIL.format(id=post_id))
+        await CacheService.delete_pattern("community:posts:*")
+        await CacheService.delete_pattern("community:topics:*")
+    
+    @staticmethod
+    async def invalidate_all() -> None:
+        """清除所有缓存（谨慎使用）"""
+        await CacheService.delete_pattern("*")
+
+
+class CacheWarmer:
+    """缓存预热器"""
+    
+    @staticmethod
+    async def warm_categories(db) -> None:
+        """预热分类缓存"""
+        from app.models.video import Category
+        from sqlalchemy import select
+        
+        result = await db.execute(
+            select(Category).where(Category.is_active == True).order_by(Category.sort_order)
+        )
+        categories = result.scalars().all()
+        
+        data = [
+            {
+                "id": c.id,
+                "name": c.name,
+                "icon": c.icon,
+                "sort_order": c.sort_order
+            }
+            for c in categories
+        ]
+        
+        await CacheService.set_categories(data)
+    
+    @staticmethod
+    async def warm_home_data(db) -> None:
+        """预热首页数据"""
+        from app.models.banner import Banner
+        from app.models.announcement import Announcement
+        from sqlalchemy import select
+        
+        # 预热轮播图
+        result = await db.execute(
+            select(Banner).where(Banner.is_active == True).order_by(Banner.sort_order)
+        )
+        banners = result.scalars().all()
+        banner_data = [
+            {
+                "id": b.id,
+                "image_url": b.image_url,
+                "link_url": b.link_url,
+                "title": b.title
+            }
+            for b in banners
+        ]
+        await CacheService.set_home_banners(banner_data)
+        
+        # 预热公告
+        result = await db.execute(
+            select(Announcement).where(Announcement.is_active == True).order_by(Announcement.created_at.desc()).limit(10)
+        )
+        announcements = result.scalars().all()
+        announcement_data = [
+            {
+                "id": a.id,
+                "title": a.title,
+                "content": a.content,
+                "created_at": a.created_at.isoformat() if a.created_at else None
+            }
+            for a in announcements
+        ]
+        await CacheService.set_home_announcements(announcement_data)
