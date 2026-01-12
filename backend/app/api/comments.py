@@ -277,6 +277,7 @@ async def list_video_comments(
                     reply_count=reply.reply_count,
                     is_pinned=reply.is_pinned,
                     is_official=reply.is_official if hasattr(reply, 'is_official') else False,
+                    is_god=reply.is_god if hasattr(reply, 'is_god') else False,
                     is_liked=reply_is_liked,
                     created_at=reply.created_at
                 ))
@@ -295,6 +296,7 @@ async def list_video_comments(
             reply_count=comment.reply_count,
             is_pinned=comment.is_pinned,
             is_official=comment.is_official if hasattr(comment, 'is_official') else False,
+            is_god=comment.is_god if hasattr(comment, 'is_god') else False,
             is_liked=is_liked,
             created_at=comment.created_at,
             replies=replies
@@ -379,6 +381,7 @@ async def list_comment_replies(
             reply_count=reply.reply_count,
             is_pinned=reply.is_pinned,
             is_official=reply.is_official if hasattr(reply, 'is_official') else False,
+            is_god=reply.is_god if hasattr(reply, 'is_god') else False,
             is_liked=is_liked,
             created_at=reply.created_at
         ))

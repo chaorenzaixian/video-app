@@ -5,6 +5,7 @@
       <div class="comment-user">
         <span class="username clickable" @click="$emit('goProfile', comment.user?.id)">{{ comment.user?.nickname || comment.user?.username || '用户' }}</span>
         <img v-if="comment.user?.vip_level > 0" :src="getVipIcon(comment.user.vip_level)" class="vip-badge-sm" />
+        <img v-if="comment.is_god" src="/images/god_comment.webp" class="god-badge" title="神评" />
       </div>
       <!-- 回复目标 -->
       <div v-if="comment.reply_to_user" class="reply-to">
@@ -209,6 +210,12 @@ const formatTime = (time) => {
     .vip-badge-sm {
       height: 14px;
       width: auto;
+      object-fit: contain;
+    }
+    
+    .god-badge {
+      width: 18px;
+      height: 18px;
       object-fit: contain;
     }
   }

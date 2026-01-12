@@ -34,6 +34,7 @@ class CommentResponse(BaseModel):
     reply_count: int
     is_pinned: bool
     is_official: bool = False  # 是否官方评论
+    is_god: bool = False  # 是否神评
     is_liked: bool = False  # 当前用户是否点赞
     created_at: datetime
     replies: List["CommentResponse"] = []

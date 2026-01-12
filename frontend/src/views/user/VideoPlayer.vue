@@ -391,6 +391,7 @@
                   :src="getVipLevelIcon(comment.user_vip_level)" 
                   class="vip-badge-sm"
                 />
+                <img v-if="comment.is_god" src="/images/god_comment.webp" class="god-badge" title="神评" />
                 <span v-if="comment.is_pinned" class="pin-badge">📌 置顶</span>
               </div>
               <p class="comment-text">{{ comment.content }}</p>
@@ -2821,6 +2822,13 @@ onUnmounted(() => {
               font-size: 9px;
               padding: 1px 4px;
             }
+          }
+          
+          .god-badge {
+            width: 20px;
+            height: 20px;
+            object-fit: contain;
+            margin-left: 4px;
           }
           
           .pin-badge {

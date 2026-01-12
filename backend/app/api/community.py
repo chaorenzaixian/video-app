@@ -109,6 +109,7 @@ class CommentResponse(BaseModel):
     reply_count: int
     created_at: datetime
     is_liked: bool = False
+    is_god: bool = False
 
 class TopicResponse(BaseModel):
     id: int
@@ -880,7 +881,8 @@ async def get_comments(
             like_count=comment.like_count,
             reply_count=comment.reply_count,
             created_at=comment.created_at,
-            is_liked=comment.id in liked_comment_ids
+            is_liked=comment.id in liked_comment_ids,
+            is_god=getattr(comment, 'is_god', False) or False
         ))
     
     return response
