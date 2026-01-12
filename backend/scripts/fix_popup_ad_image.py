@@ -10,13 +10,13 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import select, update
-from app.core.database import async_session_maker
+from app.core.database import AsyncSessionLocal
 from app.models.ad import Advertisement, AdPosition
 
 
 async def fix_popup_ad_image():
     """修复弹窗广告图片"""
-    async with async_session_maker() as db:
+    async with AsyncSessionLocal() as db:
         # 查找所有弹窗广告
         result = await db.execute(
             select(Advertisement).where(
