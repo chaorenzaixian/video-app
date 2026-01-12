@@ -996,6 +996,39 @@ class AdvertisementUpdate(BaseModel):
     end_date: Optional[datetime] = None
 
 
+@router.get("/admin/{ad_id}", response_model=AdvertisementAdminResponse)
+async def get_advertisement_by_id(
+    ad_id: int,
+    current_user: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """管理后台：获取单个广告详情"""
+    result = await db.execute(select(Advertisement).where(Advertisement.id == ad_id))
+    ad = result.scalar_one_or_none()
+    
+    if not ad:
+        raise HTTPException(status_code=404, detail="广告不存在")
+    
+    return AdvertisementAdminResponse(
+        id=ad.id,
+        title=ad.title,
+        description=ad.description,
+        ad_type=ad.ad_type.value if hasattr(ad.ad_type, 'value') else ad.ad_type,
+        media_url=ad.media_url,
+        html_content=ad.html_content,
+        target_url=ad.target_url,
+        position=ad.position.value if hasattr(ad.position, 'value') else ad.position,
+        priority=ad.priority,
+        duration=ad.duration,
+        is_active=ad.is_active,
+        impression_count=ad.impression_count,
+        click_count=ad.click_count,
+        start_date=ad.start_date,
+        end_date=ad.end_date,
+        created_at=ad.created_at
+    )
+
+
 @router.get("/admin", response_model=List[AdvertisementAdminResponse])
 async def get_all_advertisements(
     position: Optional[str] = None,
