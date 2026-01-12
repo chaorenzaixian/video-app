@@ -1,8 +1,9 @@
 """
-通知相关 API - 支持所有栏目的评论和点赞通知
+通知相关 API - 优化版（解决N+1查询问题）
+支持所有栏目的评论和点赞通知
 """
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional, List, Dict, Set
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, desc, and_, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,21 +49,65 @@ class NotificationListResponse(BaseModel):
     unread_count: int
 
 
-async def get_user_vip_info(db: AsyncSession, user_id: int) -> tuple:
-    """获取用户VIP信息"""
-    try:
-        vip_result = await db.execute(
-            select(UserVIP).where(
-                UserVIP.user_id == user_id,
-                UserVIP.is_active == True
-            )
+# ========== 批量查询辅助函数 ==========
+
+async def batch_get_user_vip_levels(db: AsyncSession, user_ids: List[int]) -> Dict[int, int]:
+    """批量获取用户VIP等级"""
+    if not user_ids:
+        return {}
+    
+    # 去重
+    unique_ids = list(set(user_ids))
+    
+    result = await db.execute(
+        select(UserVIP).where(
+            UserVIP.user_id.in_(unique_ids),
+            UserVIP.is_active == True
         )
-        user_vip = vip_result.scalar_one_or_none()
-        if user_vip and user_vip.expire_date and user_vip.expire_date > datetime.utcnow():
-            return True, user_vip.vip_level or 1
-    except:
-        pass
-    return False, 0
+    )
+    vips = result.scalars().all()
+    
+    vip_map = {}
+    now = datetime.utcnow()
+    for vip in vips:
+        if vip.expire_date and vip.expire_date > now:
+            vip_map[vip.user_id] = getattr(vip, 'vip_level', 1) or 1
+    
+    # 未找到的用户VIP等级为0
+    for uid in unique_ids:
+        if uid not in vip_map:
+            vip_map[uid] = 0
+    
+    return vip_map
+
+
+def build_notification_item(
+    item_id: int,
+    user: User,
+    vip_level: int,
+    content: Optional[str],
+    target_id: int,
+    target_title: Optional[str],
+    target_type: str,
+    notification_type: str,
+    created_at: datetime
+) -> dict:
+    """构建通知项"""
+    return {
+        'id': item_id,
+        'user_id': user.id,
+        'username': user.username,
+        'nickname': user.nickname,
+        'avatar': user.avatar,
+        'content': (content or '')[:50] if content else None,
+        'target_id': target_id,
+        'target_title': target_title,
+        'target_type': target_type,
+        'notification_type': notification_type,
+        'is_vip': vip_level > 0,
+        'vip_level': vip_level,
+        'created_at': created_at
+    }
 
 
 @router.get("/comments", response_model=NotificationListResponse)
@@ -72,9 +117,11 @@ async def get_comment_notifications(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取评论通知 - 所有栏目的评论和回复"""
+    """获取评论通知 - 所有栏目的评论和回复（优化版）"""
     try:
-        items = []
+        # 收集所有原始数据和用户ID
+        raw_items = []
+        user_ids = set()
         
         # ========== 1. 视频评论通知 ==========
         user_videos_result = await db.execute(
@@ -99,20 +146,16 @@ async def get_comment_notifications(
             )
             result = await db.execute(video_comments_query)
             for comment, user, video in result.fetchall():
-                is_vip, vip_level = await get_user_vip_info(db, user.id)
-                items.append({
+                user_ids.add(user.id)
+                raw_items.append({
+                    'type': 'video_comment',
                     'id': comment.id,
-                    'user_id': user.id,
-                    'username': user.username,
-                    'nickname': user.nickname,
-                    'avatar': user.avatar,
-                    'content': (comment.content or '')[:50],
+                    'user': user,
+                    'content': comment.content,
                     'target_id': video.id,
                     'target_title': video.title,
                     'target_type': 'short' if video.is_short else 'video',
                     'notification_type': 'comment',
-                    'is_vip': is_vip,
-                    'vip_level': vip_level,
                     'created_at': comment.created_at
                 })
         
@@ -139,20 +182,16 @@ async def get_comment_notifications(
             )
             result = await db.execute(video_replies_query)
             for reply, user, video in result.fetchall():
-                is_vip, vip_level = await get_user_vip_info(db, user.id)
-                items.append({
+                user_ids.add(user.id)
+                raw_items.append({
+                    'type': 'video_reply',
                     'id': reply.id + 100000,
-                    'user_id': user.id,
-                    'username': user.username,
-                    'nickname': user.nickname,
-                    'avatar': user.avatar,
-                    'content': (reply.content or '')[:50],
+                    'user': user,
+                    'content': reply.content,
                     'target_id': video.id,
                     'target_title': video.title,
                     'target_type': 'short' if video.is_short else 'video',
                     'notification_type': 'reply',
-                    'is_vip': is_vip,
-                    'vip_level': vip_level,
                     'created_at': reply.created_at
                 })
         
@@ -179,21 +218,17 @@ async def get_comment_notifications(
             )
             result = await db.execute(post_comments_query)
             for comment, user, post in result.fetchall():
-                is_vip, vip_level = await get_user_vip_info(db, user.id)
+                user_ids.add(user.id)
                 post_title = (post.content[:20] if post.content else '帖子')
-                items.append({
+                raw_items.append({
+                    'type': 'post_comment',
                     'id': comment.id + 1000000,
-                    'user_id': user.id,
-                    'username': user.username,
-                    'nickname': user.nickname,
-                    'avatar': user.avatar,
-                    'content': (comment.content or '')[:50],
+                    'user': user,
+                    'content': comment.content,
                     'target_id': post.id,
                     'target_title': post_title,
                     'target_type': 'post',
                     'notification_type': 'comment',
-                    'is_vip': is_vip,
-                    'vip_level': vip_level,
                     'created_at': comment.created_at
                 })
         
@@ -220,27 +255,21 @@ async def get_comment_notifications(
             )
             result = await db.execute(post_replies_query)
             for reply, user, post in result.fetchall():
-                is_vip, vip_level = await get_user_vip_info(db, user.id)
+                user_ids.add(user.id)
                 post_title = (post.content[:20] if post.content else '帖子')
-                items.append({
+                raw_items.append({
+                    'type': 'post_reply',
                     'id': reply.id + 1100000,
-                    'user_id': user.id,
-                    'username': user.username,
-                    'nickname': user.nickname,
-                    'avatar': user.avatar,
-                    'content': (reply.content or '')[:50],
+                    'user': user,
+                    'content': reply.content,
                     'target_id': post.id,
                     'target_title': post_title,
                     'target_type': 'post',
                     'notification_type': 'reply',
-                    'is_vip': is_vip,
-                    'vip_level': vip_level,
                     'created_at': reply.created_at
                 })
         
-        # ========== 3. 图集评论通知 ==========
-        # 图集没有 user_id，跳过图集评论通知（图集是系统内容）
-        # 但可以获取别人回复我的图集评论
+        # ========== 3. 图集评论回复 ==========
         my_gallery_comments_result = await db.execute(
             select(GalleryComment.id).where(GalleryComment.user_id == current_user.id)
         )
@@ -263,22 +292,38 @@ async def get_comment_notifications(
             )
             result = await db.execute(gallery_replies_query)
             for reply, user, gallery in result.fetchall():
-                is_vip, vip_level = await get_user_vip_info(db, user.id)
-                items.append({
+                user_ids.add(user.id)
+                raw_items.append({
+                    'type': 'gallery_reply',
                     'id': reply.id + 2000000,
-                    'user_id': user.id,
-                    'username': user.username,
-                    'nickname': user.nickname,
-                    'avatar': user.avatar,
-                    'content': (reply.content or '')[:50],
+                    'user': user,
+                    'content': reply.content,
                     'target_id': gallery.id,
                     'target_title': gallery.title,
                     'target_type': 'gallery',
                     'notification_type': 'reply',
-                    'is_vip': is_vip,
-                    'vip_level': vip_level,
                     'created_at': reply.created_at
                 })
+        
+        # ========== 批量查询VIP信息 ==========
+        vip_map = await batch_get_user_vip_levels(db, list(user_ids))
+        
+        # ========== 构建响应 ==========
+        items = []
+        for raw in raw_items:
+            user = raw['user']
+            vip_level = vip_map.get(user.id, 0)
+            items.append(build_notification_item(
+                item_id=raw['id'],
+                user=user,
+                vip_level=vip_level,
+                content=raw['content'],
+                target_id=raw['target_id'],
+                target_title=raw['target_title'],
+                target_type=raw['target_type'],
+                notification_type=raw['notification_type'],
+                created_at=raw['created_at']
+            ))
         
         # 按时间排序并分页
         items.sort(key=lambda x: x['created_at'], reverse=True)
@@ -304,9 +349,11 @@ async def get_like_notifications(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取点赞通知 - 所有栏目的点赞"""
+    """获取点赞通知 - 所有栏目的点赞（优化版）"""
     try:
-        items = []
+        # 收集所有原始数据和用户ID
+        raw_items = []
+        user_ids = set()
         
         # ========== 1. 视频点赞通知 ==========
         user_videos_result = await db.execute(
@@ -330,20 +377,16 @@ async def get_like_notifications(
             )
             result = await db.execute(video_likes_query)
             for like, user, video in result.fetchall():
-                is_vip, vip_level = await get_user_vip_info(db, user.id)
-                items.append({
+                user_ids.add(user.id)
+                raw_items.append({
+                    'type': 'video_like',
                     'id': like.id,
-                    'user_id': user.id,
-                    'username': user.username,
-                    'nickname': user.nickname,
-                    'avatar': user.avatar,
+                    'user': user,
                     'content': None,
                     'target_id': video.id,
                     'target_title': video.title,
                     'target_type': 'short' if video.is_short else 'video',
                     'notification_type': 'like',
-                    'is_vip': is_vip,
-                    'vip_level': vip_level,
                     'created_at': like.created_at
                 })
         
@@ -369,20 +412,16 @@ async def get_like_notifications(
             )
             result = await db.execute(video_comment_likes_query)
             for like, user, comment in result.fetchall():
-                is_vip, vip_level = await get_user_vip_info(db, user.id)
-                items.append({
+                user_ids.add(user.id)
+                raw_items.append({
+                    'type': 'video_comment_like',
                     'id': like.id + 100000,
-                    'user_id': user.id,
-                    'username': user.username,
-                    'nickname': user.nickname,
-                    'avatar': user.avatar,
+                    'user': user,
                     'content': (comment.content or '')[:30],
                     'target_id': comment.video_id,
                     'target_title': None,
                     'target_type': 'video_comment',
                     'notification_type': 'like',
-                    'is_vip': is_vip,
-                    'vip_level': vip_level,
                     'created_at': like.created_at
                 })
         
@@ -408,21 +447,17 @@ async def get_like_notifications(
             )
             result = await db.execute(post_likes_query)
             for like, user, post in result.fetchall():
-                is_vip, vip_level = await get_user_vip_info(db, user.id)
+                user_ids.add(user.id)
                 post_title = (post.content[:20] if post.content else '帖子')
-                items.append({
+                raw_items.append({
+                    'type': 'post_like',
                     'id': like.id + 1000000,
-                    'user_id': user.id,
-                    'username': user.username,
-                    'nickname': user.nickname,
-                    'avatar': user.avatar,
+                    'user': user,
                     'content': None,
                     'target_id': post.id,
                     'target_title': post_title,
                     'target_type': 'post',
                     'notification_type': 'like',
-                    'is_vip': is_vip,
-                    'vip_level': vip_level,
                     'created_at': like.created_at
                 })
         
@@ -448,20 +483,16 @@ async def get_like_notifications(
             )
             result = await db.execute(post_comment_likes_query)
             for like, user, comment in result.fetchall():
-                is_vip, vip_level = await get_user_vip_info(db, user.id)
-                items.append({
+                user_ids.add(user.id)
+                raw_items.append({
+                    'type': 'post_comment_like',
                     'id': like.id + 1100000,
-                    'user_id': user.id,
-                    'username': user.username,
-                    'nickname': user.nickname,
-                    'avatar': user.avatar,
+                    'user': user,
                     'content': (comment.content or '')[:30],
                     'target_id': comment.post_id,
                     'target_title': None,
                     'target_type': 'post_comment',
                     'notification_type': 'like',
-                    'is_vip': is_vip,
-                    'vip_level': vip_level,
                     'created_at': like.created_at
                 })
         
@@ -487,22 +518,38 @@ async def get_like_notifications(
             )
             result = await db.execute(gallery_comment_likes_query)
             for like, user, comment in result.fetchall():
-                is_vip, vip_level = await get_user_vip_info(db, user.id)
-                items.append({
+                user_ids.add(user.id)
+                raw_items.append({
+                    'type': 'gallery_comment_like',
                     'id': like.id + 2000000,
-                    'user_id': user.id,
-                    'username': user.username,
-                    'nickname': user.nickname,
-                    'avatar': user.avatar,
+                    'user': user,
                     'content': (comment.content or '')[:30],
                     'target_id': comment.gallery_id,
                     'target_title': None,
                     'target_type': 'gallery_comment',
                     'notification_type': 'like',
-                    'is_vip': is_vip,
-                    'vip_level': vip_level,
                     'created_at': like.created_at
                 })
+        
+        # ========== 批量查询VIP信息 ==========
+        vip_map = await batch_get_user_vip_levels(db, list(user_ids))
+        
+        # ========== 构建响应 ==========
+        items = []
+        for raw in raw_items:
+            user = raw['user']
+            vip_level = vip_map.get(user.id, 0)
+            items.append(build_notification_item(
+                item_id=raw['id'],
+                user=user,
+                vip_level=vip_level,
+                content=raw['content'],
+                target_id=raw['target_id'],
+                target_title=raw['target_title'],
+                target_type=raw['target_type'],
+                notification_type=raw['notification_type'],
+                created_at=raw['created_at']
+            ))
         
         # 按时间排序并分页
         items.sort(key=lambda x: x['created_at'], reverse=True)
@@ -528,14 +575,12 @@ async def get_unread_count(
 ):
     """获取未读通知总数"""
     from app.models.social import MessageConversation
-    from datetime import timedelta
     
     private_unread = 0
     comment_unread = 0
     like_unread = 0
     
-    # 获取用户最后查看通知的时间（存储在用户表的 last_notification_read 字段）
-    # 如果没有，默认为24小时前
+    # 获取用户最后查看通知的时间
     last_read_time = getattr(current_user, 'last_notification_read', None)
     if not last_read_time:
         last_read_time = datetime.utcnow() - timedelta(hours=24)
@@ -557,9 +602,8 @@ async def get_unread_count(
     except:
         pass
     
-    # 2. 评论未读数 - 统计最后查看时间之后的新评论
+    # 2. 评论未读数
     try:
-        # 帖子评论
         user_posts_result = await db.execute(
             select(Post.id).where(Post.user_id == current_user.id)
         )
@@ -577,7 +621,6 @@ async def get_unread_count(
             result = await db.execute(comment_count_query)
             comment_unread += result.scalar() or 0
         
-        # 评论回复
         my_comments_result = await db.execute(
             select(PostComment.id).where(PostComment.user_id == current_user.id)
         )
@@ -599,7 +642,6 @@ async def get_unread_count(
     
     # 3. 点赞未读数
     try:
-        # 帖子点赞
         if user_post_ids:
             like_count_query = select(func.count(PostLike.id)).where(
                 and_(
@@ -611,7 +653,6 @@ async def get_unread_count(
             result = await db.execute(like_count_query)
             like_unread += result.scalar() or 0
         
-        # 评论点赞
         if my_comment_ids:
             comment_like_query = select(func.count(PostCommentLike.id)).where(
                 and_(
@@ -666,7 +707,6 @@ async def mark_notifications_read(
                 else:
                     conv.user2_unread = 0
         
-        # 更新用户最后查看通知的时间
         if notification_type in ['comment', 'like', 'all']:
             current_user.last_notification_read = datetime.utcnow()
         
