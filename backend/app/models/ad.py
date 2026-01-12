@@ -10,21 +10,21 @@ import enum
 
 class AdPosition(str, enum.Enum):
     """广告位置"""
-    SPLASH = "splash"                 # 开屏广告
-    HOME_BANNER = "home_banner"       # 首页横幅
-    HOME_POPUP = "home_popup"         # 首页弹窗
-    VIDEO_PRE = "video_pre"           # 视频前贴
-    VIDEO_MID = "video_mid"           # 视频中插
-    VIDEO_POST = "video_post"         # 视频后贴
-    SIDEBAR = "sidebar"               # 侧边栏
-    FEED = "feed"                     # 信息流
+    SPLASH = "SPLASH"                 # 开屏广告
+    HOME_BANNER = "HOME_BANNER"       # 首页横幅
+    HOME_POPUP = "HOME_POPUP"         # 首页弹窗
+    VIDEO_PRE = "VIDEO_PRE"           # 视频前贴
+    VIDEO_MID = "VIDEO_MID"           # 视频中插
+    VIDEO_POST = "VIDEO_POST"         # 视频后贴
+    SIDEBAR = "SIDEBAR"               # 侧边栏
+    FEED = "FEED"                     # 信息流
 
 
 class AdType(str, enum.Enum):
     """广告类型"""
-    IMAGE = "image"
-    VIDEO = "video"
-    HTML = "html"
+    IMAGE = "IMAGE"
+    VIDEO = "VIDEO"
+    HTML = "HTML"
 
 
 class Advertisement(Base):

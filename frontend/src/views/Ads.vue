@@ -14,18 +14,18 @@
       <!-- 筛选 -->
       <div class="filter-bar">
         <el-select v-model="filters.position" placeholder="广告位置" clearable style="width: 150px" @change="fetchAds">
-          <el-option label="首页横幅" value="home_banner" />
-          <el-option label="首页弹窗" value="home_popup" />
-          <el-option label="视频前贴" value="video_pre" />
-          <el-option label="视频中插" value="video_mid" />
-          <el-option label="视频后贴" value="video_post" />
-          <el-option label="侧边栏" value="sidebar" />
-          <el-option label="信息流" value="feed" />
+          <el-option label="首页横幅" value="HOME_BANNER" />
+          <el-option label="首页弹窗" value="HOME_POPUP" />
+          <el-option label="视频前贴" value="VIDEO_PRE" />
+          <el-option label="视频中插" value="VIDEO_MID" />
+          <el-option label="视频后贴" value="VIDEO_POST" />
+          <el-option label="侧边栏" value="SIDEBAR" />
+          <el-option label="信息流" value="FEED" />
         </el-select>
         <el-select v-model="filters.ad_type" placeholder="广告类型" clearable style="width: 120px" @change="fetchAds">
-          <el-option label="图片" value="image" />
-          <el-option label="视频" value="video" />
-          <el-option label="HTML" value="html" />
+          <el-option label="图片" value="IMAGE" />
+          <el-option label="视频" value="VIDEO" />
+          <el-option label="HTML" value="HTML" />
         </el-select>
       </div>
 
@@ -101,20 +101,20 @@
         </el-form-item>
         <el-form-item label="广告位置" required>
           <el-select v-model="form.position" style="width: 100%">
-            <el-option label="首页横幅" value="home_banner" />
-            <el-option label="首页弹窗" value="home_popup" />
-            <el-option label="视频前贴（5秒）" value="video_pre" />
-            <el-option label="视频中插" value="video_mid" />
-            <el-option label="视频后贴" value="video_post" />
-            <el-option label="侧边栏" value="sidebar" />
-            <el-option label="信息流" value="feed" />
+            <el-option label="首页横幅" value="HOME_BANNER" />
+            <el-option label="首页弹窗" value="HOME_POPUP" />
+            <el-option label="视频前贴（5秒）" value="VIDEO_PRE" />
+            <el-option label="视频中插" value="VIDEO_MID" />
+            <el-option label="视频后贴" value="VIDEO_POST" />
+            <el-option label="侧边栏" value="SIDEBAR" />
+            <el-option label="信息流" value="FEED" />
           </el-select>
         </el-form-item>
         <el-form-item label="广告类型" required>
           <el-radio-group v-model="form.ad_type">
-            <el-radio-button label="image">图片</el-radio-button>
-            <el-radio-button label="video">视频</el-radio-button>
-            <el-radio-button label="html">HTML</el-radio-button>
+            <el-radio-button label="IMAGE">图片</el-radio-button>
+            <el-radio-button label="VIDEO">视频</el-radio-button>
+            <el-radio-button label="HTML">HTML</el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="媒体文件" v-if="form.ad_type !== 'html'">
@@ -196,11 +196,11 @@ const form = reactive({
   id: null,
   title: '',
   description: '',
-  ad_type: 'image',
+  ad_type: 'IMAGE',
   media_url: '',
   html_content: '',
   target_url: '',
-  position: 'video_pre',
+  position: 'VIDEO_PRE',
   duration: 5,
   priority: 0,
   dateRange: null
@@ -212,23 +212,23 @@ const uploadHeaders = computed(() => ({
 }))
 
 const positionLabels = {
-  home_banner: '首页横幅',
-  home_popup: '首页弹窗',
-  video_pre: '视频前贴',
-  video_mid: '视频中插',
-  video_post: '视频后贴',
-  sidebar: '侧边栏',
-  feed: '信息流'
+  HOME_BANNER: '首页横幅',
+  HOME_POPUP: '首页弹窗',
+  VIDEO_PRE: '视频前贴',
+  VIDEO_MID: '视频中插',
+  VIDEO_POST: '视频后贴',
+  SIDEBAR: '侧边栏',
+  FEED: '信息流'
 }
 
 const positionTypes = {
-  video_pre: 'danger',
-  video_mid: 'warning',
-  video_post: 'info',
-  home_banner: 'success',
-  home_popup: 'primary',
-  sidebar: '',
-  feed: ''
+  VIDEO_PRE: 'danger',
+  VIDEO_MID: 'warning',
+  VIDEO_POST: 'info',
+  HOME_BANNER: 'success',
+  HOME_POPUP: 'primary',
+  SIDEBAR: '',
+  FEED: ''
 }
 
 const getPositionLabel = (position) => positionLabels[position] || position
@@ -258,11 +258,11 @@ const resetForm = () => {
   form.id = null
   form.title = ''
   form.description = ''
-  form.ad_type = 'image'
+  form.ad_type = 'IMAGE'
   form.media_url = ''
   form.html_content = ''
   form.target_url = ''
-  form.position = 'video_pre'
+  form.position = 'VIDEO_PRE'
   form.duration = 5
   form.priority = 0
   form.dateRange = null

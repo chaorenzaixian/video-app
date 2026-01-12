@@ -660,7 +660,7 @@ const fetchPreRollAd = async () => {
   
   try {
     const res = await api.get('/ads', {
-      params: { position: 'video_pre', limit: 1 }
+      params: { position: 'VIDEO_PRE', limit: 1 }
     })
     const ads = res.data || res || []
     if (ads.length > 0) {
