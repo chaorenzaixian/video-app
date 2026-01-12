@@ -19,7 +19,7 @@ async def add_demo_popup_ad():
         existing = result.scalar_one_or_none()
         
         if existing:
-            print(f"弹窗广告已存在: ID={existing.id}, 标题={existing.title}")
+            print(f"Popup ad exists: ID={existing.id}")
             return
         
         # 创建演示弹窗广告
@@ -36,7 +36,7 @@ async def add_demo_popup_ad():
         
         db.add(ad)
         await db.commit()
-        print(f"演示弹窗广告已添加: ID={ad.id}")
+        print(f"Demo popup ad added: ID={ad.id}")
 
 
 if __name__ == "__main__":
