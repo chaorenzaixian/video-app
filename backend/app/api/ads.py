@@ -9,6 +9,7 @@ from datetime import datetime
 from pydantic import BaseModel
 import os
 import uuid
+import json
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -110,6 +111,7 @@ class PopupAdResponse(BaseModel):
     """弹窗广告响应"""
     id: Optional[int] = None
     image_url: Optional[str] = None
+    images: List[str] = []  # 所有图片列表
     target_url: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
@@ -151,9 +153,22 @@ async def get_popup_ad(
         ad.impression_count += 1
         await db.commit()
         
+        # 构建图片列表
+        images = []
+        if ad.media_url:
+            images.append(ad.media_url)
+        if ad.extra_images:
+            try:
+                extra = json.loads(ad.extra_images)
+                if isinstance(extra, list):
+                    images.extend(extra)
+            except:
+                pass
+        
         return PopupAdResponse(
             id=ad.id,
             image_url=ad.media_url,
+            images=images,
             target_url=ad.target_url,
             title=ad.title,
             description=ad.description
@@ -952,6 +967,7 @@ class AdvertisementAdminResponse(BaseModel):
     description: Optional[str] = None
     ad_type: str
     media_url: Optional[str] = None
+    extra_images: List[str] = []  # 额外图片列表
     html_content: Optional[str] = None
     target_url: Optional[str] = None
     position: str
@@ -971,6 +987,7 @@ class AdvertisementCreate(BaseModel):
     description: Optional[str] = None
     ad_type: str = "video"
     media_url: Optional[str] = None
+    extra_images: List[str] = []  # 额外图片列表
     html_content: Optional[str] = None
     target_url: Optional[str] = None
     position: str = "video_pre"
@@ -986,6 +1003,7 @@ class AdvertisementUpdate(BaseModel):
     description: Optional[str] = None
     ad_type: Optional[str] = None
     media_url: Optional[str] = None
+    extra_images: Optional[List[str]] = None  # 额外图片列表
     html_content: Optional[str] = None
     target_url: Optional[str] = None
     position: Optional[str] = None
@@ -994,6 +1012,17 @@ class AdvertisementUpdate(BaseModel):
     is_active: Optional[bool] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+
+
+def parse_extra_images(extra_images_str: Optional[str]) -> List[str]:
+    """解析额外图片JSON字符串为列表"""
+    if not extra_images_str:
+        return []
+    try:
+        result = json.loads(extra_images_str)
+        return result if isinstance(result, list) else []
+    except:
+        return []
 
 
 @router.get("/admin/{ad_id}", response_model=AdvertisementAdminResponse)
@@ -1015,6 +1044,7 @@ async def get_advertisement_by_id(
         description=ad.description,
         ad_type=ad.ad_type.value if hasattr(ad.ad_type, 'value') else ad.ad_type,
         media_url=ad.media_url,
+        extra_images=parse_extra_images(ad.extra_images),
         html_content=ad.html_content,
         target_url=ad.target_url,
         position=ad.position.value if hasattr(ad.position, 'value') else ad.position,
@@ -1067,6 +1097,7 @@ async def get_all_advertisements(
             description=ad.description,
             ad_type=ad.ad_type.value if hasattr(ad.ad_type, 'value') else ad.ad_type,
             media_url=ad.media_url,
+            extra_images=parse_extra_images(ad.extra_images),
             html_content=ad.html_content,
             target_url=ad.target_url,
             position=ad.position.value if hasattr(ad.position, 'value') else ad.position,
@@ -1095,6 +1126,7 @@ async def create_advertisement(
         description=ad_in.description,
         ad_type=AdType(ad_in.ad_type) if ad_in.ad_type else AdType.VIDEO,
         media_url=ad_in.media_url,
+        extra_images=json.dumps(ad_in.extra_images) if ad_in.extra_images else None,
         html_content=ad_in.html_content,
         target_url=ad_in.target_url,
         position=AdPosition(ad_in.position) if ad_in.position else AdPosition.VIDEO_PRE,
@@ -1114,6 +1146,7 @@ async def create_advertisement(
         description=ad.description,
         ad_type=ad.ad_type.value,
         media_url=ad.media_url,
+        extra_images=parse_extra_images(ad.extra_images),
         html_content=ad.html_content,
         target_url=ad.target_url,
         position=ad.position.value,
@@ -1150,6 +1183,8 @@ async def update_advertisement(
         ad.ad_type = AdType(ad_in.ad_type)
     if ad_in.media_url is not None:
         ad.media_url = ad_in.media_url
+    if ad_in.extra_images is not None:
+        ad.extra_images = json.dumps(ad_in.extra_images) if ad_in.extra_images else None
     if ad_in.html_content is not None:
         ad.html_content = ad_in.html_content
     if ad_in.target_url is not None:
@@ -1176,6 +1211,7 @@ async def update_advertisement(
         description=ad.description,
         ad_type=ad.ad_type.value,
         media_url=ad.media_url,
+        extra_images=parse_extra_images(ad.extra_images),
         html_content=ad.html_content,
         target_url=ad.target_url,
         position=ad.position.value,

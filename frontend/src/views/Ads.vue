@@ -34,13 +34,11 @@
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column label="预览" width="120">
           <template #default="{ row }">
-            <el-image 
-              v-if="row.ad_type === 'image'" 
-              :src="row.media_url" 
-              style="width: 80px; height: 45px; object-fit: cover; border-radius: 4px;"
-              fit="cover"
-            />
-            <el-tag v-else-if="row.ad_type === 'video'" type="primary" size="small">视频广告</el-tag>
+            <div v-if="row.ad_type === 'image' || row.ad_type === 'IMAGE'" class="preview-images">
+              <el-image :src="row.media_url" style="width: 80px; height: 45px; object-fit: cover; border-radius: 4px;" fit="cover" />
+              <span v-if="row.extra_images?.length" class="extra-count">+{{ row.extra_images.length }}</span>
+            </div>
+            <el-tag v-else-if="row.ad_type === 'video' || row.ad_type === 'VIDEO'" type="primary" size="small">视频广告</el-tag>
             <el-tag v-else type="info" size="small">HTML</el-tag>
           </template>
         </el-table-column>
@@ -90,7 +88,7 @@
     <el-dialog 
       v-model="showDialog" 
       :title="isEdit ? '编辑广告' : '新增广告'" 
-      width="600px"
+      width="650px"
       destroy-on-close
     >
       <el-form :model="form" label-width="100px">
@@ -104,7 +102,7 @@
           <el-select v-model="form.position" style="width: 100%">
             <el-option label="开屏广告（启动时全屏显示）" value="SPLASH" />
             <el-option label="首页横幅" value="HOME_BANNER" />
-            <el-option label="首页弹窗" value="HOME_POPUP" />
+            <el-option label="首页弹窗（支持多图）" value="HOME_POPUP" />
             <el-option label="视频前贴（5秒）" value="VIDEO_PRE" />
             <el-option label="视频中插" value="VIDEO_MID" />
             <el-option label="视频后贴" value="VIDEO_POST" />
@@ -119,26 +117,59 @@
             <el-radio-button label="HTML">HTML</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="媒体文件" v-if="form.ad_type !== 'html'">
+        
+        <!-- 主图上传 -->
+        <el-form-item label="主图" v-if="form.ad_type !== 'HTML'">
           <el-upload
             class="media-uploader"
             :action="uploadUrl"
             :headers="uploadHeaders"
             :show-file-list="false"
-            :on-success="handleUploadSuccess"
-            :accept="form.ad_type === 'video' ? 'video/*' : 'image/*'"
+            :on-success="handleMainUploadSuccess"
+            :accept="form.ad_type === 'VIDEO' ? 'video/*' : 'image/*'"
           >
             <div v-if="form.media_url" class="media-preview">
-              <el-image v-if="form.ad_type === 'image'" :src="form.media_url" fit="cover" />
+              <el-image v-if="form.ad_type === 'IMAGE'" :src="form.media_url" fit="cover" />
               <video v-else :src="form.media_url" style="max-width: 100%; max-height: 150px;" />
+              <div class="remove-btn" @click.stop="form.media_url = ''">×</div>
             </div>
             <div v-else class="upload-placeholder">
               <el-icon><Upload /></el-icon>
-              <span>点击上传{{ form.ad_type === 'video' ? '视频' : '图片' }}</span>
+              <span>点击上传{{ form.ad_type === 'VIDEO' ? '视频' : '主图' }}</span>
             </div>
           </el-upload>
         </el-form-item>
-        <el-form-item label="HTML内容" v-if="form.ad_type === 'html'">
+        
+        <!-- 多图上传（仅首页弹窗） -->
+        <el-form-item label="额外图片" v-if="form.position === 'HOME_POPUP' && form.ad_type === 'IMAGE'">
+          <div class="extra-images-section">
+            <div class="extra-images-tip">
+              <el-tag type="info" size="small">排版说明</el-tag>
+              <span>1张=单图 | 2张=上下排版 | 3张以上=宫格排版</span>
+            </div>
+            <div class="extra-images-list">
+              <div v-for="(img, idx) in form.extra_images" :key="idx" class="extra-image-item">
+                <el-image :src="img" fit="cover" />
+                <div class="remove-btn" @click="removeExtraImage(idx)">×</div>
+              </div>
+              <el-upload
+                v-if="form.extra_images.length < 8"
+                class="extra-image-uploader"
+                :action="uploadUrl"
+                :headers="uploadHeaders"
+                :show-file-list="false"
+                :on-success="handleExtraUploadSuccess"
+                accept="image/*"
+              >
+                <div class="add-image-btn">
+                  <el-icon><Plus /></el-icon>
+                </div>
+              </el-upload>
+            </div>
+          </div>
+        </el-form-item>
+        
+        <el-form-item label="HTML内容" v-if="form.ad_type === 'HTML'">
           <el-input v-model="form.html_content" type="textarea" rows="4" placeholder="输入HTML代码" />
         </el-form-item>
         <el-form-item label="跳转链接">
@@ -200,6 +231,7 @@ const form = reactive({
   description: '',
   ad_type: 'IMAGE',
   media_url: '',
+  extra_images: [],
   html_content: '',
   target_url: '',
   position: 'VIDEO_PRE',
@@ -264,6 +296,7 @@ const resetForm = () => {
   form.description = ''
   form.ad_type = 'IMAGE'
   form.media_url = ''
+  form.extra_images = []
   form.html_content = ''
   form.target_url = ''
   form.position = 'VIDEO_PRE'
@@ -284,6 +317,7 @@ const openEditDialog = (row) => {
   form.description = row.description || ''
   form.ad_type = row.ad_type
   form.media_url = row.media_url || ''
+  form.extra_images = row.extra_images || []
   form.html_content = row.html_content || ''
   form.target_url = row.target_url || ''
   form.position = row.position
@@ -296,9 +330,18 @@ const openEditDialog = (row) => {
   showDialog.value = true
 }
 
-const handleUploadSuccess = (response) => {
+const handleMainUploadSuccess = (response) => {
   form.media_url = response.url
   ElMessage.success('上传成功')
+}
+
+const handleExtraUploadSuccess = (response) => {
+  form.extra_images.push(response.url)
+  ElMessage.success('上传成功')
+}
+
+const removeExtraImage = (idx) => {
+  form.extra_images.splice(idx, 1)
 }
 
 const saveAd = async () => {
@@ -314,6 +357,7 @@ const saveAd = async () => {
       description: form.description,
       ad_type: form.ad_type,
       media_url: form.media_url,
+      extra_images: form.extra_images,
       html_content: form.html_content,
       target_url: form.target_url,
       position: form.position,
@@ -390,8 +434,25 @@ onMounted(() => {
     justify-content: flex-end;
   }
   
+  .preview-images {
+    position: relative;
+    display: inline-block;
+    
+    .extra-count {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 2px;
+    }
+  }
+  
   .media-uploader {
     .media-preview {
+      position: relative;
       width: 200px;
       height: 112px;
       border-radius: 4px;
@@ -400,6 +461,26 @@ onMounted(() => {
       .el-image {
         width: 100%;
         height: 100%;
+      }
+      
+      .remove-btn {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 20px;
+        height: 20px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 14px;
+        
+        &:hover {
+          background: #f56c6c;
+        }
       }
     }
     
@@ -423,6 +504,79 @@ onMounted(() => {
       
       .el-icon {
         font-size: 24px;
+      }
+    }
+  }
+  
+  .extra-images-section {
+    .extra-images-tip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #909399;
+    }
+    
+    .extra-images-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      
+      .extra-image-item {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        border-radius: 4px;
+        overflow: hidden;
+        
+        .el-image {
+          width: 100%;
+          height: 100%;
+        }
+        
+        .remove-btn {
+          position: absolute;
+          top: 2px;
+          right: 2px;
+          width: 18px;
+          height: 18px;
+          background: rgba(0, 0, 0, 0.6);
+          color: #fff;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 12px;
+          
+          &:hover {
+            background: #f56c6c;
+          }
+        }
+      }
+      
+      .extra-image-uploader {
+        .add-image-btn {
+          width: 80px;
+          height: 80px;
+          border: 1px dashed #dcdfe6;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #909399;
+          
+          &:hover {
+            border-color: #409eff;
+            color: #409eff;
+          }
+          
+          .el-icon {
+            font-size: 20px;
+          }
+        }
       }
     }
   }

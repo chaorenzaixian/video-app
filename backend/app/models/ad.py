@@ -39,7 +39,8 @@ class Advertisement(Base):
     
     # 广告内容
     ad_type = Column(String(50), default="IMAGE")
-    media_url = Column(String(500), nullable=True)   # 图片/视频URL
+    media_url = Column(String(500), nullable=True)   # 主图片/视频URL
+    extra_images = Column(Text, nullable=True)       # 额外图片URL列表(JSON数组)
     html_content = Column(Text, nullable=True)       # HTML内容
     target_url = Column(String(500), nullable=True)  # 跳转链接
     
