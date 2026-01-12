@@ -54,7 +54,7 @@
 <script setup>
 defineOptions({ name: 'DarkwebEntry' })
 
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import BottomNav from '@/components/common/BottomNav.vue'
 import api from '@/utils/api'
@@ -64,9 +64,13 @@ const isVip = ref(false)
 const userVipLevel = ref(0)
 const minVipLevel = ref(0)  // 暗网最低VIP等级要求
 const loading = ref(true)
+const hasChecked = ref(false)  // 是否已检查过
 
 // 检查VIP状态
 const checkVipStatus = async () => {
+  // 如果已经检查过且不是loading状态，跳过
+  if (hasChecked.value && !loading.value) return
+  
   try {
     // 获取暗网访问权限信息
     const res = await api.get('/darkweb/access-check')
@@ -75,6 +79,7 @@ const checkVipStatus = async () => {
     userVipLevel.value = data.user_vip_level || 0
     minVipLevel.value = data.min_vip_level || 0
     isVip.value = userVipLevel.value > 0
+    hasChecked.value = true
     
     // 如果用户有访问权限，直接跳转到暗网内容
     if (data.has_access) {
@@ -86,6 +91,7 @@ const checkVipStatus = async () => {
   } catch (error) {
     console.log('获取访问权限失败')
     loading.value = false
+    hasChecked.value = true
   }
 }
 
@@ -100,8 +106,16 @@ const handleEnter = () => {
   }
 }
 
+// 首次挂载时检查
 onMounted(() => {
   checkVipStatus()
+})
+
+// keep-alive 激活时，如果还没检查过则检查
+onActivated(() => {
+  if (!hasChecked.value) {
+    checkVipStatus()
+  }
 })
 </script>
 

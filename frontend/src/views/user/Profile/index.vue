@@ -48,7 +48,7 @@
 <script setup>
 defineOptions({ name: 'UserProfile' })
 
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
@@ -64,6 +64,9 @@ import { useProfileData } from './composables/useProfileData'
 
 const userStore = useUserStore()
 const { signal } = useAbortController()
+
+// 是否已初始化
+const hasInitialized = ref(false)
 
 // 签到防重复
 const { execute: executeSign, loading: signingIn } = useAsyncLock(async () => {
@@ -117,15 +120,35 @@ const showComingSoon = () => { ElMessage.info('正在开发中，敬请期待') 
 const selectDesktopIcon = (iconId) => { selectedIcon.value = iconId; ElMessage.success('桌面图标已更换') }
 const resetDesktopIcon = () => { selectedIcon.value = 'icon_0'; ElMessage.success('已恢复默认图标') }
 
-onMounted(() => {
+// 初始化数据
+const initData = async () => {
+  if (hasInitialized.value) return
+  hasInitialized.value = true
+  
+  // 并行加载所有数据，提升加载速度
+  const promises = [fetchIconAds(), fetchUnreadCount()]
+  
   if (userStore.isLoggedIn && userStore.user) {
     initUserData(userStore.user)
-    fetchUserVipInfo()
+    promises.push(fetchUserVipInfo())
   } else {
     isLoading.value = false
   }
-  fetchIconAds()
-  fetchUnreadCount()
+  
+  // 等待所有请求完成
+  await Promise.allSettled(promises)
+}
+
+onMounted(() => {
+  initData()
+})
+
+// keep-alive 激活时只刷新未读消息数
+onActivated(() => {
+  if (hasInitialized.value) {
+    // 只刷新未读消息数，不重新加载全部数据
+    fetchUnreadCount()
+  }
 })
 </script>
 
