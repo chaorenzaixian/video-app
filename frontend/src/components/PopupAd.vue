@@ -28,8 +28,6 @@
                 <img v-for="(img, idx) in images" :key="idx" :src="img" :alt="`广告${idx + 1}`" class="popup-ad-image grid-item" />
               </div>
             </template>
-            
-            <div v-if="ad?.title" class="popup-ad-title">{{ ad.title }}</div>
           </div>
           
           <!-- 今日不再显示 -->
@@ -209,14 +207,6 @@ onMounted(() => {
   aspect-ratio: 1;
   object-fit: cover;
   display: block;
-}
-
-.popup-ad-title {
-  padding: 12px 16px;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.9);
-  text-align: center;
-  background: linear-gradient(135deg, #a855f7, #7c3aed);
 }
 
 .no-show-today {
