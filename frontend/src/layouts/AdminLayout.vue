@@ -17,7 +17,7 @@
         router
       >
         <!-- 仪表盘 -->
-        <el-menu-item index="/dashboard">
+        <el-menu-item index="/admin/dashboard">
           <el-icon><DataBoard /></el-icon>
           <template #title>仪表盘</template>
         </el-menu-item>
@@ -28,17 +28,17 @@
             <el-icon><VideoPlay /></el-icon>
             <span>内容管理</span>
           </template>
-          <el-menu-item index="/videos">视频列表</el-menu-item>
-          <el-menu-item index="/short-videos">短视频管理</el-menu-item>
-          <el-menu-item index="/short-categories">短视频分类</el-menu-item>
-          <el-menu-item index="/categories">长视频分类</el-menu-item>
-          <el-menu-item index="/tags">长视频标签</el-menu-item>
-          <el-menu-item index="/videos/upload">上传视频</el-menu-item>
-          <el-menu-item index="/videos/batch-upload">批量上传</el-menu-item>
-          <el-menu-item index="/video-review">视频审核</el-menu-item>
-          <el-menu-item index="/batch-video-ops">批量操作</el-menu-item>
-          <el-menu-item index="/featured">推荐管理</el-menu-item>
-          <el-menu-item index="/watermark-manage">水印配置</el-menu-item>
+          <el-menu-item index="/admin/videos">视频列表</el-menu-item>
+          <el-menu-item index="/admin/short-videos">短视频管理</el-menu-item>
+          <el-menu-item index="/admin/short-categories">短视频分类</el-menu-item>
+          <el-menu-item index="/admin/categories">长视频分类</el-menu-item>
+          <el-menu-item index="/admin/tags">长视频标签</el-menu-item>
+          <el-menu-item index="/admin/videos/upload">上传视频</el-menu-item>
+          <el-menu-item index="/admin/videos/batch-upload">批量上传</el-menu-item>
+          <el-menu-item index="/admin/video-review">视频审核</el-menu-item>
+          <el-menu-item index="/admin/batch-video-ops">批量操作</el-menu-item>
+          <el-menu-item index="/admin/featured">推荐管理</el-menu-item>
+          <el-menu-item index="/admin/watermark-manage">水印配置</el-menu-item>
         </el-sub-menu>
         
         <!-- 用户管理 -->
@@ -47,9 +47,9 @@
             <el-icon><User /></el-icon>
             <span>用户管理</span>
           </template>
-          <el-menu-item index="/users">用户列表</el-menu-item>
-          <el-menu-item index="/creator-manage">创作者管理</el-menu-item>
-          <el-menu-item index="/report-manage">举报管理</el-menu-item>
+          <el-menu-item index="/admin/users">用户列表</el-menu-item>
+          <el-menu-item index="/admin/creator-manage">创作者管理</el-menu-item>
+          <el-menu-item index="/admin/report-manage">举报管理</el-menu-item>
         </el-sub-menu>
         
         <!-- 会员系统 -->
@@ -58,8 +58,8 @@
             <el-icon><Medal /></el-icon>
             <span>会员系统</span>
           </template>
-          <el-menu-item index="/vip-levels">VIP等级配置</el-menu-item>
-          <el-menu-item index="/vip-manage">VIP卡片管理</el-menu-item>
+          <el-menu-item index="/admin/vip-levels">VIP等级配置</el-menu-item>
+          <el-menu-item index="/admin/vip-manage">VIP卡片管理</el-menu-item>
         </el-sub-menu>
         
         <!-- 财务中心 -->
@@ -68,11 +68,11 @@
             <el-icon><Wallet /></el-icon>
             <span>财务中心</span>
           </template>
-          <el-menu-item index="/orders">订单管理</el-menu-item>
-          <el-menu-item index="/coins-manage">金币管理</el-menu-item>
-          <el-menu-item index="/finance-manage">财务流水</el-menu-item>
-          <el-menu-item index="/withdrawal-manage">提现审核</el-menu-item>
-          <el-menu-item index="/withdrawals">代理提现</el-menu-item>
+          <el-menu-item index="/admin/orders">订单管理</el-menu-item>
+          <el-menu-item index="/admin/coins-manage">金币管理</el-menu-item>
+          <el-menu-item index="/admin/finance-manage">财务流水</el-menu-item>
+          <el-menu-item index="/admin/withdrawal-manage">提现审核</el-menu-item>
+          <el-menu-item index="/admin/withdrawals">代理提现</el-menu-item>
         </el-sub-menu>
         
         <!-- 运营推广 -->
@@ -81,16 +81,16 @@
             <el-icon><Bell /></el-icon>
             <span>运营推广</span>
           </template>
-          <el-menu-item index="/banner-manage">轮播图管理</el-menu-item>
-          <el-menu-item index="/announcements">公告管理</el-menu-item>
-          <el-menu-item index="/ads">广告管理</el-menu-item>
-          <el-menu-item index="/icon-ads">图标广告位</el-menu-item>
-          <el-menu-item index="/func-entries">功能入口</el-menu-item>
-          <el-menu-item index="/group-manage">官方群组</el-menu-item>
-          <el-menu-item index="/customer-service-manage">客服管理</el-menu-item>
-          <el-menu-item index="/customer-service-chat">在线客服</el-menu-item>
-          <el-menu-item index="/promotion-dashboard">推广数据</el-menu-item>
-          <el-menu-item index="/agents">代理管理</el-menu-item>
+          <el-menu-item index="/admin/banner-manage">轮播图管理</el-menu-item>
+          <el-menu-item index="/admin/announcements">公告管理</el-menu-item>
+          <el-menu-item index="/admin/ads">广告管理</el-menu-item>
+          <el-menu-item index="/admin/icon-ads">图标广告位</el-menu-item>
+          <el-menu-item index="/admin/func-entries">功能入口</el-menu-item>
+          <el-menu-item index="/admin/group-manage">官方群组</el-menu-item>
+          <el-menu-item index="/admin/customer-service-manage">客服管理</el-menu-item>
+          <el-menu-item index="/admin/customer-service-chat">在线客服</el-menu-item>
+          <el-menu-item index="/admin/promotion-dashboard">推广数据</el-menu-item>
+          <el-menu-item index="/admin/agents">代理管理</el-menu-item>
         </el-sub-menu>
         
         <!-- 福利任务 -->
@@ -99,9 +99,9 @@
             <el-icon><Present /></el-icon>
             <span>福利任务</span>
           </template>
-          <el-menu-item index="/tasks-manage">任务管理</el-menu-item>
-          <el-menu-item index="/exchange-manage">积分兑换</el-menu-item>
-          <el-menu-item index="/points-query">用户积分</el-menu-item>
+          <el-menu-item index="/admin/tasks-manage">任务管理</el-menu-item>
+          <el-menu-item index="/admin/exchange-manage">积分兑换</el-menu-item>
+          <el-menu-item index="/admin/points-query">用户积分</el-menu-item>
         </el-sub-menu>
         
         <!-- 互动管理 -->
@@ -110,8 +110,8 @@
             <el-icon><ChatDotRound /></el-icon>
             <span>互动管理</span>
           </template>
-          <el-menu-item index="/comments">评论管理</el-menu-item>
-          <el-menu-item index="/comment-announcement">评论公告</el-menu-item>
+          <el-menu-item index="/admin/comments">评论管理</el-menu-item>
+          <el-menu-item index="/admin/comment-announcement">评论公告</el-menu-item>
         </el-sub-menu>
         
         <!-- 社区管理 -->
@@ -120,21 +120,21 @@
             <el-icon><ChatLineSquare /></el-icon>
             <span>社区管理</span>
           </template>
-          <el-menu-item index="/community-posts">帖子管理</el-menu-item>
-          <el-menu-item index="/community-topics">话题管理</el-menu-item>
-          <el-menu-item index="/community-comments">评论管理</el-menu-item>
-          <el-menu-item index="/gallery-manage">图集管理</el-menu-item>
-          <el-menu-item index="/novel-manage">小说管理</el-menu-item>
+          <el-menu-item index="/admin/community-posts">帖子管理</el-menu-item>
+          <el-menu-item index="/admin/community-topics">话题管理</el-menu-item>
+          <el-menu-item index="/admin/community-comments">评论管理</el-menu-item>
+          <el-menu-item index="/admin/gallery-manage">图集管理</el-menu-item>
+          <el-menu-item index="/admin/novel-manage">小说管理</el-menu-item>
         </el-sub-menu>
         
         <!-- 暗网专区 -->
-        <el-menu-item index="/darkweb-manage">
+        <el-menu-item index="/admin/darkweb-manage">
           <el-icon><Lock /></el-icon>
           <span>暗网视频</span>
         </el-menu-item>
         
         <!-- 交友管理 -->
-        <el-menu-item index="/dating-manage">
+        <el-menu-item index="/admin/dating-manage">
           <el-icon><ChatDotRound /></el-icon>
           <span>交友管理</span>
         </el-menu-item>
@@ -145,9 +145,9 @@
             <el-icon><DataAnalysis /></el-icon>
             <span>数据中心</span>
           </template>
-          <el-menu-item index="/statistics">数据统计</el-menu-item>
-          <el-menu-item index="/monitor">系统监控</el-menu-item>
-          <el-menu-item index="/admin-logs">操作日志</el-menu-item>
+          <el-menu-item index="/admin/statistics">数据统计</el-menu-item>
+          <el-menu-item index="/admin/monitor">系统监控</el-menu-item>
+          <el-menu-item index="/admin/admin-logs">操作日志</el-menu-item>
         </el-sub-menu>
         
         <!-- 系统设置 -->
@@ -156,9 +156,9 @@
             <el-icon><Setting /></el-icon>
             <span>系统设置</span>
           </template>
-          <el-menu-item index="/site-settings">网站设置</el-menu-item>
-          <el-menu-item index="/system-config">系统配置</el-menu-item>
-          <el-menu-item index="/settings">其他设置</el-menu-item>
+          <el-menu-item index="/admin/site-settings">网站设置</el-menu-item>
+          <el-menu-item index="/admin/system-config">系统配置</el-menu-item>
+          <el-menu-item index="/admin/settings">其他设置</el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>
@@ -241,10 +241,10 @@ const refreshPage = () => {
 const handleCommand = (command) => {
   switch (command) {
     case 'profile':
-      router.push('/profile')
+      router.push('/admin/profile')
       break
     case 'password':
-      router.push('/password')
+      router.push('/admin/password')
       break
     case 'logout':
       ElMessageBox.confirm('确定要退出登录吗？', '提示', {
@@ -253,7 +253,7 @@ const handleCommand = (command) => {
         type: 'warning'
       }).then(() => {
         userStore.logout()
-        router.push('/login')
+        router.push('/admin/login')
       })
       break
   }
