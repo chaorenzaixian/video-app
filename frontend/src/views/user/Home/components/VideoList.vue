@@ -108,6 +108,11 @@ $breakpoint-xxl: 1280px;
     @media (min-width: $breakpoint-md) { grid-template-columns: repeat(3, 1fr); }
     @media (min-width: $breakpoint-xl) { grid-template-columns: repeat(4, 1fr); }
     @media (min-width: $breakpoint-xxl) { grid-template-columns: repeat(5, 1fr); }
+    
+    .video-card {
+      width: 100%;
+      min-width: 0;
+    }
   }
   
   &.single-column {
@@ -115,6 +120,23 @@ $breakpoint-xxl: 1280px;
     gap: clamp(14px, 4vw, 20px);
     @media (min-width: $breakpoint-md) { grid-template-columns: repeat(2, 1fr); }
     @media (min-width: $breakpoint-xl) { grid-template-columns: repeat(3, 1fr); }
+    
+    .video-card {
+      width: 100%;
+      min-width: 0;
+      
+      .video-cover {
+        border-radius: clamp(4px, 1.5vw, 8px);
+      }
+      
+      .video-info {
+        .video-title {
+          font-size: clamp(13px, 3.5vw, 16px);
+          margin-bottom: clamp(6px, 2vw, 10px);
+          min-height: calc(clamp(13px, 3.5vw, 16px) * 1.5 * 2);
+        }
+      }
+    }
   }
 }
 
@@ -122,6 +144,8 @@ $breakpoint-xxl: 1280px;
   background: transparent;
   cursor: pointer;
   transition: transform 0.2s;
+  width: 100%;
+  min-width: 0;
   
   &:hover {
     transform: translateY(-3px);
@@ -169,6 +193,7 @@ $breakpoint-xxl: 1280px;
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
       transition: transform 0.3s ease, opacity 0.3s ease;
       &.hidden { opacity: 0; }
     }
