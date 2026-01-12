@@ -109,7 +109,7 @@ const handleLogin = async () => {
       await userStore.login(form)
       ElMessage.success('登录成功')
       
-      const redirect = route.query.redirect || '/dashboard'
+      const redirect = route.query.redirect || '/admin/dashboard'
       router.push(redirect)
     } catch (error) {
       // 错误已在拦截器中处理
