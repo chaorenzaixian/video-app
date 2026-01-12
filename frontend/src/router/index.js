@@ -438,6 +438,11 @@ const routes = [
     component: () => import('@/views/user/FAQ.vue'),
     meta: { requiresAuth: true, hideNav: true }
   },
+  // 根路径重定向到用户首页
+  {
+    path: '/',
+    redirect: '/user'
+  },
   // 管理后台登录路由
   {
     path: '/login',
@@ -450,9 +455,9 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
-    path: '/',
+    path: '/admin',
     component: () => import('@/layouts/AdminLayout.vue'),
-    redirect: '/dashboard',
+    redirect: '/admin/dashboard',
     meta: { requiresAuth: true },
     children: [
       {
