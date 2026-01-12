@@ -7,7 +7,7 @@ const routes = [
   {
     path: '/user',
     name: 'UserHome',
-    component: () => import(/* webpackPrefetch: true */ '@/views/user/Home.vue'),
+    component: () => import(/* webpackPrefetch: true */ '@/views/user/Home/index.vue'),
     meta: { requiresAuth: false }
   },
   {

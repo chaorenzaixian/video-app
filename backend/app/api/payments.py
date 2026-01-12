@@ -441,36 +441,65 @@ async def alipay_notify(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """支付宝异步回调"""
+    """支付宝异步回调（幂等处理）"""
     from app.services.payment_service import payment_service
+    import logging
+    
+    logger = logging.getLogger(__name__)
     
     # 获取回调数据
     form_data = await request.form()
     data = dict(form_data)
     
     # 验证签名
-    is_valid, order_no, amount = await payment_service.verify_callback("alipay", data)
+    is_valid, order_no, callback_amount = await payment_service.verify_callback("alipay", data)
     
     if not is_valid:
+        logger.warning("[Alipay Notify] Invalid signature")
         return "fail"
     
-    # 查找订单
-    result = await db.execute(
-        select(PaymentOrder).where(PaymentOrder.order_no == order_no)
-    )
-    order = result.scalar_one_or_none()
-    
-    if not order:
+    if not order_no:
+        logger.warning("[Alipay Notify] Missing order_no")
         return "fail"
     
-    if order.status == PaymentStatus.SUCCESS:
-        return "success"  # 已处理过
-    
-    # 处理支付成功
-    trade_no = data.get("trade_no", "")
-    await process_payment_success(order, trade_no, db)
-    
-    return "success"
+    try:
+        # ========== 幂等性处理：使用行级锁 ==========
+        result = await db.execute(
+            select(PaymentOrder)
+            .where(PaymentOrder.order_no == order_no)
+            .with_for_update()  # 行级锁
+        )
+        order = result.scalar_one_or_none()
+        
+        if not order:
+            logger.warning(f"[Alipay Notify] Order not found: {order_no}")
+            return "fail"
+        
+        # 幂等检查
+        if order.status == PaymentStatus.SUCCESS:
+            logger.info(f"[Alipay Notify] Order already processed: {order_no}")
+            return "success"
+        
+        # ========== 金额验证 ==========
+        order_amount_cents = int(float(order.amount) * 100)
+        if abs(order_amount_cents - callback_amount) > 1:  # 允许1分误差
+            logger.error(
+                f"[Alipay Notify] Amount mismatch: order_no={order_no}, "
+                f"expected={order.amount}, received={callback_amount/100}"
+            )
+            return "fail"
+        
+        # 处理支付成功
+        trade_no = data.get("trade_no", "")
+        await process_payment_success(order, trade_no, db)
+        logger.info(f"[Alipay Notify] Payment success: {order_no}")
+        
+        return "success"
+        
+    except Exception as e:
+        logger.error(f"[Alipay Notify] Error: {e}")
+        await db.rollback()
+        return "fail"
 
 
 @router.get("/alipay/return")
@@ -553,37 +582,66 @@ async def wechat_notify(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """微信支付异步回调"""
+    """微信支付异步回调（幂等处理）"""
     from app.services.payment_service import payment_service
     import json
+    import logging
+    
+    logger = logging.getLogger(__name__)
     
     # 获取回调数据
     body = await request.body()
     data = json.loads(body)
     
     # 验证签名并解密
-    is_valid, order_no, amount = await payment_service.verify_callback("wechat", data)
+    is_valid, order_no, callback_amount = await payment_service.verify_callback("wechat", data)
     
     if not is_valid:
+        logger.warning("[Wechat Notify] Invalid signature")
         return {"code": "FAIL", "message": "签名验证失败"}
     
-    # 查找订单
-    result = await db.execute(
-        select(PaymentOrder).where(PaymentOrder.order_no == order_no)
-    )
-    order = result.scalar_one_or_none()
+    if not order_no:
+        logger.warning("[Wechat Notify] Missing order_no")
+        return {"code": "FAIL", "message": "订单号为空"}
     
-    if not order:
-        return {"code": "FAIL", "message": "订单不存在"}
-    
-    if order.status == PaymentStatus.SUCCESS:
+    try:
+        # ========== 幂等性处理：使用行级锁 ==========
+        result = await db.execute(
+            select(PaymentOrder)
+            .where(PaymentOrder.order_no == order_no)
+            .with_for_update()  # 行级锁
+        )
+        order = result.scalar_one_or_none()
+        
+        if not order:
+            logger.warning(f"[Wechat Notify] Order not found: {order_no}")
+            return {"code": "FAIL", "message": "订单不存在"}
+        
+        # 幂等检查
+        if order.status == PaymentStatus.SUCCESS:
+            logger.info(f"[Wechat Notify] Order already processed: {order_no}")
+            return {"code": "SUCCESS", "message": "OK"}
+        
+        # ========== 金额验证 ==========
+        order_amount_cents = int(float(order.amount) * 100)
+        if abs(order_amount_cents - callback_amount) > 1:  # 允许1分误差
+            logger.error(
+                f"[Wechat Notify] Amount mismatch: order_no={order_no}, "
+                f"expected={order.amount}, received={callback_amount/100}"
+            )
+            return {"code": "FAIL", "message": "金额不匹配"}
+        
+        # 处理支付成功
+        trade_no = data.get("resource", {}).get("transaction_id", "")
+        await process_payment_success(order, trade_no, db)
+        logger.info(f"[Wechat Notify] Payment success: {order_no}")
+        
         return {"code": "SUCCESS", "message": "OK"}
-    
-    # 处理支付成功
-    trade_no = data.get("resource", {}).get("transaction_id", "")
-    await process_payment_success(order, trade_no, db)
-    
-    return {"code": "SUCCESS", "message": "OK"}
+        
+    except Exception as e:
+        logger.error(f"[Wechat Notify] Error: {e}")
+        await db.rollback()
+        return {"code": "FAIL", "message": str(e)}
 
 
 # ========== 订单查询接口 ==========
@@ -770,10 +828,13 @@ async def epay_notify(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    易支付异步回调通知
+    易支付异步回调通知（幂等处理）
     支持 GET 和 POST 两种方式
     """
     from app.services.epay_service import epay_service
+    import logging
+    
+    logger = logging.getLogger(__name__)
     
     # 获取回调参数
     if request.method == "POST":
@@ -782,40 +843,54 @@ async def epay_notify(
     else:
         params = dict(request.query_params)
     
-    print(f"[Epay Notify] Received: {params}")
+    logger.info(f"[Epay Notify] Received: {params}")
     
     # 解析并验证回调
     is_success, order_no, trade_no, amount, trade_status = epay_service.parse_callback(params)
     
     if not order_no:
+        logger.warning("[Epay Notify] Missing order_no in callback")
         return "fail"
     
-    # 查找订单
-    result = await db.execute(
-        select(PaymentOrder).where(PaymentOrder.order_no == order_no)
-    )
-    order = result.scalar_one_or_none()
-    
-    if not order:
-        print(f"[Epay Notify] Order not found: {order_no}")
-        return "fail"
-    
-    # 已处理过
-    if order.status == PaymentStatus.SUCCESS:
-        return "success"
-    
-    # 验证金额
-    if abs(float(order.amount) - amount) > 0.01:
-        print(f"[Epay Notify] Amount mismatch: order={order.amount}, callback={amount}")
-        return "fail"
-    
-    if is_success:
-        # 处理支付成功
-        await process_payment_success(order, trade_no, db)
-        print(f"[Epay Notify] Payment success: {order_no}")
-        return "success"
-    else:
-        print(f"[Epay Notify] Payment not success: {trade_status}")
+    # ========== 幂等性处理：使用行级锁 ==========
+    try:
+        # 使用 SELECT FOR UPDATE 锁定订单行，防止并发处理
+        result = await db.execute(
+            select(PaymentOrder)
+            .where(PaymentOrder.order_no == order_no)
+            .with_for_update()  # 行级锁
+        )
+        order = result.scalar_one_or_none()
+        
+        if not order:
+            logger.warning(f"[Epay Notify] Order not found: {order_no}")
+            return "fail"
+        
+        # 幂等检查：已处理过的订单直接返回成功
+        if order.status == PaymentStatus.SUCCESS:
+            logger.info(f"[Epay Notify] Order already processed: {order_no}")
+            return "success"
+        
+        # ========== 金额验证 ==========
+        if abs(float(order.amount) - amount) > 0.01:
+            logger.error(
+                f"[Epay Notify] Amount mismatch: order_no={order_no}, "
+                f"expected={order.amount}, received={amount}"
+            )
+            return "fail"
+        
+        if is_success:
+            # 处理支付成功
+            await process_payment_success(order, trade_no, db)
+            logger.info(f"[Epay Notify] Payment success: {order_no}, amount={amount}")
+            return "success"
+        else:
+            logger.info(f"[Epay Notify] Payment not success: {trade_status}")
+            return "fail"
+            
+    except Exception as e:
+        logger.error(f"[Epay Notify] Error processing callback: {e}")
+        await db.rollback()
         return "fail"
 
 

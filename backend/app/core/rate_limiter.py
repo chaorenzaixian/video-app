@@ -18,13 +18,29 @@ class RateLimitConfig:
     DEFAULT = (60, 60)
     
     # 特定路径限流配置 (次数, 时间窗口秒)
+    # 安全敏感接口使用更严格的限制
     PATHS = {
-        "/api/v1/auth/login": (5, 60),           # 登录：5次/分钟
-        "/api/v1/auth/register": (3, 60),        # 注册：3次/分钟
-        "/api/v1/auth/guest/register": (10, 60), # 游客注册：10次/分钟
-        "/api/v1/comments": (20, 60),            # 评论：20次/分钟
-        "/api/v1/videos/upload": (5, 300),       # 上传：5次/5分钟
-        "/api/v1/payments": (10, 60),            # 支付：10次/分钟
+        # 认证相关 - 严格限制防暴力破解
+        "/api/v1/auth/login": (3, 60),           # 登录：3次/分钟
+        "/api/v1/auth/register": (1, 60),        # 注册：1次/分钟（防批量注册）
+        "/api/v1/auth/guest/register": (3, 60),  # 游客注册：3次/分钟
+        "/api/v1/auth/reset-password": (2, 300), # 重置密码：2次/5分钟
+        "/api/v1/auth/send-code": (1, 60),       # 发送验证码：1次/分钟
+        
+        # 支付相关 - 防刷单
+        "/api/v1/payments": (5, 60),             # 支付：5次/分钟
+        "/api/v1/payments/epay/create": (3, 60), # 创建订单：3次/分钟
+        "/api/v1/payments/alipay/create": (3, 60),
+        "/api/v1/payments/wechat/create": (3, 60),
+        
+        # 内容创建 - 防刷
+        "/api/v1/comments": (10, 60),            # 评论：10次/分钟
+        "/api/v1/videos/upload": (3, 300),       # 上传：3次/5分钟
+        "/api/v1/posts": (5, 60),                # 发帖：5次/分钟
+        
+        # 互动操作 - 适度限制
+        "/api/v1/videos/like": (30, 60),         # 点赞：30次/分钟
+        "/api/v1/users/follow": (20, 60),        # 关注：20次/分钟
     }
     
     # 白名单路径（不限流）
@@ -33,6 +49,9 @@ class RateLimitConfig:
         "/api/docs",
         "/api/openapi.json",
         "/uploads/",
+        "/api/v1/payments/epay/notify",   # 支付回调不限流
+        "/api/v1/payments/alipay/notify",
+        "/api/v1/payments/wechat/notify",
     ]
 
 
