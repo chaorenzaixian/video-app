@@ -198,7 +198,7 @@ def format_video_response(video, include_tags: bool = False) -> dict:
     
     # 上传者信息
     if hasattr(video, 'uploader') and video.uploader:
-        data["uploader_name"] = video.uploader.username
+        data["uploader_name"] = video.uploader.nickname or video.uploader.username
         data["uploader_avatar"] = video.uploader.avatar
     
     # 标签

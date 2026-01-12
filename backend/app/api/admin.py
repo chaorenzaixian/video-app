@@ -709,7 +709,7 @@ async def list_videos_admin(
             is_featured=video.is_featured or False,
             is_short=video.is_short or False,
             view_count=video.view_count or 0,
-            uploader_name=uploader.username,
+            uploader_name=uploader.nickname or uploader.username,
             tags=[tag.name for tag in video.tags] if video.tags else [],
             created_at=video.created_at
         ))
@@ -833,7 +833,7 @@ async def get_video_review_queue(
             cover_url=video.cover_url,
             video_url=video.video_url,
             duration=video.duration,
-            uploader_name=uploader.username if uploader else "未知用户",
+            uploader_name=(uploader.nickname or uploader.username) if uploader else "未知用户",
             created_at=video.created_at
         ))
     
@@ -921,7 +921,7 @@ async def get_video_detail(
         "is_featured": video.is_featured,
         "view_count": video.view_count,
         "like_count": video.like_count,
-        "uploader_name": uploader.username,
+        "uploader_name": uploader.nickname or uploader.username,
         "created_at": video.created_at
     }
 
