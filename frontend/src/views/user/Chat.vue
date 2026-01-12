@@ -477,7 +477,7 @@ const markPrivateMessagesAsRead = async () => {
 onMounted(async () => {
   if (!userStore.token) {
     ElMessage.warning('请先登录')
-    router.push('/user/login')
+    router.push('/user/settings/recovery')
     return
   }
   

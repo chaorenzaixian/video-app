@@ -16,8 +16,11 @@ export const useUserStore = defineStore('user', () => {
   const isAdmin = computed(() => user.value?.role === 'admin' || user.value?.role === 'super_admin')
   const isVip = computed(() => user.value?.is_vip === true)
   
-  // 游客自动注册/登录
-  async function autoRegisterGuest() {
+  // 自动注册/登录（带重试机制）
+  async function autoRegisterGuest(retryCount = 0) {
+    const MAX_RETRIES = 3
+    const RETRY_DELAYS = [1000, 2000, 4000] // 指数退避：1s, 2s, 4s
+    
     // 如果已登录，直接返回
     if (token.value) {
       isInitialized.value = true
@@ -34,9 +37,20 @@ export const useUserStore = defineStore('user', () => {
       localStorage.setItem('refreshToken', res.data.refresh_token)
       
       await fetchUser()
-      console.log('游客自动注册成功')
+      console.log('自动注册成功')
     } catch (error) {
-      console.error('游客注册失败:', error)
+      console.error(`注册失败 (尝试 ${retryCount + 1}/${MAX_RETRIES + 1}):`, error)
+      
+      // 如果是429（频率限制）或5xx错误，且未超过重试次数，则重试
+      const status = error.response?.status
+      const shouldRetry = (status === 429 || status >= 500) && retryCount < MAX_RETRIES
+      
+      if (shouldRetry) {
+        const delay = RETRY_DELAYS[retryCount] || 4000
+        console.log(`${delay/1000}秒后重试...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return autoRegisterGuest(retryCount + 1)
+      }
     } finally {
       isInitialized.value = true
     }

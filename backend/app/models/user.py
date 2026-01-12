@@ -45,9 +45,9 @@ class User(Base):
     phone = Column(String(20), unique=True, index=True, nullable=True)
     hashed_password = Column(String(255), nullable=False)
     
-    # 设备信息（用于游客账号）
+    # 设备信息（用于自动注册）
     device_id = Column(String(100), unique=True, index=True, nullable=True)
-    is_guest = Column(Boolean, default=False)  # 是否游客账号
+    is_guest = Column(Boolean, default=False)  # 历史遗留字段，新用户均为False
     
     # 用户信息
     nickname = Column(String(50), nullable=True)

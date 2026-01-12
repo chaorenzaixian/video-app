@@ -97,8 +97,8 @@ onMounted(async () => {
       await userStore.autoRegisterGuest()
     }
     
-    // 启动会话检测（仅用户端）
-    if (userStore.token && !userStore.user?.is_guest) {
+    // 启动会话检测（仅用户端已登录用户）
+    if (userStore.token) {
       sessionChecker.start()
     }
   } else {
@@ -121,7 +121,7 @@ watch(() => route.path, () => {
 
 // 监听用户登录状态
 watch(() => userStore.token, (newToken) => {
-  if (newToken && !userStore.user?.is_guest) {
+  if (newToken) {
     sessionChecker.start()
   } else {
     sessionChecker.stop()

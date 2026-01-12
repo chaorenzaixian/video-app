@@ -9,8 +9,8 @@
     <div class="login-card">
       <div class="login-header">
         <el-icon size="48" color="#6366f1"><VideoPlay /></el-icon>
-        <h1>VOD Platform</h1>
-        <p>视频点播管理系统</p>
+        <h1>管理后台</h1>
+        <p>VOD Platform 管理系统</p>
       </div>
       
       <el-form 
@@ -62,7 +62,7 @@
       </el-form>
       
       <div class="login-footer">
-        <p>还没有账号？ <el-link type="primary" :underline="false">立即注册</el-link></p>
+        <p class="admin-notice">仅限管理员登录</p>
       </div>
     </div>
   </div>

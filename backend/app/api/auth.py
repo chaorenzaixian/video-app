@@ -85,6 +85,29 @@ def generate_guest_password():
     return uuid.uuid4().hex
 
 
+def generate_default_avatar(user_id: int) -> str:
+    """根据用户ID生成默认头像路径
+    
+    共52个预设头像，根据用户ID取模分配
+    """
+    total_avatars = 52
+    index = user_id % total_avatars
+    
+    if index < 17:
+        # icon_avatar_1.webp 到 icon_avatar_17.webp
+        return f"/images/avatars/icon_avatar_{index + 1}.webp"
+    elif index < 32:
+        # DM_20251217202131_001.JPEG 到 DM_20251217202131_015.JPEG
+        num = str(index - 17 + 1).zfill(3)
+        return f"/images/avatars/DM_20251217202131_{num}.JPEG"
+    else:
+        # DM_20251217202341_001 到 DM_20251217202341_020
+        num = str(index - 32 + 1).zfill(3)
+        webp_files = ['002', '006', '015', '018']
+        ext = 'webp' if num in webp_files else 'JPEG'
+        return f"/images/avatars/DM_20251217202341_{num}.{ext}"
+
+
 def get_client_ip(request: Request) -> str:
     """获取客户端IP地址"""
     # 尝试从X-Forwarded-For头获取（用于代理/负载均衡）
@@ -153,6 +176,9 @@ async def register(
     )
     db.add(user)
     await db.flush()
+    
+    # 分配默认头像（基于用户ID）
+    user.avatar = generate_default_avatar(user.id)
     
     # 创建VIP记录
     vip = UserVIP(user_id=user.id)
@@ -234,24 +260,124 @@ async def guest_register(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """游客自动注册
+    """自动注册
     
-    根据设备指纹自动注册游客账号，如果设备已注册则直接登录
+    根据设备指纹自动注册账号，如果设备已注册则直接登录
+    包含IP速率限制和设备并发控制
     """
+    from app.core.redis import RedisCache
+    
     client_ip = get_client_ip(request)
+    device_id = guest_in.device_id
     
-    # 检查设备是否已注册
-    result = await db.execute(
-        select(User).where(User.device_id == guest_in.device_id)
-    )
-    user = result.scalar_one_or_none()
-    
-    if user:
-        # 设备已注册，更新登录信息
-        user.last_login = datetime.utcnow()
-        user.last_login_ip = client_ip
-        await db.commit()
+    # ========== 1. IP速率限制 ==========
+    # 同一IP每分钟最多10次注册请求
+    rate_key = f"guest_register_rate:{client_ip}"
+    try:
+        rate_count = await RedisCache.get(rate_key)
+        rate_count = int(rate_count) if rate_count else 0
         
+        if rate_count >= 10:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="请求过于频繁，请稍后再试"
+            )
+        
+        # 增加计数
+        await RedisCache.incr(rate_key)
+        if rate_count == 0:
+            await RedisCache.expire(rate_key, 60)  # 60秒窗口
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Redis故障不阻止注册
+        pass
+    
+    # ========== 2. 设备并发锁 ==========
+    # 防止同一设备并发注册导致重复账号
+    lock_key = f"guest_register_lock:{device_id}"
+    lock_acquired = False
+    
+    try:
+        # 尝试获取锁（5秒超时）
+        existing_lock = await RedisCache.get(lock_key)
+        if existing_lock:
+            # 已有请求在处理，等待后重试
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="注册处理中，请稍后"
+            )
+        
+        # 设置锁
+        await RedisCache.set(lock_key, "1", expire=5)
+        lock_acquired = True
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Redis故障不阻止注册
+        pass
+    
+    try:
+        # ========== 3. 检查设备是否已注册 ==========
+        result = await db.execute(
+            select(User).where(User.device_id == device_id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if user:
+            # 设备已注册，更新登录信息
+            user.last_login = datetime.utcnow()
+            user.last_login_ip = client_ip
+            await db.commit()
+            
+            access_token = create_access_token(data={"sub": str(user.id)})
+            refresh_token = create_refresh_token(data={"sub": str(user.id)})
+            
+            return Token(
+                access_token=access_token,
+                refresh_token=refresh_token
+            )
+        
+        # ========== 4. 新设备，创建用户账号 ==========
+        guest_username = generate_guest_username()  # 8位数字
+        guest_nickname = generate_random_nickname()  # 随机中文名
+        guest_password = generate_guest_password()
+        
+        # 确保用户名唯一
+        while True:
+            result = await db.execute(
+                select(User).where(User.username == guest_username)
+            )
+            if not result.scalar_one_or_none():
+                break
+            guest_username = generate_guest_username()
+        
+        user = User(
+            username=guest_username,
+            email=None,  # 可后续绑定邮箱
+            hashed_password=get_password_hash(guest_password),
+            nickname=guest_nickname,  # 随机中文昵称
+            register_ip=client_ip,  # 注册IP
+            last_login_ip=client_ip,  # 最近登录IP
+            device_id=device_id,
+            is_guest=False,  # 自动注册的是正式用户
+            invite_code=generate_invite_code(),
+            last_login=datetime.utcnow()
+        )
+        db.add(user)
+        await db.flush()
+        
+        # 分配默认头像（基于用户ID）
+        user.avatar = generate_default_avatar(user.id)
+        
+        # 创建VIP记录
+        vip = UserVIP(user_id=user.id)
+        db.add(vip)
+        
+        await db.commit()
+        await db.refresh(user)
+        
+        # 生成令牌
         access_token = create_access_token(data={"sub": str(user.id)})
         refresh_token = create_refresh_token(data={"sub": str(user.id)})
         
@@ -259,51 +385,13 @@ async def guest_register(
             access_token=access_token,
             refresh_token=refresh_token
         )
-    
-    # 新设备，创建游客账号
-    guest_username = generate_guest_username()  # 8位数字
-    guest_nickname = generate_random_nickname()  # 随机中文名
-    guest_password = generate_guest_password()
-    
-    # 确保用户名唯一
-    while True:
-        result = await db.execute(
-            select(User).where(User.username == guest_username)
-        )
-        if not result.scalar_one_or_none():
-            break
-        guest_username = generate_guest_username()
-    
-    user = User(
-        username=guest_username,
-        email=None,  # 游客无邮箱
-        hashed_password=get_password_hash(guest_password),
-        nickname=guest_nickname,  # 随机中文昵称
-        register_ip=client_ip,  # 注册IP
-        last_login_ip=client_ip,  # 最近登录IP
-        device_id=guest_in.device_id,
-        is_guest=True,
-        invite_code=generate_invite_code(),
-        last_login=datetime.utcnow()
-    )
-    db.add(user)
-    await db.flush()
-    
-    # 创建VIP记录
-    vip = UserVIP(user_id=user.id)
-    db.add(vip)
-    
-    await db.commit()
-    await db.refresh(user)
-    
-    # 生成令牌
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
-    
-    return Token(
-        access_token=access_token,
-        refresh_token=refresh_token
-    )
+    finally:
+        # ========== 5. 释放锁 ==========
+        if lock_acquired:
+            try:
+                await RedisCache.delete(lock_key)
+            except:
+                pass
 
 
 @router.post("/guest/login", response_model=Token)

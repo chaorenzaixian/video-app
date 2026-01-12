@@ -75,7 +75,7 @@ class UserResponse(BaseModel):
     invite_code: Optional[str] = None
     invite_count: int = 0
     is_vip: bool = False
-    is_guest: bool = False  # 是否游客账号
+    is_guest: bool = False  # 历史遗留字段，新用户均为正式用户
     vip_level: int = 0  # VIP等级: 0=非VIP, 1=普通VIP, 2=VIP1, 3=VIP2, 4=VIP3, 5=黄金至尊, 6=蓝色至尊, 7=紫色限定至尊
     vip_level_name: Optional[str] = None  # VIP等级名称
     vip_expire_date: Optional[datetime] = None

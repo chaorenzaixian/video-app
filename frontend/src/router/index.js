@@ -33,11 +33,11 @@ const routes = [
     component: () => import(/* webpackPrefetch: true */ '@/views/user/Profile.vue'),
     meta: { requiresAuth: false }
   },
+  // 用户登录页面已移除，使用自动注册+扫码登录
+  // 旧路由重定向到账号找回页面
   {
     path: '/user/login',
-    name: 'UserLogin',
-    component: () => import('@/views/user/Login.vue'),
-    meta: { requiresAuth: false }
+    redirect: '/user/settings/recovery'
   },
   // 短视频
   {
@@ -438,10 +438,14 @@ const routes = [
     component: () => import('@/views/user/FAQ.vue'),
     meta: { requiresAuth: true, hideNav: true }
   },
-  // 管理后台路由
+  // 管理后台登录路由
   {
     path: '/login',
-    name: 'Login',
+    redirect: '/admin/login'
+  },
+  {
+    path: '/admin/login',
+    name: 'AdminLogin',
     component: () => import('@/views/Login.vue'),
     meta: { requiresAuth: false }
   },
@@ -797,7 +801,26 @@ router.beforeEach(async (to, from, next) => {
   
   // 检查是否已登录
   if (to.meta.requiresAuth !== false && !userStore.isLoggedIn) {
-    next({ name: 'Login', query: { redirect: to.fullPath } })
+    // 普通用户页面：自动注册游客账号
+    // 管理后台页面：跳转到管理员登录
+    const adminPaths = ['/dashboard', '/videos', '/users', '/vip-manage', '/vip-levels', 
+      '/categories', '/tags', '/orders', '/ads', '/settings', '/featured', '/comments',
+      '/coins-manage', '/video-review', '/creator-manage', '/withdrawal-manage', '/statistics',
+      '/finance-manage', '/admin-logs', '/banner-manage', '/batch-video-ops', '/report-manage',
+      '/watermark-manage', '/announcements', '/icon-ads', '/func-entries', '/monitor',
+      '/promotion-dashboard', '/agents', '/withdrawals', '/tasks-manage', '/exchange-manage',
+      '/points-query', '/site-settings', '/system-config', '/comment-announcement', '/group-manage', 
+      '/customer-service-manage', '/customer-service-chat', '/community-posts', '/community-topics', 
+      '/community-comments', '/gallery-manage', '/novel-manage', '/short-videos', '/short-categories']
+    
+    const isAdminPath = adminPaths.some(path => to.path === path || to.path.startsWith(path + '/'))
+    
+    if (isAdminPath) {
+      next({ path: '/admin/login', query: { redirect: to.fullPath } })
+    } else {
+      // 普通用户页面，等待自动注册完成
+      next()
+    }
     return
   }
   
@@ -827,8 +850,8 @@ router.beforeEach(async (to, from, next) => {
     }
   }
   
-  // 已登录用户访问登录页
-  if (to.name === 'Login' && userStore.isLoggedIn) {
+  // 已登录用户访问管理员登录页
+  if (to.name === 'AdminLogin' && userStore.isLoggedIn) {
     const role = userStore.user?.role
     if (role === 'admin' || role === 'super_admin') {
       next({ name: 'Dashboard' })

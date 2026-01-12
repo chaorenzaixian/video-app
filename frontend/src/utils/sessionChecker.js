@@ -50,8 +50,8 @@ export const checkSession = async () => {
         // 用户关闭弹窗
       }
       
-      // 跳转到登录页
-      router.push('/user/login')
+      // 跳转到账号找回页面
+      router.push('/user/settings/recovery')
     }
   } catch (error) {
     // 401 错误会被拦截器处理

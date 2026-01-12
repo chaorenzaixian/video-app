@@ -33,8 +33,8 @@
         <div class="status-icon">✕</div>
         <h2 class="status-title">登录失败</h2>
         <p class="status-text">{{ errorMessage }}</p>
-        <button class="action-btn secondary" @click="$router.push('/user/login')">
-          返回登录
+        <button class="action-btn secondary" @click="$router.push('/user/settings/recovery')">
+          账号找回
         </button>
       </div>
 
@@ -43,8 +43,8 @@
         <div class="status-icon">!</div>
         <h2 class="status-title">二维码无效</h2>
         <p class="status-text">该二维码已过期或已被使用</p>
-        <button class="action-btn secondary" @click="$router.push('/user/login')">
-          返回登录
+        <button class="action-btn secondary" @click="$router.push('/user/settings/recovery')">
+          账号找回
         </button>
       </div>
 
