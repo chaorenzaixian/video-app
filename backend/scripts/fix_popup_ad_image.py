@@ -26,21 +26,23 @@ async def fix_popup_ad_image():
         ads = result.scalars().all()
         
         if not ads:
-            print("没有找到弹窗广告")
+            print("No popup ads found")
             return
         
+        updated = 0
         for ad in ads:
-            print(f"广告 ID: {ad.id}, 标题: {ad.title}")
-            print(f"  当前图片: {ad.media_url}")
+            print(f"Ad ID: {ad.id}, Title: {ad.title}")
+            print(f"  Current image: {ad.media_url}")
             
             # 如果图片是不存在的 vip_promo.webp，更新为 vip_recommend.webp
             if ad.media_url and 'vip_promo.webp' in ad.media_url:
                 new_url = '/images/backgrounds/vip_recommend.webp'
                 ad.media_url = new_url
-                print(f"  更新为: {new_url}")
+                print(f"  Updated to: {new_url}")
+                updated += 1
         
         await db.commit()
-        print("\n修复完成！")
+        print(f"\nDone! Updated {updated} ads.")
 
 
 if __name__ == "__main__":
