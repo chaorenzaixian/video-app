@@ -50,20 +50,20 @@ def upgrade():
     
     # 支付订单表：订单号唯一索引（回调查询优化）
     op.execute("""
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_order_no 
+        CREATE INDEX IF NOT EXISTS idx_payment_order_no 
         ON payment_orders (order_no)
     """)
     
     # 通知表：用户+已读+创建时间（通知列表优化）
     op.execute("""
         CREATE INDEX IF NOT EXISTS idx_notification_user_read_created 
-        ON notifications (user_id, is_read, created_at DESC)
+        ON user_notifications (user_id, is_read, created_at DESC)
     """)
     
     # 社区帖子表：话题+创建时间（话题列表优化）
     op.execute("""
         CREATE INDEX IF NOT EXISTS idx_post_topic_created 
-        ON community_posts (topic_id, created_at DESC)
+        ON posts (topic_id, created_at DESC)
     """)
     
     print("✅ 性能优化索引添加完成")
