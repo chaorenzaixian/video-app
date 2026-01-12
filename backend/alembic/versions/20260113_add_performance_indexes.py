@@ -59,8 +59,6 @@ def upgrade():
         CREATE INDEX IF NOT EXISTS idx_notification_user_read_created 
         ON user_notifications (user_id, is_read, created_at DESC)
     """)
-    
-    print("✅ 性能优化索引添加完成")
 
 
 def downgrade():
