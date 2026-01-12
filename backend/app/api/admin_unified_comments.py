@@ -1,11 +1,11 @@
+# -*- coding: utf-8 -*-
 """
-统一评论管理 API
-管理所有类型的评论：长视频、短视频、社区帖子、图集、小�?
+Unified Comments Management API
+Manage all types of comments: videos, short videos, community posts, galleries, novels
 """
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update, delete, and_, or_
-from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
@@ -17,7 +17,7 @@ from app.models.comment import Comment
 from app.models.community import PostComment, GalleryComment, NovelComment
 from app.models.video import Video
 
-router = APIRouter(prefix="/admin/unified-comments", tags=["统一评论管理"])
+router = APIRouter(prefix="/admin/unified-comments", tags=["Unified Comments"])
 
 
 class CommentItem(BaseModel):
@@ -40,9 +40,8 @@ async def get_comment_stats(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_admin_user)
 ):
-    """获取各类型评论统�?""
+    """Get comment statistics by type"""
     try:
-        # 长视频评论数
         video_result = await db.execute(
             select(func.count(Comment.id))
             .join(Video, Comment.video_id == Video.id)
@@ -50,7 +49,6 @@ async def get_comment_stats(
         )
         video_count = video_result.scalar() or 0
         
-        # 短视频评论数
         short_result = await db.execute(
             select(func.count(Comment.id))
             .join(Video, Comment.video_id == Video.id)
@@ -58,15 +56,12 @@ async def get_comment_stats(
         )
         short_count = short_result.scalar() or 0
         
-        # 社区帖子评论�?
         post_result = await db.execute(select(func.count(PostComment.id)))
         post_count = post_result.scalar() or 0
         
-        # 图集评论�?
         gallery_result = await db.execute(select(func.count(GalleryComment.id)))
         gallery_count = gallery_result.scalar() or 0
         
-        # 小说评论�?
         novel_result = await db.execute(select(func.count(NovelComment.id)))
         novel_count = novel_result.scalar() or 0
         
@@ -81,7 +76,7 @@ async def get_comment_stats(
             "novel": novel_count
         }
     except Exception as e:
-        print(f"获取评论统计失败: {e}")
+        print(f"Failed to get comment stats: {e}")
         return {"all": 0, "video": 0, "short": 0, "post": 0, "gallery": 0, "novel": 0}
 
 
@@ -89,18 +84,17 @@ async def get_comment_stats(
 async def get_unified_comments(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    content_type: str = Query("", description="评论类型: video/short/post/gallery/novel"),
-    keyword: str = Query("", description="搜索关键�?),
-    status: str = Query("", description="状�? visible/hidden"),
-    start_date: str = Query("", description="开始日�?),
-    end_date: str = Query("", description="结束日期"),
+    content_type: str = Query("", description="Comment type: video/short/post/gallery/novel"),
+    keyword: str = Query("", description="Search keyword"),
+    status: str = Query("", description="Status: visible/hidden"),
+    start_date: str = Query("", description="Start date"),
+    end_date: str = Query("", description="End date"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_admin_user)
 ):
-    """获取统一评论列表"""
+    """Get unified comments list"""
     all_comments = []
     
-    # 解析日期
     start_dt = None
     end_dt = None
     if start_date:
@@ -114,14 +108,13 @@ async def get_unified_comments(
         except:
             pass
     
-    # 根据类型查询
     types_to_query = []
     if not content_type or content_type == "all":
         types_to_query = ["video", "short", "post", "gallery", "novel"]
     else:
         types_to_query = [content_type]
     
-    # 查询长视�?短视频评�?
+    # Query video/short video comments
     if "video" in types_to_query or "short" in types_to_query:
         query = (
             select(Comment, User, Video)
@@ -161,7 +154,7 @@ async def get_unified_comments(
                 "content_id": comment.video_id,
                 "content": comment.content,
                 "user_id": comment.user_id,
-                "user_name": user.nickname or user.username if user else "未知用户",
+                "user_name": user.nickname or user.username if user else "Unknown",
                 "user_avatar": user.avatar if user else None,
                 "parent_id": comment.parent_id,
                 "like_count": comment.like_count or 0,
@@ -172,7 +165,7 @@ async def get_unified_comments(
                 "created_at": comment.created_at.isoformat() if comment.created_at else None
             })
     
-    # 查询社区帖子评论
+    # Query post comments
     if "post" in types_to_query:
         query = (
             select(PostComment, User)
@@ -206,7 +199,7 @@ async def get_unified_comments(
                 "content_id": comment.post_id,
                 "content": comment.content,
                 "user_id": comment.user_id,
-                "user_name": user.nickname or user.username if user else "未知用户",
+                "user_name": user.nickname or user.username if user else "Unknown",
                 "user_avatar": user.avatar if user else None,
                 "parent_id": comment.parent_id,
                 "like_count": comment.like_count or 0,
@@ -217,7 +210,7 @@ async def get_unified_comments(
                 "created_at": comment.created_at.isoformat() if comment.created_at else None
             })
     
-    # 查询图集评论
+    # Query gallery comments
     if "gallery" in types_to_query:
         query = (
             select(GalleryComment, User)
@@ -251,7 +244,7 @@ async def get_unified_comments(
                 "content_id": comment.gallery_id,
                 "content": comment.content,
                 "user_id": comment.user_id,
-                "user_name": user.nickname or user.username if user else "未知用户",
+                "user_name": user.nickname or user.username if user else "Unknown",
                 "user_avatar": user.avatar if user else None,
                 "parent_id": comment.parent_id,
                 "like_count": comment.like_count or 0,
@@ -262,7 +255,7 @@ async def get_unified_comments(
                 "created_at": comment.created_at.isoformat() if comment.created_at else None
             })
     
-    # 查询小说评论
+    # Query novel comments
     if "novel" in types_to_query:
         query = (
             select(NovelComment, User)
@@ -296,7 +289,7 @@ async def get_unified_comments(
                 "content_id": comment.novel_id,
                 "content": comment.content,
                 "user_id": comment.user_id,
-                "user_name": user.nickname or user.username if user else "未知用户",
+                "user_name": user.nickname or user.username if user else "Unknown",
                 "user_avatar": user.avatar if user else None,
                 "parent_id": comment.parent_id,
                 "like_count": comment.like_count or 0,
@@ -307,10 +300,10 @@ async def get_unified_comments(
                 "created_at": comment.created_at.isoformat() if comment.created_at else None
             })
     
-    # 按时间排�?
+    # Sort by time
     all_comments.sort(key=lambda x: x["created_at"] or "", reverse=True)
     
-    # 分页
+    # Pagination
     total = len(all_comments)
     start = (page - 1) * page_size
     end = start + page_size
@@ -328,53 +321,68 @@ async def get_unified_comments(
 async def update_comment(
     content_type: str,
     comment_id: int,
-    data: UpdateCommentRequest,
+    update_data: UpdateCommentRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_admin_user)
 ):
-    """更新评论状�?""
-    try:
-        if content_type in ["video", "short"]:
-            stmt = update(Comment).where(Comment.id == comment_id)
-            update_data = {}
-            if data.is_hidden is not None:
-                update_data["is_hidden"] = data.is_hidden
-            if data.is_pinned is not None:
-                update_data["is_pinned"] = data.is_pinned
-            if data.is_official is not None:
-                update_data["is_official"] = data.is_official
-            if update_data:
-                await db.execute(stmt.values(**update_data))
+    """Update comment status (hide/show, pin, official)"""
+    if content_type == "video" or content_type == "short":
+        result = await db.execute(select(Comment).where(Comment.id == comment_id))
+        comment = result.scalar_one_or_none()
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
         
-        elif content_type == "post":
-            stmt = update(PostComment).where(PostComment.id == comment_id)
-            update_data = {}
-            if data.is_hidden is not None:
-                update_data["status"] = "hidden" if data.is_hidden else "visible"
-            if update_data:
-                await db.execute(stmt.values(**update_data))
+        if update_data.is_hidden is not None:
+            comment.is_hidden = update_data.is_hidden
+        if update_data.is_pinned is not None:
+            comment.is_pinned = update_data.is_pinned
+        if update_data.is_official is not None and hasattr(comment, 'is_official'):
+            comment.is_official = update_data.is_official
+    
+    elif content_type == "post":
+        result = await db.execute(select(PostComment).where(PostComment.id == comment_id))
+        comment = result.scalar_one_or_none()
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
         
-        elif content_type == "gallery":
-            stmt = update(GalleryComment).where(GalleryComment.id == comment_id)
-            update_data = {}
-            if data.is_hidden is not None:
-                update_data["status"] = "hidden" if data.is_hidden else "visible"
-            if update_data:
-                await db.execute(stmt.values(**update_data))
+        if update_data.is_hidden is not None:
+            comment.status = "hidden" if update_data.is_hidden else "visible"
+        if update_data.is_pinned is not None and hasattr(comment, 'is_pinned'):
+            comment.is_pinned = update_data.is_pinned
+        if update_data.is_official is not None and hasattr(comment, 'is_official'):
+            comment.is_official = update_data.is_official
+    
+    elif content_type == "gallery":
+        result = await db.execute(select(GalleryComment).where(GalleryComment.id == comment_id))
+        comment = result.scalar_one_or_none()
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
         
-        elif content_type == "novel":
-            stmt = update(NovelComment).where(NovelComment.id == comment_id)
-            update_data = {}
-            if data.is_hidden is not None:
-                update_data["status"] = "hidden" if data.is_hidden else "visible"
-            if update_data:
-                await db.execute(stmt.values(**update_data))
+        if update_data.is_hidden is not None:
+            comment.status = "hidden" if update_data.is_hidden else "visible"
+        if update_data.is_pinned is not None and hasattr(comment, 'is_pinned'):
+            comment.is_pinned = update_data.is_pinned
+        if update_data.is_official is not None and hasattr(comment, 'is_official'):
+            comment.is_official = update_data.is_official
+    
+    elif content_type == "novel":
+        result = await db.execute(select(NovelComment).where(NovelComment.id == comment_id))
+        comment = result.scalar_one_or_none()
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
         
-        await db.commit()
-        return {"success": True}
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        if update_data.is_hidden is not None:
+            comment.status = "hidden" if update_data.is_hidden else "visible"
+        if update_data.is_pinned is not None and hasattr(comment, 'is_pinned'):
+            comment.is_pinned = update_data.is_pinned
+        if update_data.is_official is not None and hasattr(comment, 'is_official'):
+            comment.is_official = update_data.is_official
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    
+    await db.commit()
+    return {"message": "Comment updated successfully"}
 
 
 @router.delete("/{content_type}/{comment_id}")
@@ -384,77 +392,127 @@ async def delete_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_admin_user)
 ):
-    """删除评论"""
-    try:
-        if content_type in ["video", "short"]:
-            await db.execute(delete(Comment).where(Comment.id == comment_id))
-        elif content_type == "post":
-            await db.execute(delete(PostComment).where(PostComment.id == comment_id))
-        elif content_type == "gallery":
-            await db.execute(delete(GalleryComment).where(GalleryComment.id == comment_id))
-        elif content_type == "novel":
-            await db.execute(delete(NovelComment).where(NovelComment.id == comment_id))
-        
-        await db.commit()
-        return {"success": True}
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    """Delete a comment"""
+    if content_type == "video" or content_type == "short":
+        result = await db.execute(select(Comment).where(Comment.id == comment_id))
+        comment = result.scalar_one_or_none()
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        await db.delete(comment)
+    
+    elif content_type == "post":
+        result = await db.execute(select(PostComment).where(PostComment.id == comment_id))
+        comment = result.scalar_one_or_none()
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        await db.delete(comment)
+    
+    elif content_type == "gallery":
+        result = await db.execute(select(GalleryComment).where(GalleryComment.id == comment_id))
+        comment = result.scalar_one_or_none()
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        await db.delete(comment)
+    
+    elif content_type == "novel":
+        result = await db.execute(select(NovelComment).where(NovelComment.id == comment_id))
+        comment = result.scalar_one_or_none()
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        await db.delete(comment)
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    
+    await db.commit()
+    return {"message": "Comment deleted successfully"}
 
 
 @router.post("/batch-delete")
 async def batch_delete_comments(
-    data: BatchRequest,
+    request: BatchRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_admin_user)
 ):
-    """批量删除评论"""
-    try:
-        for item in data.items:
-            if item.type in ["video", "short"]:
-                await db.execute(delete(Comment).where(Comment.id == item.id))
+    """Batch delete comments"""
+    deleted_count = 0
+    
+    for item in request.items:
+        try:
+            if item.type == "video" or item.type == "short":
+                result = await db.execute(select(Comment).where(Comment.id == item.id))
+                comment = result.scalar_one_or_none()
+                if comment:
+                    await db.delete(comment)
+                    deleted_count += 1
+            
             elif item.type == "post":
-                await db.execute(delete(PostComment).where(PostComment.id == item.id))
+                result = await db.execute(select(PostComment).where(PostComment.id == item.id))
+                comment = result.scalar_one_or_none()
+                if comment:
+                    await db.delete(comment)
+                    deleted_count += 1
+            
             elif item.type == "gallery":
-                await db.execute(delete(GalleryComment).where(GalleryComment.id == item.id))
+                result = await db.execute(select(GalleryComment).where(GalleryComment.id == item.id))
+                comment = result.scalar_one_or_none()
+                if comment:
+                    await db.delete(comment)
+                    deleted_count += 1
+            
             elif item.type == "novel":
-                await db.execute(delete(NovelComment).where(NovelComment.id == item.id))
-        
-        await db.commit()
-        return {"success": True, "deleted": len(data.items)}
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+                result = await db.execute(select(NovelComment).where(NovelComment.id == item.id))
+                comment = result.scalar_one_or_none()
+                if comment:
+                    await db.delete(comment)
+                    deleted_count += 1
+        except Exception as e:
+            print(f"Failed to delete comment {item.type}/{item.id}: {e}")
+    
+    await db.commit()
+    return {"message": f"Deleted {deleted_count} comments", "deleted_count": deleted_count}
 
 
 @router.post("/batch-hide")
 async def batch_hide_comments(
-    data: BatchRequest,
+    request: BatchRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_admin_user)
 ):
-    """批量隐藏评论"""
-    try:
-        for item in data.items:
-            if item.type in ["video", "short"]:
-                await db.execute(
-                    update(Comment).where(Comment.id == item.id).values(is_hidden=True)
-                )
+    """Batch hide comments"""
+    hidden_count = 0
+    
+    for item in request.items:
+        try:
+            if item.type == "video" or item.type == "short":
+                result = await db.execute(select(Comment).where(Comment.id == item.id))
+                comment = result.scalar_one_or_none()
+                if comment:
+                    comment.is_hidden = True
+                    hidden_count += 1
+            
             elif item.type == "post":
-                await db.execute(
-                    update(PostComment).where(PostComment.id == item.id).values(status="hidden")
-                )
+                result = await db.execute(select(PostComment).where(PostComment.id == item.id))
+                comment = result.scalar_one_or_none()
+                if comment:
+                    comment.status = "hidden"
+                    hidden_count += 1
+            
             elif item.type == "gallery":
-                await db.execute(
-                    update(GalleryComment).where(GalleryComment.id == item.id).values(status="hidden")
-                )
+                result = await db.execute(select(GalleryComment).where(GalleryComment.id == item.id))
+                comment = result.scalar_one_or_none()
+                if comment:
+                    comment.status = "hidden"
+                    hidden_count += 1
+            
             elif item.type == "novel":
-                await db.execute(
-                    update(NovelComment).where(NovelComment.id == item.id).values(status="hidden")
-                )
-        
-        await db.commit()
-        return {"success": True, "hidden": len(data.items)}
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+                result = await db.execute(select(NovelComment).where(NovelComment.id == item.id))
+                comment = result.scalar_one_or_none()
+                if comment:
+                    comment.status = "hidden"
+                    hidden_count += 1
+        except Exception as e:
+            print(f"Failed to hide comment {item.type}/{item.id}: {e}")
+    
+    await db.commit()
+    return {"message": f"Hidden {hidden_count} comments", "hidden_count": hidden_count}
