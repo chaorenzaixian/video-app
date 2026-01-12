@@ -33,7 +33,7 @@ def upgrade():
     # VIP表：用户+激活+过期时间（VIP查询优化）
     op.execute("""
         CREATE INDEX IF NOT EXISTS idx_user_vip_active_expire 
-        ON user_vip (user_id, is_active, expire_date)
+        ON user_vips (user_id, is_active, expire_date)
     """)
     
     # 关注表：被关注者+创建时间（粉丝列表优化）
