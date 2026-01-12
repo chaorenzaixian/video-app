@@ -44,25 +44,16 @@ const fetchSplashAd = async () => {
   }
 }
 
-// 检查是否需要显示开屏（仅iOS Web Clip或首次访问用户端）
+// 检查是否需要显示开屏（每次刷新都显示）
 const checkShowSplash = async () => {
   const isUserPage = window.location.pathname.startsWith('/user') || 
                      window.location.hash.startsWith('#/user') ||
                      window.location.hash.startsWith('#/shorts')
   
-  // 检查是否是独立模式（iOS Web Clip）
-  const isStandalone = window.navigator.standalone === true || 
-                       window.matchMedia('(display-mode: standalone)').matches
-  
-  // 检查本次会话是否已显示过开屏
-  const splashShown = sessionStorage.getItem('splashShown')
-  
-  if (isUserPage && !splashShown && (isStandalone || !localStorage.getItem('visited'))) {
+  if (isUserPage) {
     // 先获取开屏广告
     await fetchSplashAd()
     showSplash.value = true
-    sessionStorage.setItem('splashShown', 'true')
-    localStorage.setItem('visited', 'true')
     startCountdown()
   }
 }

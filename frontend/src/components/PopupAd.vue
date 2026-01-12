@@ -76,15 +76,14 @@ const isHiddenToday = () => {
 
 // 获取弹窗广告
 const fetchPopupAd = async () => {
+  // 只检查是否今日已隐藏
   if (isHiddenToday()) return
-  if (sessionStorage.getItem('popup_ad_shown')) return
   
   try {
     const res = await axios.get('/api/v1/ads/popup')
     if (res.data && res.data.id) {
       ad.value = res.data
       visible.value = true
-      sessionStorage.setItem('popup_ad_shown', 'true')
     }
   } catch (e) {}
 }
