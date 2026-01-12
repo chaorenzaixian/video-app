@@ -29,6 +29,7 @@ import {
 import App from './App.vue'
 import router from './router'
 import './styles/index.scss'
+import { setupLazyLoad } from './directives/lazyLoad'
 
 const app = createApp(App)
 
@@ -61,6 +62,9 @@ app.use(createPinia())
 
 // 使用路由
 app.use(router)
+
+// 注册懒加载指令
+setupLazyLoad(app)
 
 // Element Plus 语言配置 - 通过 provide 方式注入
 app.provide('locale', zhCn)

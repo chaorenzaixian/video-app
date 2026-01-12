@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { isAdminPath } from '@/constants/routes'
 
 const routes = [
   // 用户端路由 - 使用 webpackPrefetch 预加载常用页面
@@ -808,23 +809,12 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
   
+  // 检查是否需要管理员权限
+  const needsAdmin = isAdminPath(to.path)
+  
   // 检查是否已登录
   if (to.meta.requiresAuth !== false && !userStore.isLoggedIn) {
-    // 普通用户页面：自动注册游客账号
-    // 管理后台页面：跳转到管理员登录
-    const adminPaths = ['/dashboard', '/videos', '/users', '/vip-manage', '/vip-levels', 
-      '/categories', '/tags', '/orders', '/ads', '/settings', '/featured', '/comments',
-      '/coins-manage', '/video-review', '/creator-manage', '/withdrawal-manage', '/statistics',
-      '/finance-manage', '/admin-logs', '/banner-manage', '/batch-video-ops', '/report-manage',
-      '/watermark-manage', '/announcements', '/icon-ads', '/func-entries', '/monitor',
-      '/promotion-dashboard', '/agents', '/withdrawals', '/tasks-manage', '/exchange-manage',
-      '/points-query', '/site-settings', '/system-config', '/comment-announcement', '/group-manage', 
-      '/customer-service-manage', '/customer-service-chat', '/community-posts', '/community-topics', 
-      '/community-comments', '/gallery-manage', '/novel-manage', '/short-videos', '/short-categories']
-    
-    const isAdminPath = adminPaths.some(path => to.path === path || to.path.startsWith(path + '/'))
-    
-    if (isAdminPath) {
+    if (needsAdmin) {
       next({ path: '/admin/login', query: { redirect: to.fullPath } })
     } else {
       // 普通用户页面，等待自动注册完成
@@ -839,19 +829,7 @@ router.beforeEach(async (to, from, next) => {
   }
   
   // 如果访问后台管理页面，检查管理员权限
-  const adminPaths = ['/dashboard', '/videos', '/users', '/vip-manage', '/vip-levels', 
-    '/categories', '/tags', '/orders', '/ads', '/settings', '/featured', '/comments',
-    '/coins-manage', '/video-review', '/creator-manage', '/withdrawal-manage', '/statistics',
-    '/finance-manage', '/admin-logs', '/banner-manage', '/batch-video-ops', '/report-manage',
-    '/watermark-manage', '/announcements', '/icon-ads', '/func-entries', '/monitor',
-    '/promotion-dashboard', '/agents', '/withdrawals', '/tasks-manage', '/exchange-manage',
-    '/points-query', '/site-settings', '/system-config', '/comment-announcement', '/group-manage', 
-    '/customer-service-manage', '/customer-service-chat', '/community-posts', '/community-topics', 
-    '/community-comments', '/gallery-manage', '/novel-manage', '/short-videos', '/short-categories']
-  
-  const isAdminPath = adminPaths.some(path => to.path === path || to.path.startsWith(path + '/'))
-  
-  if (isAdminPath) {
+  if (needsAdmin) {
     const role = userStore.user?.role
     if (role !== 'admin' && role !== 'super_admin') {
       next({ name: 'UserHome' })

@@ -52,3 +52,9 @@ backups/
 # 临时文件
 *.tmp
 .cache/
+
+# 旧脚本（已移动到scripts/）
+check_*.py
+fix_*.py
+migrate_*.py
+test_*.py

@@ -78,6 +78,11 @@ class RedisCache:
     """Redis缓存工具类 - 带容错处理，Redis不可用时使用内存缓存"""
     
     @staticmethod
+    async def get_client():
+        """获取Redis客户端实例（用于高级操作）"""
+        return await get_redis()
+    
+    @staticmethod
     async def get(key: str) -> Optional[str]:
         """获取缓存"""
         try:

@@ -80,10 +80,27 @@ class CacheService:
     
     @staticmethod
     async def delete_pattern(pattern: str) -> int:
-        """删除匹配模式的缓存（简化版，逐个删除）"""
-        # 注意：这是简化实现，生产环境应使用 SCAN + DEL
+        """删除匹配模式的缓存（使用 SCAN + DEL）"""
+        from app.core.redis import RedisCache
+        
         count = 0
-        # 这里只能删除已知的键，无法真正按模式删除
+        try:
+            redis = await RedisCache.get_client()
+            if redis is None:
+                return 0
+            
+            # 使用 SCAN 迭代查找匹配的键
+            cursor = 0
+            while True:
+                cursor, keys = await redis.scan(cursor, match=pattern, count=100)
+                if keys:
+                    await redis.delete(*keys)
+                    count += len(keys)
+                if cursor == 0:
+                    break
+        except Exception as e:
+            print(f"[Cache] delete_pattern error: {e}")
+        
         return count
     
     # ========== 视频缓存 ==========
