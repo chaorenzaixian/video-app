@@ -52,12 +52,6 @@ def upgrade() -> None:
         CREATE INDEX IF NOT EXISTS idx_user_created_at 
         ON users (created_at)
     """)
-    
-    # VIP表索引
-    op.execute("""
-        CREATE INDEX IF NOT EXISTS idx_user_vip_user_active 
-        ON user_vip (user_id, is_active)
-    """)
 
 
 def downgrade() -> None:
@@ -68,4 +62,3 @@ def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS idx_comment_parent_id")
     op.execute("DROP INDEX IF EXISTS idx_comment_like_comment_user")
     op.execute("DROP INDEX IF EXISTS idx_user_created_at")
-    op.execute("DROP INDEX IF EXISTS idx_user_vip_user_active")
