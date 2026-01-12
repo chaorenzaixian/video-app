@@ -809,6 +809,21 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
   
+  // 管理员登录页始终允许访问（不检查登录状态）
+  if (to.name === 'AdminLogin') {
+    // 如果已登录且是管理员，跳转到后台首页
+    if (userStore.isLoggedIn && userStore.user) {
+      const role = userStore.user.role
+      if (role === 'admin' || role === 'super_admin') {
+        next({ name: 'Dashboard' })
+        return
+      }
+    }
+    // 否则直接显示登录页（清除可能存在的普通用户token）
+    next()
+    return
+  }
+  
   // 检查是否需要管理员权限
   const needsAdmin = isAdminPath(to.path)
   
@@ -835,17 +850,6 @@ router.beforeEach(async (to, from, next) => {
       next({ name: 'UserHome' })
       return
     }
-  }
-  
-  // 已登录用户访问管理员登录页
-  if (to.name === 'AdminLogin' && userStore.isLoggedIn) {
-    const role = userStore.user?.role
-    if (role === 'admin' || role === 'super_admin') {
-      next({ name: 'Dashboard' })
-    } else {
-      next({ name: 'UserHome' })
-    }
-    return
   }
   
   next()
