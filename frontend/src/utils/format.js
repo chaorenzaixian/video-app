@@ -119,3 +119,9 @@ export function formatMoney(amount, showSymbol = true) {
   const yuan = (amount / 100).toFixed(2)
   return showSymbol ? `¥${yuan}` : yuan
 }
+
+// 别名导出，兼容旧代码
+export const formatCount = formatNumber
+export const formatViewCount = formatNumber
+export const formatDate = formatDateTime
+export const formatCommentTime = formatRelativeTime
