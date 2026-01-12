@@ -139,25 +139,25 @@ onMounted(() => {
 
 .close-btn {
   position: absolute;
-  top: -12px;
-  right: -12px;
-  width: 32px;
-  height: 32px;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.5);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  color: #333;
+  font-size: 18px;
+  color: #fff;
   z-index: 10;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .close-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.9);
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .popup-ad-content {
