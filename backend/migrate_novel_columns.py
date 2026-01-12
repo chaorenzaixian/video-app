@@ -5,10 +5,10 @@ from sqlalchemy import text
 import sys
 sys.path.insert(0, '.')
 
-from app.core.database import async_engine
+from app.core.database import engine
 
 async def migrate():
-    async with async_engine.begin() as conn:
+    async with engine.begin() as conn:
         # 添加 comment_count 列
         try:
             await conn.execute(text('ALTER TABLE novels ADD COLUMN IF NOT EXISTS comment_count INTEGER DEFAULT 0'))
