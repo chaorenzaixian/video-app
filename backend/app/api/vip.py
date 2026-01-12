@@ -110,17 +110,31 @@ class PurchaseRequest(BaseModel):
 @router.get("/cards", response_model=List[VipCardResponse])
 async def get_vip_cards(db: AsyncSession = Depends(get_db)):
     """获取VIP卡片列表"""
+    import json
+    
+    def parse_privilege_ids(val):
+        if val is None:
+            return []
+        if isinstance(val, list):
+            return val
+        if isinstance(val, str):
+            try:
+                return json.loads(val)
+            except:
+                return []
+        return []
+    
     result = await db.execute(
         select(VipCard)
         .where(VipCard.is_active == True)
         .order_by(VipCard.sort_order)
     )
     cards = result.scalars().all()
-    # 处理旧数据中privilege_ids可能为None的情况
+    # 处理旧数据中privilege_ids可能为None或字符串的情况
     return [
         {
             **{k: v for k, v in card.__dict__.items() if not k.startswith('_')},
-            "privilege_ids": card.privilege_ids or []
+            "privilege_ids": parse_privilege_ids(card.privilege_ids)
         }
         for card in cards
     ]
@@ -282,15 +296,29 @@ async def admin_get_cards(
     admin: User = Depends(get_admin_user)
 ):
     """管理员获取所有VIP卡片"""
+    import json
+    
+    def parse_privilege_ids(val):
+        if val is None:
+            return []
+        if isinstance(val, list):
+            return val
+        if isinstance(val, str):
+            try:
+                return json.loads(val)
+            except:
+                return []
+        return []
+    
     result = await db.execute(
         select(VipCard).order_by(VipCard.sort_order)
     )
     cards = result.scalars().all()
-    # 处理旧数据中privilege_ids可能为None的情况
+    # 处理旧数据中privilege_ids可能为None或字符串的情况
     return [
         {
             **{k: v for k, v in card.__dict__.items() if not k.startswith('_')},
-            "privilege_ids": card.privilege_ids or []
+            "privilege_ids": parse_privilege_ids(card.privilege_ids)
         }
         for card in cards
     ]
