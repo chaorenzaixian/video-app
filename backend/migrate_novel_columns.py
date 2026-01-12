@@ -41,6 +41,13 @@ async def migrate():
             print('Added collect_count column to posts')
         except Exception as e:
             print(f'posts.collect_count: {e}')
+        
+        # users 表
+        try:
+            await conn.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_notification_read TIMESTAMP'))
+            print('Added last_notification_read column to users')
+        except Exception as e:
+            print(f'users.last_notification_read: {e}')
     
     print('Migration completed!')
 
