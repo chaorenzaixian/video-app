@@ -64,7 +64,7 @@ import { formatCount } from '@/utils/format'
 
 defineProps({
   video: { type: Object, required: true },
-  isVip: { type: Boolean, default: false }
+  isVip: { type: [Boolean, Number], default: false }
 })
 
 defineEmits(['like', 'comment', 'favorite', 'share', 'download', 'follow', 'go-profile'])

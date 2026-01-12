@@ -128,7 +128,7 @@ import { VIP_LEVEL_ICONS } from '@/constants/vip'
 const props = defineProps({
   visible: { type: Boolean, default: false },
   video: { type: Object, default: null },
-  isVip: { type: Boolean, default: false }
+  isVip: { type: [Boolean, Number], default: false }
 })
 
 const emit = defineEmits(['close', 'go-profile', 'go-vip', 'comment-added'])

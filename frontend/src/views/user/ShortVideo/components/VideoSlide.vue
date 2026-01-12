@@ -108,7 +108,7 @@ const props = defineProps({
   video: { type: Object, required: true },
   isCurrent: { type: Boolean, default: false },
   isPlaying: { type: Boolean, default: false },
-  isVip: { type: Boolean, default: false },
+  isVip: { type: [Boolean, Number], default: false },
   isTrialEnded: { type: Boolean, default: false },
   trialRemaining: { type: Number, default: 15 },
   purchasing: { type: Boolean, default: false },
