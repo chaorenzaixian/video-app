@@ -124,6 +124,9 @@
         </div>
       </div>
     </transition>
+    
+    <!-- 弹窗广告 -->
+    <PopupAd />
   </div>
 </template>
 
@@ -138,6 +141,7 @@ import CategoryNav from './components/CategoryNav.vue'
 import VideoList from './components/VideoList.vue'
 import PromoGrid from './components/PromoGrid.vue'
 import FuncEntries from './components/FuncEntries.vue'
+import PopupAd from '@/components/PopupAd.vue'
 import { useHomeData } from './composables/useHomeData'
 import { useVideoPreview } from './composables/useVideoPreview'
 

@@ -106,6 +106,62 @@ class SplashAdResponse(BaseModel):
     title: Optional[str] = None
 
 
+class PopupAdResponse(BaseModel):
+    """弹窗广告响应"""
+    id: Optional[int] = None
+    image_url: Optional[str] = None
+    target_url: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+
+
+@router.get("/popup")
+async def get_popup_ad(
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    """获取首页弹窗广告"""
+    # VIP用户不展示广告
+    if current_user:
+        result = await db.execute(
+            select(UserVIP).where(
+                UserVIP.user_id == current_user.id,
+                UserVIP.is_active == True,
+                UserVIP.expire_date > datetime.utcnow()
+            )
+        )
+        if result.scalar_one_or_none():
+            return None
+    
+    now = datetime.utcnow()
+    
+    query = select(Advertisement).where(
+        and_(
+            Advertisement.position == AdPosition.HOME_POPUP,
+            Advertisement.is_active == True,
+            (Advertisement.start_date == None) | (Advertisement.start_date <= now),
+            (Advertisement.end_date == None) | (Advertisement.end_date >= now)
+        )
+    ).order_by(Advertisement.priority.desc()).limit(1)
+    
+    result = await db.execute(query)
+    ad = result.scalar_one_or_none()
+    
+    if ad:
+        ad.impression_count += 1
+        await db.commit()
+        
+        return PopupAdResponse(
+            id=ad.id,
+            image_url=ad.media_url,
+            target_url=ad.target_url,
+            title=ad.title,
+            description=ad.description
+        )
+    
+    return None
+
+
 @router.get("/splash", response_model=SplashAdResponse)
 async def get_splash_ad(
     db: AsyncSession = Depends(get_db)
