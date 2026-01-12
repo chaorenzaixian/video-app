@@ -1,8 +1,12 @@
 <template>
-  <!-- 开屏页 -->
-  <div v-if="showSplash" class="splash-screen" @click="skipSplash">
-    <img src="/images/splash.webp" alt="Soul" class="splash-image" />
-    <button class="skip-btn">跳过 {{ countdown }}s</button>
+  <!-- 开屏广告 -->
+  <div v-if="showSplash" class="splash-screen" @click="handleSplashClick">
+    <img 
+      :src="splashAd?.image_url || '/images/splash.webp'" 
+      alt="开屏广告" 
+      class="splash-image" 
+    />
+    <button class="skip-btn" @click.stop="skipSplash">跳过 {{ countdown }}s</button>
   </div>
   
   <!-- 主内容 -->
@@ -14,17 +18,34 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import sessionChecker from '@/utils/sessionChecker'
+import axios from 'axios'
 
 const userStore = useUserStore()
 const route = useRoute()
 
 // 开屏相关
 const showSplash = ref(false)
+const splashAd = ref(null)
 const countdown = ref(3)
 let splashTimer = null
 
+// 获取开屏广告
+const fetchSplashAd = async () => {
+  try {
+    const res = await axios.get('/api/v1/ads/splash')
+    if (res.data) {
+      splashAd.value = res.data
+      // 使用广告配置的时长，默认3秒
+      countdown.value = res.data.duration || 3
+    }
+  } catch (e) {
+    // 获取失败使用默认图片
+    console.log('获取开屏广告失败，使用默认图片')
+  }
+}
+
 // 检查是否需要显示开屏（仅iOS Web Clip或首次访问用户端）
-const checkShowSplash = () => {
+const checkShowSplash = async () => {
   const isUserPage = window.location.pathname.startsWith('/user') || 
                      window.location.hash.startsWith('#/user') ||
                      window.location.hash.startsWith('#/shorts')
@@ -37,6 +58,8 @@ const checkShowSplash = () => {
   const splashShown = sessionStorage.getItem('splashShown')
   
   if (isUserPage && !splashShown && (isStandalone || !localStorage.getItem('visited'))) {
+    // 先获取开屏广告
+    await fetchSplashAd()
     showSplash.value = true
     sessionStorage.setItem('splashShown', 'true')
     localStorage.setItem('visited', 'true')
@@ -59,6 +82,27 @@ const skipSplash = () => {
     splashTimer = null
   }
   showSplash.value = false
+}
+
+// 点击开屏广告
+const handleSplashClick = () => {
+  if (splashAd.value?.target_url) {
+    // 记录点击
+    recordAdClick()
+    // 跳转链接
+    window.open(splashAd.value.target_url, '_blank')
+  }
+  skipSplash()
+}
+
+// 记录广告点击
+const recordAdClick = async () => {
+  if (!splashAd.value?.id) return
+  try {
+    await axios.post(`/api/v1/ads/${splashAd.value.id}/click`)
+  } catch (e) {
+    // 忽略错误
+  }
 }
 
 // 根据路由设置body主题
