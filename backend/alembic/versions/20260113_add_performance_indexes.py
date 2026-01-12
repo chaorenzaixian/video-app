@@ -60,12 +60,6 @@ def upgrade():
         ON user_notifications (user_id, is_read, created_at DESC)
     """)
     
-    # 社区帖子表：话题+创建时间（话题列表优化）
-    op.execute("""
-        CREATE INDEX IF NOT EXISTS idx_post_topic_created 
-        ON posts (topic_id, created_at DESC)
-    """)
-    
     print("✅ 性能优化索引添加完成")
 
 
@@ -78,4 +72,3 @@ def downgrade():
     op.execute("DROP INDEX IF EXISTS idx_payment_order_user_status")
     op.execute("DROP INDEX IF EXISTS idx_payment_order_no")
     op.execute("DROP INDEX IF EXISTS idx_notification_user_read_created")
-    op.execute("DROP INDEX IF EXISTS idx_post_topic_created")
