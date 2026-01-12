@@ -145,7 +145,7 @@ async def get_splash_ad(
 
 @router.get("", response_model=List[AdResponse])
 async def get_ads(
-    position: AdPosition = Query(...),
+    position: str = Query(...),
     limit: int = Query(5, ge=1, le=20),
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
@@ -187,11 +187,11 @@ async def get_ads(
         AdResponse(
             id=ad.id,
             title=ad.title,
-            ad_type=ad.ad_type.value,
+            ad_type=ad.ad_type,
             media_url=ad.media_url,
             html_content=ad.html_content,
             target_url=ad.target_url,
-            position=ad.position.value,
+            position=ad.position,
             duration=ad.duration
         )
         for ad in ads

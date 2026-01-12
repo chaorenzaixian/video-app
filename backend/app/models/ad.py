@@ -38,13 +38,13 @@ class Advertisement(Base):
     description = Column(Text, nullable=True)
     
     # 广告内容
-    ad_type = Column(Enum(AdType), default=AdType.IMAGE)
+    ad_type = Column(String(50), default="IMAGE")
     media_url = Column(String(500), nullable=True)   # 图片/视频URL
     html_content = Column(Text, nullable=True)       # HTML内容
     target_url = Column(String(500), nullable=True)  # 跳转链接
     
     # 展示设置
-    position = Column(Enum(AdPosition), nullable=False)
+    position = Column(String(50), nullable=False)
     priority = Column(Integer, default=0)            # 优先级
     duration = Column(Integer, default=5)            # 展示时长（秒）
     
