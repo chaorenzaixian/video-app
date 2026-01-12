@@ -111,7 +111,7 @@ async def get_post_ranking(
     db: AsyncSession = Depends(get_db)
 ):
     """帖子排行榜"""
-    query = select(Post).where(Post.is_active == True)
+    query = select(Post).where(Post.status == "published")
     
     start_time = get_time_range(time_range)
     if start_time:
