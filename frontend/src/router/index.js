@@ -44,13 +44,13 @@ const routes = [
   {
     path: '/shorts',
     name: 'ShortVideo',
-    component: () => import(/* webpackPrefetch: true */ '@/views/user/ShortVideo.vue'),
+    component: () => import(/* webpackPrefetch: true */ '@/views/user/ShortVideo/index.vue'),
     meta: { requiresAuth: false, hideNav: true }
   },
   {
     path: '/shorts/:id',
     name: 'ShortVideoDetail',
-    component: () => import('@/views/user/ShortVideo.vue'),
+    component: () => import('@/views/user/ShortVideo/index.vue'),
     meta: { requiresAuth: false, hideNav: true }
   },
   {
