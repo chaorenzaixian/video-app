@@ -78,7 +78,7 @@
 <script setup>
 defineOptions({ name: 'Community' })
 
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '@/utils/api'
 import { formatCount } from '@/utils/format'
@@ -183,6 +183,11 @@ onMounted(() => {
   if (activeMainTab.value === 'community') fetchPosts(true)
   else if (activeMainTab.value === 'gallery') fetchGalleries()
   else if (activeMainTab.value === 'novel') fetchNovels()
+})
+
+// keep-alive 激活时滚动到顶部
+onActivated(() => {
+  window.scrollTo(0, 0)
 })
 </script>
 

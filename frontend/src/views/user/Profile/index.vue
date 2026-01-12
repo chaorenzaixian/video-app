@@ -143,8 +143,9 @@ onMounted(() => {
   initData()
 })
 
-// keep-alive 激活时只刷新未读消息数
+// keep-alive 激活时滚动到顶部，只刷新未读消息数
 onActivated(() => {
+  window.scrollTo(0, 0)
   if (hasInitialized.value) {
     // 只刷新未读消息数，不重新加载全部数据
     fetchUnreadCount()

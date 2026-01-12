@@ -111,8 +111,9 @@ onMounted(() => {
   checkVipStatus()
 })
 
-// keep-alive 激活时，如果还没检查过则检查
+// keep-alive 激活时滚动到顶部，如果还没检查过则检查
 onActivated(() => {
+  window.scrollTo(0, 0)
   if (!hasChecked.value) {
     checkVipStatus()
   }

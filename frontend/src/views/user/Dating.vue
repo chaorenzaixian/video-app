@@ -178,7 +178,7 @@
 <script setup>
 defineOptions({ name: 'Dating' })
 
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onActivated, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BottomNav from '@/components/common/BottomNav.vue'
 import api from '@/utils/api'
@@ -330,6 +330,11 @@ onMounted(() => {
   fetchGroups()
   fetchChatUsers()
   fetchLiveHosts()
+})
+
+// keep-alive 激活时滚动到顶部
+onActivated(() => {
+  window.scrollTo(0, 0)
 })
 
 // 监听子分类切换

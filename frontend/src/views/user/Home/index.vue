@@ -133,7 +133,7 @@
 <script setup>
 defineOptions({ name: 'UserHome' })
 
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAbortController } from '@/composables/useAbortController'
 import { useTimers, useVideoCleanup } from '@/composables/useCleanup'
@@ -184,6 +184,11 @@ const handleVideoClick = (video) => {
 onMounted(() => {
   fetchHomeInit()
   fetchBanners()
+})
+
+// keep-alive 激活时滚动到顶部
+onActivated(() => {
+  window.scrollTo(0, 0)
 })
 </script>
 
