@@ -54,7 +54,11 @@ backups/
 .cache/
 
 # 旧脚本（已移动到scripts/）
-check_*.py
-fix_*.py
-migrate_*.py
-test_*.py
+/check_*.py
+/fix_*.py
+/migrate_*.py
+/test_*.py
+backend/check_*.py
+backend/fix_*.py
+backend/migrate_*.py
+# 注意：backend/tests/ 目录下的测试文件不忽略

@@ -1,20 +1,108 @@
 """
 支付服务 - 支付宝/微信/Stripe 统一接口
+包含订单状态机和幂等性处理
 """
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
-from datetime import datetime
+from typing import Optional, Dict, Any, List
+from datetime import datetime, timedelta
 from decimal import Decimal
+from enum import Enum
 import hashlib
 import json
 import uuid
 import hmac
 import base64
+import logging
 from urllib.parse import urlencode, quote_plus
 
 import httpx
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+# ========== 订单状态机 ==========
+
+class OrderStatus(str, Enum):
+    """订单状态"""
+    PENDING = "pending"      # 待支付
+    PAID = "paid"            # 已支付
+    FAILED = "failed"        # 支付失败
+    EXPIRED = "expired"      # 已过期
+    REFUNDED = "refunded"    # 已退款
+    CANCELLED = "cancelled"  # 已取消
+
+
+class OrderStateMachine:
+    """订单状态机 - 管理订单状态转换"""
+    
+    # 允许的状态转换
+    TRANSITIONS = {
+        OrderStatus.PENDING: [
+            OrderStatus.PAID, 
+            OrderStatus.FAILED, 
+            OrderStatus.EXPIRED,
+            OrderStatus.CANCELLED
+        ],
+        OrderStatus.PAID: [OrderStatus.REFUNDED],
+        OrderStatus.FAILED: [OrderStatus.PENDING],  # 允许重试
+        OrderStatus.EXPIRED: [],
+        OrderStatus.REFUNDED: [],
+        OrderStatus.CANCELLED: [],
+    }
+    
+    @classmethod
+    def can_transition(cls, from_status: OrderStatus, to_status: OrderStatus) -> bool:
+        """检查是否可以进行状态转换"""
+        if isinstance(from_status, str):
+            from_status = OrderStatus(from_status)
+        if isinstance(to_status, str):
+            to_status = OrderStatus(to_status)
+        return to_status in cls.TRANSITIONS.get(from_status, [])
+    
+    @classmethod
+    def transition(cls, order, to_status: OrderStatus) -> bool:
+        """
+        执行状态转换
+        返回是否成功转换
+        """
+        if isinstance(to_status, str):
+            to_status = OrderStatus(to_status)
+        
+        current_status = order.status
+        if isinstance(current_status, str):
+            current_status = OrderStatus(current_status)
+        
+        if not cls.can_transition(current_status, to_status):
+            logger.warning(
+                f"Invalid state transition: {current_status} -> {to_status} "
+                f"for order {order.id}"
+            )
+            return False
+        
+        order.status = to_status.value
+        order.updated_at = datetime.utcnow()
+        
+        # 记录状态变更历史
+        if hasattr(order, 'status_history'):
+            if order.status_history is None:
+                order.status_history = []
+            order.status_history.append({
+                'from': current_status.value,
+                'to': to_status.value,
+                'at': datetime.utcnow().isoformat()
+            })
+        
+        logger.info(f"Order {order.id} status changed: {current_status} -> {to_status}")
+        return True
+    
+    @classmethod
+    def get_allowed_transitions(cls, status: OrderStatus) -> List[OrderStatus]:
+        """获取允许的下一状态列表"""
+        if isinstance(status, str):
+            status = OrderStatus(status)
+        return cls.TRANSITIONS.get(status, [])
 
 
 class PaymentResult:
@@ -26,7 +114,8 @@ class PaymentResult:
         payment_url: str = None,
         qr_code: str = None,
         error_message: str = None,
-        raw_response: Dict = None
+        raw_response: Dict = None,
+        idempotency_key: str = None
     ):
         self.success = success
         self.order_id = order_id
@@ -34,6 +123,7 @@ class PaymentResult:
         self.qr_code = qr_code
         self.error_message = error_message
         self.raw_response = raw_response
+        self.idempotency_key = idempotency_key
 
 
 class PaymentProvider(ABC):
@@ -87,11 +177,9 @@ class AlipayProvider(PaymentProvider):
         except ImportError:
             raise ImportError("请安装 pycryptodome: pip install pycryptodome")
         
-        # 排序并拼接参数
         sorted_params = sorted(params.items())
         sign_str = "&".join(f"{k}={v}" for k, v in sorted_params if v)
         
-        # RSA2 签名
         key = RSA.import_key(self.private_key)
         signer = PKCS1_v1_5.new(key)
         digest = SHA256.new(sign_str.encode('utf-8'))
@@ -108,12 +196,10 @@ class AlipayProvider(PaymentProvider):
         except ImportError:
             return False
         
-        # 移除 sign 和 sign_type
         params_copy = {k: v for k, v in params.items() if k not in ['sign', 'sign_type']}
         sorted_params = sorted(params_copy.items())
         sign_str = "&".join(f"{k}={v}" for k, v in sorted_params if v)
         
-        # 验证签名
         key = RSA.import_key(self.public_key)
         verifier = PKCS1_v1_5.new(key)
         digest = SHA256.new(sign_str.encode('utf-8'))
@@ -140,16 +226,14 @@ class AlipayProvider(PaymentProvider):
                 error_message="支付宝配置不完整"
             )
         
-        # 业务参数
         biz_content = {
             "out_trade_no": order_id,
-            "total_amount": f"{amount / 100:.2f}",  # 转换为元
+            "total_amount": f"{amount / 100:.2f}",
             "subject": subject,
             "body": description,
             "product_code": "FAST_INSTANT_TRADE_PAY"
         }
         
-        # 公共参数
         params = {
             "app_id": self.app_id,
             "method": "alipay.trade.page.pay",
@@ -163,16 +247,14 @@ class AlipayProvider(PaymentProvider):
             "biz_content": json.dumps(biz_content)
         }
         
-        # 签名
         params["sign"] = self._sign(params)
-        
-        # 构建支付 URL
         payment_url = f"{self.gateway}?{urlencode(params, quote_via=quote_plus)}"
         
         return PaymentResult(
             success=True,
             order_id=order_id,
-            payment_url=payment_url
+            payment_url=payment_url,
+            idempotency_key=order_id
         )
     
     async def create_qr_order(
@@ -222,7 +304,8 @@ class AlipayProvider(PaymentProvider):
                 success=True,
                 order_id=order_id,
                 qr_code=resp_data.get("qr_code"),
-                raw_response=result
+                raw_response=result,
+                idempotency_key=order_id
             )
         else:
             return PaymentResult(
@@ -285,20 +368,7 @@ class WechatPayProvider(PaymentProvider):
         """V3 签名"""
         sign_str = f"{method}\n{url}\n{timestamp}\n{nonce}\n{body}\n"
         
-        # 使用商户私钥签名
         try:
-            from Crypto.PublicKey import RSA
-            from Crypto.Signature import PKCS1_v1_5
-            from Crypto.Hash import SHA256
-            
-            # 这里需要加载商户私钥
-            # key = RSA.import_key(open(settings.WECHAT_KEY_PATH).read())
-            # signer = PKCS1_v1_5.new(key)
-            # digest = SHA256.new(sign_str.encode('utf-8'))
-            # signature = base64.b64encode(signer.sign(digest)).decode('utf-8')
-            # return signature
-            
-            # 简化版：使用 HMAC-SHA256
             signature = hmac.new(
                 self.api_key.encode('utf-8'),
                 sign_str.encode('utf-8'),
@@ -306,6 +376,7 @@ class WechatPayProvider(PaymentProvider):
             ).hexdigest()
             return signature
         except Exception as e:
+            logger.error(f"WeChat sign error: {e}")
             return ""
     
     async def create_order(
@@ -361,7 +432,8 @@ class WechatPayProvider(PaymentProvider):
                 success=True,
                 order_id=order_id,
                 qr_code=result["code_url"],
-                raw_response=result
+                raw_response=result,
+                idempotency_key=order_id
             )
         else:
             return PaymentResult(
@@ -373,9 +445,6 @@ class WechatPayProvider(PaymentProvider):
     
     async def verify_callback(self, data: Dict) -> tuple:
         """验证微信支付回调"""
-        # V3 回调验签逻辑
-        # 需要验证请求头中的签名
-        
         resource = data.get("resource", {})
         order_id = resource.get("out_trade_no")
         amount = resource.get("amount", {}).get("total", 0)
@@ -406,13 +475,23 @@ class WechatPayProvider(PaymentProvider):
 class PaymentService:
     """统一支付服务"""
     
+    # 订单过期时间（分钟）
+    ORDER_EXPIRE_MINUTES = 30
+    
     def __init__(self):
         self.alipay = AlipayProvider()
         self.wechat = WechatPayProvider()
+        self._processed_callbacks = {}  # 幂等性缓存
+    
+    def generate_order_id(self, prefix: str = "PAY") -> str:
+        """生成唯一订单号"""
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        random_part = uuid.uuid4().hex[:8].upper()
+        return f"{prefix}{timestamp}{random_part}"
     
     async def create_order(
         self,
-        provider: str,  # alipay / wechat / stripe
+        provider: str,
         order_id: str,
         amount: int,
         subject: str,
@@ -420,6 +499,8 @@ class PaymentService:
         **kwargs
     ) -> PaymentResult:
         """创建支付订单"""
+        logger.info(f"Creating order: {order_id}, provider: {provider}, amount: {amount}")
+        
         if provider == "alipay":
             return await self.alipay.create_order(order_id, amount, subject, description, **kwargs)
         elif provider == "alipay_qr":
@@ -442,6 +523,57 @@ class PaymentService:
         else:
             return False, None, 0
     
+    async def process_callback_idempotent(
+        self, 
+        provider: str, 
+        data: Dict,
+        process_func
+    ) -> Dict:
+        """
+        幂等处理支付回调
+        process_func: async def(order_id, amount) -> bool
+        """
+        # 验证回调
+        is_valid, order_id, amount = await self.verify_callback(provider, data)
+        
+        if not is_valid:
+            logger.warning(f"Invalid callback for provider {provider}")
+            return {"success": False, "message": "签名验证失败"}
+        
+        if not order_id:
+            return {"success": False, "message": "订单号为空"}
+        
+        # 幂等性检查
+        callback_key = f"{provider}:{order_id}"
+        if callback_key in self._processed_callbacks:
+            logger.info(f"Duplicate callback ignored: {callback_key}")
+            return {"success": True, "message": "订单已处理"}
+        
+        try:
+            # 处理订单
+            result = await process_func(order_id, amount)
+            
+            if result:
+                # 标记为已处理
+                self._processed_callbacks[callback_key] = datetime.utcnow()
+                # 清理过期的缓存（保留24小时）
+                self._cleanup_processed_cache()
+                
+            return {"success": result, "order_id": order_id}
+        except Exception as e:
+            logger.error(f"Process callback error: {e}")
+            return {"success": False, "message": str(e)}
+    
+    def _cleanup_processed_cache(self):
+        """清理过期的幂等性缓存"""
+        cutoff = datetime.utcnow() - timedelta(hours=24)
+        expired_keys = [
+            k for k, v in self._processed_callbacks.items() 
+            if v < cutoff
+        ]
+        for k in expired_keys:
+            del self._processed_callbacks[k]
+    
     async def query_order(self, provider: str, order_id: str) -> Dict:
         """查询订单状态"""
         if provider == "alipay":
@@ -450,6 +582,13 @@ class PaymentService:
             return await self.wechat.query_order(order_id)
         else:
             return {"error": f"不支持的支付方式: {provider}"}
+    
+    def is_order_expired(self, created_at: datetime) -> bool:
+        """检查订单是否过期"""
+        if not created_at:
+            return True
+        expire_time = created_at + timedelta(minutes=self.ORDER_EXPIRE_MINUTES)
+        return datetime.utcnow() > expire_time
 
 
 # 全局支付服务实例
