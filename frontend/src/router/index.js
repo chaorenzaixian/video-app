@@ -855,4 +855,13 @@ router.beforeEach(async (to, from, next) => {
   next()
 })
 
+// 路由切换后滚动到顶部（解决keep-alive缓存页面滚动位置问题）
+router.afterEach((to, from) => {
+  // 底部导航的5个主页面切换时滚动到顶部
+  const mainPages = ['/user', '/user/darkweb-entry', '/user/dating', '/user/community', '/user/profile']
+  if (mainPages.includes(to.path)) {
+    window.scrollTo(0, 0)
+  }
+})
+
 export default router
