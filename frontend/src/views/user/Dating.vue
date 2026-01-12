@@ -176,6 +176,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'Dating' })
+
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BottomNav from '@/components/common/BottomNav.vue'

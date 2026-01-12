@@ -76,6 +76,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'Community' })
+
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '@/utils/api'

@@ -46,6 +46,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'UserProfile' })
+
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'

@@ -10,7 +10,11 @@
   </div>
   
   <!-- 主内容 -->
-  <router-view v-else />
+  <router-view v-else v-slot="{ Component, route }">
+    <keep-alive :include="cachedPages">
+      <component :is="Component" :key="route.path" />
+    </keep-alive>
+  </router-view>
 </template>
 
 <script setup>
@@ -18,6 +22,9 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import sessionChecker from '@/utils/sessionChecker'
+
+// 需要缓存的页面组件名
+const cachedPages = ['UserHome', 'Community', 'Dating', 'UserProfile', 'DarkwebEntry']
 import axios from 'axios'
 
 const userStore = useUserStore()

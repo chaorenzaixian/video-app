@@ -52,6 +52,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'DarkwebEntry' })
+
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import BottomNav from '@/components/common/BottomNav.vue'
