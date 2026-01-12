@@ -57,23 +57,21 @@ def upgrade() -> None:
         ON users (is_deleted);
     """)
     
-    # 社区帖子表添加软删除字段
+    # 社区帖子表添加软删除字段（如果表存在）
     op.execute("""
-        ALTER TABLE community_posts 
-        ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
-    """)
-    op.execute("""
-        ALTER TABLE community_posts 
-        ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
-    """)
-    op.execute("""
-        ALTER TABLE community_posts 
-        ADD COLUMN IF NOT EXISTS deleted_by INTEGER;
-    """)
-    
-    op.execute("""
-        CREATE INDEX IF NOT EXISTS idx_community_posts_is_deleted 
-        ON community_posts (is_deleted);
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'community_posts') THEN
+                ALTER TABLE community_posts 
+                ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+                ALTER TABLE community_posts 
+                ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+                ALTER TABLE community_posts 
+                ADD COLUMN IF NOT EXISTS deleted_by INTEGER;
+                CREATE INDEX IF NOT EXISTS idx_community_posts_is_deleted 
+                ON community_posts (is_deleted);
+            END IF;
+        END $$;
     """)
 
 
@@ -93,6 +91,14 @@ def downgrade() -> None:
     op.execute("ALTER TABLE users DROP COLUMN IF EXISTS deleted_at")
     op.execute("ALTER TABLE users DROP COLUMN IF EXISTS deleted_by")
     
-    op.execute("ALTER TABLE community_posts DROP COLUMN IF EXISTS is_deleted")
-    op.execute("ALTER TABLE community_posts DROP COLUMN IF EXISTS deleted_at")
-    op.execute("ALTER TABLE community_posts DROP COLUMN IF EXISTS deleted_by")
+    # 社区帖子表（如果存在）
+    op.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'community_posts') THEN
+                ALTER TABLE community_posts DROP COLUMN IF EXISTS is_deleted;
+                ALTER TABLE community_posts DROP COLUMN IF EXISTS deleted_at;
+                ALTER TABLE community_posts DROP COLUMN IF EXISTS deleted_by;
+            END IF;
+        END $$;
+    """)
