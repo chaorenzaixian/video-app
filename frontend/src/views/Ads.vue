@@ -14,6 +14,7 @@
       <!-- 筛选 -->
       <div class="filter-bar">
         <el-select v-model="filters.position" placeholder="广告位置" clearable style="width: 150px" @change="fetchAds">
+          <el-option label="开屏广告" value="SPLASH" />
           <el-option label="首页横幅" value="HOME_BANNER" />
           <el-option label="首页弹窗" value="HOME_POPUP" />
           <el-option label="视频前贴" value="VIDEO_PRE" />
@@ -101,6 +102,7 @@
         </el-form-item>
         <el-form-item label="广告位置" required>
           <el-select v-model="form.position" style="width: 100%">
+            <el-option label="开屏广告（启动时全屏显示）" value="SPLASH" />
             <el-option label="首页横幅" value="HOME_BANNER" />
             <el-option label="首页弹窗" value="HOME_POPUP" />
             <el-option label="视频前贴（5秒）" value="VIDEO_PRE" />
@@ -212,6 +214,7 @@ const uploadHeaders = computed(() => ({
 }))
 
 const positionLabels = {
+  SPLASH: '开屏广告',
   HOME_BANNER: '首页横幅',
   HOME_POPUP: '首页弹窗',
   VIDEO_PRE: '视频前贴',
@@ -222,6 +225,7 @@ const positionLabels = {
 }
 
 const positionTypes = {
+  SPLASH: 'danger',
   VIDEO_PRE: 'danger',
   VIDEO_MID: 'warning',
   VIDEO_POST: 'info',
