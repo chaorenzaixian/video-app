@@ -10,9 +10,9 @@
   </div>
   
   <!-- 主内容 -->
-  <router-view v-else v-slot="{ Component, route }">
+  <router-view v-else v-slot="{ Component }">
     <keep-alive :include="cachedPages">
-      <component :is="Component" :key="route.path" />
+      <component :is="Component" />
     </keep-alive>
   </router-view>
 </template>
