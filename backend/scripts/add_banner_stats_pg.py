@@ -4,7 +4,7 @@ import asyncio
 import asyncpg
 
 async def add_columns():
-    conn = await asyncpg.connect('postgresql://video_user:video_password_2024@localhost:5432/video_app')
+    conn = await asyncpg.connect('postgresql://video_app:VideoApp2024!@127.0.0.1:5432/video_app')
     
     # 检查并添加 impression_count 列
     try:
