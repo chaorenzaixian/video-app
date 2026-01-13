@@ -156,16 +156,13 @@ const handleImgError = (e, ad) => {
   
   .ad-name {
     font-size: 12px;
-    background: linear-gradient(135deg, #a855f7, #6366f1);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: rgba(255, 255, 255, 0.75);
     text-align: center;
     max-width: 62px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 600;
+    font-weight: 500;
   }
 }
 
