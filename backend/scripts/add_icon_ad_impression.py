@@ -33,9 +33,9 @@ async def add_impression_count():
             await conn.execute(text("""
                 ALTER TABLE icon_ads ADD COLUMN impression_count INTEGER DEFAULT 0
             """))
-            print("✅ 已添加 impression_count 字段")
+            print("[OK] Added impression_count column")
         else:
-            print("ℹ️ impression_count 字段已存在")
+            print("[INFO] impression_count column already exists")
 
 if __name__ == "__main__":
     asyncio.run(add_impression_count())
