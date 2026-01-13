@@ -376,7 +376,7 @@ async def get_icon_ads(
     result = await db.execute(
         select(IconAd)
         .where(IconAd.is_active == True)
-        .order_by(IconAd.sort_order)
+        .order_by(IconAd.sort_order, IconAd.id)
     )
     ads = result.scalars().all()
     
@@ -419,7 +419,7 @@ async def get_all_icon_ads(
 ):
     """管理后台：获取所有图标广告位（含统计）"""
     result = await db.execute(
-        select(IconAd).order_by(IconAd.sort_order)
+        select(IconAd).order_by(IconAd.sort_order, IconAd.id)
     )
     ads = result.scalars().all()
     
@@ -643,7 +643,7 @@ async def get_icon_ads_stats(
     db: AsyncSession = Depends(get_db)
 ):
     """管理后台：获取图标广告统计数据"""
-    result = await db.execute(select(IconAd).order_by(IconAd.sort_order))
+    result = await db.execute(select(IconAd).order_by(IconAd.sort_order, IconAd.id))
     ads = result.scalars().all()
     
     total_ads = len(ads)
