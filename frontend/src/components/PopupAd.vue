@@ -172,13 +172,11 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px;
 }
 
 .popup-ad-image.half {
   width: 100%;
   display: block;
-  border-radius: 8px;
 }
 
 /* 宫格排版 */
