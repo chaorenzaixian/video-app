@@ -150,7 +150,7 @@ async def get_popup_ad(
     ad = result.scalar_one_or_none()
     
     if ad:
-        ad.impression_count += 1
+        ad.impression_count = (ad.impression_count or 0) + 1
         await db.commit()
         
         # 构建图片列表
@@ -199,7 +199,7 @@ async def get_splash_ad(
     
     if ad:
         # 更新展示次数
-        ad.impression_count += 1
+        ad.impression_count = (ad.impression_count or 0) + 1
         await db.commit()
         
         return SplashAdResponse(
@@ -251,7 +251,7 @@ async def get_ads(
     
     # 更新展示次数
     for ad in ads:
-        ad.impression_count += 1
+        ad.impression_count = (ad.impression_count or 0) + 1
     await db.commit()
     
     return [

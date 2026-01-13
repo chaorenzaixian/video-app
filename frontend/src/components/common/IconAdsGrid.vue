@@ -79,26 +79,35 @@ const handleImgError = (e, ad) => {
 
 <style lang="scss" scoped>
 .icon-ads-container {
-  padding: 8px 12px;
+  padding: 6px 4px;
 }
 
-// 第一行：固定5个
+// 第一行：固定5个，紧凑间距
 .ads-row-fixed {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 6px;
+  padding: 0;
+  
+  .ad-item {
+    min-width: 66px;
+    
+    .ad-icon {
+      width: 62px;
+      height: 62px;
+    }
+  }
 }
 
-// 第二行：滚动
+// 第二行：快速滚动
 .ads-row-scroll {
   overflow: hidden;
   
   .scroll-track {
     display: flex;
-    gap: 8px;
+    gap: 2px;
     width: max-content;
-    animation: scroll-loop 25s linear infinite;
+    animation: scroll-loop 8s linear infinite;
     
     &:hover {
       animation-play-state: paused;
@@ -116,9 +125,9 @@ const handleImgError = (e, ad) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   cursor: pointer;
-  min-width: 60px;
+  min-width: 62px;
   transition: transform 0.2s;
   
   &:active {
@@ -126,8 +135,8 @@ const handleImgError = (e, ad) => {
   }
   
   .ad-icon {
-    width: 54px;
-    height: 54px;
+    width: 56px;
+    height: 56px;
     border-radius: 12px;
     overflow: hidden;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -142,12 +151,12 @@ const handleImgError = (e, ad) => {
     }
     
     .fallback {
-      font-size: 24px;
+      font-size: 22px;
     }
   }
   
   .ad-name {
-    font-size: 11px;
+    font-size: 10px;
     color: rgba(255, 255, 255, 0.7);
     text-align: center;
     max-width: 58px;
@@ -159,28 +168,24 @@ const handleImgError = (e, ad) => {
 
 // 响应式
 @media (min-width: 400px) {
-  .ads-row-fixed {
-    gap: 6px;
-  }
-  
   .ad-item {
+    min-width: 66px;
+    
     .ad-icon {
-      width: 58px;
-      height: 58px;
+      width: 60px;
+      height: 60px;
     }
   }
 }
 
 @media (min-width: 768px) {
   .icon-ads-container {
-    padding: 10px 16px;
-  }
-  
-  .ads-row-fixed {
-    gap: 8px;
+    padding: 8px 8px;
   }
   
   .ad-item {
+    min-width: 72px;
+    
     .ad-icon {
       width: 64px;
       height: 64px;
@@ -188,7 +193,7 @@ const handleImgError = (e, ad) => {
     }
     
     .ad-name {
-      font-size: 12px;
+      font-size: 11px;
       max-width: 64px;
     }
   }
