@@ -680,9 +680,16 @@ async def query_payment_status(
 
 # ========== 易支付接口 ==========
 
+from pydantic import BaseModel as PydanticBaseModel
+
+class EpayCreateOrder(PydanticBaseModel):
+    """易支付创建订单请求"""
+    order_type: str  # VIP_MONTHLY / vip_monthly 都支持
+
+
 @router.post("/epay/create")
 async def create_epay_order(
-    order_in: CreateOrder,
+    order_in: EpayCreateOrder,
     pay_type: str = "alipay",  # alipay/wxpay/qqpay
     request: Request = None,
     current_user: User = Depends(get_current_user),
@@ -698,11 +705,18 @@ async def create_epay_order(
     """
     from app.services.epay_service import epay_service
     
+    # 转换order_type为枚举（支持大小写）
+    order_type_str = order_in.order_type.lower()
+    try:
+        order_type = OrderType(order_type_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"无效的订单类型: {order_in.order_type}")
+    
     # 生成订单号
     order_no = f"VOD{datetime.now().strftime('%Y%m%d%H%M%S')}{uuid.uuid4().hex[:8].upper()}"
     
     # 获取价格（分转元）
-    amount_cents = get_vip_price(order_in.order_type)
+    amount_cents = get_vip_price(order_type)
     amount = amount_cents / 100
     
     # 获取客户端IP
@@ -723,7 +737,7 @@ async def create_epay_order(
     order = PaymentOrder(
         order_no=order_no,
         user_id=current_user.id,
-        order_type=order_in.order_type,
+        order_type=order_type,
         amount=Decimal(str(amount)),
         payment_method=payment_method_map.get(pay_type, PaymentMethod.ALIPAY),
         status=PaymentStatus.PENDING,
@@ -734,7 +748,7 @@ async def create_epay_order(
     await db.refresh(order)
     
     # 调用易支付创建订单
-    subject = f"VOD会员-{order_in.order_type.value}"
+    subject = f"VOD会员-{order_type.value}"
     result = await epay_service.create_order(
         order_id=order_no,
         amount=amount,
@@ -759,7 +773,7 @@ async def create_epay_order(
 
 @router.post("/epay/create-qr")
 async def create_epay_qr_order(
-    order_in: CreateOrder,
+    order_in: EpayCreateOrder,
     pay_type: str = "alipay",
     request: Request = None,
     current_user: User = Depends(get_current_user),
@@ -771,8 +785,15 @@ async def create_epay_qr_order(
     """
     from app.services.epay_service import epay_service
     
+    # 转换order_type为枚举（支持大小写）
+    order_type_str = order_in.order_type.lower()
+    try:
+        order_type = OrderType(order_type_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"无效的订单类型: {order_in.order_type}")
+    
     order_no = f"VOD{datetime.now().strftime('%Y%m%d%H%M%S')}{uuid.uuid4().hex[:8].upper()}"
-    amount_cents = get_vip_price(order_in.order_type)
+    amount_cents = get_vip_price(order_type)
     amount = amount_cents / 100
     
     client_ip = None
@@ -788,7 +809,7 @@ async def create_epay_qr_order(
     order = PaymentOrder(
         order_no=order_no,
         user_id=current_user.id,
-        order_type=order_in.order_type,
+        order_type=order_type,
         amount=Decimal(str(amount)),
         payment_method=payment_method_map.get(pay_type, PaymentMethod.ALIPAY),
         status=PaymentStatus.PENDING,
@@ -798,7 +819,7 @@ async def create_epay_qr_order(
     await db.commit()
     await db.refresh(order)
     
-    subject = f"VOD会员-{order_in.order_type.value}"
+    subject = f"VOD会员-{order_type.value}"
     result = await epay_service.create_qr_order(
         order_id=order_no,
         amount=amount,
