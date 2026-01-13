@@ -28,8 +28,8 @@ router = APIRouter()
 
 # 默认图标广告数据
 DEFAULT_ICON_ADS = [
-    {"name": "AI女友", "icon": "🤖", "bg": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", "badge": "🔥火爆", "badge_type": "hot", "link": "/ai-girlfriend"},
-    {"name": "充值中心", "icon": "💰", "bg": "linear-gradient(135deg, #f5af19 0%, #f12711 100%)", "badge": "", "badge_type": "", "link": "/recharge"},
+    {"name": "AI女友", "icon": "🤖", "image": "", "link": "/ai-girlfriend"},
+    {"name": "充值中心", "icon": "💰", "image": "", "link": "/recharge"},
 ]
 
 # 默认功能入口
@@ -75,9 +75,6 @@ class IconAdItem(BaseModel):
     name: str
     icon: Optional[str] = None
     image: Optional[str] = None
-    bg: str
-    badge: Optional[str] = None
-    badgeType: Optional[str] = None
     link: Optional[str] = None
 
 
@@ -279,9 +276,6 @@ async def get_home_init(
                         name=ad.name,
                         icon=ad.icon,
                         image=ad.image,
-                        bg=ad.bg or "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                        badge=ad.badge,
-                        badgeType=ad.badge_type,
                         link=ad.link
                     ))
             else:
@@ -290,10 +284,7 @@ async def get_home_init(
                         id=i+1,
                         name=ad["name"],
                         icon=ad["icon"],
-                        image=None,
-                        bg=ad["bg"],
-                        badge=ad["badge"],
-                        badgeType=ad["badge_type"],
+                        image=ad.get("image"),
                         link=ad["link"]
                     ))
         

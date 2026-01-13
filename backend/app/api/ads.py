@@ -275,9 +275,6 @@ class IconAdResponse(BaseModel):
     name: str
     icon: Optional[str] = None
     image: Optional[str] = None
-    bg: str
-    badge: Optional[str] = None
-    badgeType: Optional[str] = None
     link: Optional[str] = None
 
 
@@ -286,9 +283,6 @@ class IconAdCreate(BaseModel):
     name: str
     icon: Optional[str] = None
     image: Optional[str] = None
-    bg: str = "linear-gradient(135deg, #667eea, #764ba2)"
-    badge: Optional[str] = None
-    badge_type: Optional[str] = None
     link: Optional[str] = None
     sort_order: int = 0
     is_active: bool = True
@@ -299,9 +293,6 @@ class IconAdUpdate(BaseModel):
     name: Optional[str] = None
     icon: Optional[str] = None
     image: Optional[str] = None
-    bg: Optional[str] = None
-    badge: Optional[str] = None
-    badge_type: Optional[str] = None
     link: Optional[str] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
@@ -310,20 +301,20 @@ class IconAdUpdate(BaseModel):
 # 默认广告位数据（前5个为固定位，后面为滚动位）
 DEFAULT_ICON_ADS = [
     # 第一行固定5个
-    {"name": "同城约炮", "icon": "🔥", "bg": "linear-gradient(135deg, #ff6b6b, #ee5a24)", "badge": "白门", "badge_type": "hot", "link": "https://example.com/1", "sort_order": 1},
-    {"name": "色色春药", "icon": "💊", "bg": "linear-gradient(135deg, #a55eea, #8854d0)", "badge": "催情春药", "badge_type": "purple", "link": "https://example.com/2", "sort_order": 2},
-    {"name": "新葡京", "icon": "🎰", "bg": "linear-gradient(135deg, #fed330, #f7b731)", "badge": "373.com", "badge_type": "gold", "link": "https://example.com/3", "sort_order": 3},
-    {"name": "海角乱伦", "icon": "🌊", "bg": "linear-gradient(135deg, #45aaf2, #2d98da)", "badge": "免费", "badge_type": "blue", "link": "https://example.com/4", "sort_order": 4},
-    {"name": "P站中文版", "icon": "🅿", "bg": "linear-gradient(135deg, #ff9ff3, #f368e0)", "badge": "推荐", "badge_type": "pink", "link": "https://example.com/5", "sort_order": 5},
+    {"name": "同城约炮", "icon": "🔥", "image": "", "link": "https://example.com/1", "sort_order": 1},
+    {"name": "色色春药", "icon": "💊", "image": "", "link": "https://example.com/2", "sort_order": 2},
+    {"name": "新葡京", "icon": "🎰", "image": "", "link": "https://example.com/3", "sort_order": 3},
+    {"name": "海角乱伦", "icon": "🌊", "image": "", "link": "https://example.com/4", "sort_order": 4},
+    {"name": "P站中文版", "icon": "🅿", "image": "", "link": "https://example.com/5", "sort_order": 5},
     # 第二行滚动（数量不限）
-    {"name": "萝莉岛", "icon": "🏝", "bg": "linear-gradient(135deg, #00d2d3, #01a3a4)", "badge": "围养全球", "badge_type": "cyan", "link": "https://example.com/6", "sort_order": 6},
-    {"name": "XVideos", "icon": "❌", "bg": "linear-gradient(135deg, #ff6b6b, #ee5a24)", "badge": "免费看片", "badge_type": "red", "link": "https://example.com/7", "sort_order": 7},
-    {"name": "快手视频", "icon": "⚡", "bg": "linear-gradient(135deg, #ffa502, #ff7f50)", "badge": "推荐", "badge_type": "orange", "link": "https://example.com/8", "sort_order": 8},
-    {"name": "萝丽塔", "icon": "🎀", "bg": "linear-gradient(135deg, #ff9ff3, #f368e0)", "badge": "原创萝莉", "badge_type": "pink", "link": "https://example.com/9", "sort_order": 9},
-    {"name": "oio禁", "icon": "🔒", "bg": "linear-gradient(135deg, #a55eea, #8854d0)", "badge": "免费看", "badge_type": "purple", "link": "https://example.com/10", "sort_order": 10},
-    {"name": "黑料网", "icon": "📰", "bg": "linear-gradient(135deg, #2c3e50, #4ca1af)", "badge": "爆料", "badge_type": "blue", "link": "https://example.com/11", "sort_order": 11},
-    {"name": "色花堂", "icon": "🌸", "bg": "linear-gradient(135deg, #f953c6, #b91d73)", "badge": "原创", "badge_type": "pink", "link": "https://example.com/12", "sort_order": 12},
-    {"name": "Pornhub", "icon": "🔶", "bg": "linear-gradient(135deg, #ff9a00, #ff5f00)", "badge": "官网", "badge_type": "orange", "link": "https://example.com/13", "sort_order": 13}
+    {"name": "萝莉岛", "icon": "🏝", "image": "", "link": "https://example.com/6", "sort_order": 6},
+    {"name": "XVideos", "icon": "❌", "image": "", "link": "https://example.com/7", "sort_order": 7},
+    {"name": "快手视频", "icon": "⚡", "image": "", "link": "https://example.com/8", "sort_order": 8},
+    {"name": "萝丽塔", "icon": "🎀", "image": "", "link": "https://example.com/9", "sort_order": 9},
+    {"name": "oio禁", "icon": "🔒", "image": "", "link": "https://example.com/10", "sort_order": 10},
+    {"name": "黑料网", "icon": "📰", "image": "", "link": "https://example.com/11", "sort_order": 11},
+    {"name": "色花堂", "icon": "🌸", "image": "", "link": "https://example.com/12", "sort_order": 12},
+    {"name": "Pornhub", "icon": "🔶", "image": "", "link": "https://example.com/13", "sort_order": 13}
 ]
 
 
@@ -360,10 +351,7 @@ async def get_icon_ads(
                 id=i+1,
                 name=ad["name"],
                 icon=ad["icon"],
-                image=None,
-                bg=ad["bg"],
-                badge=ad["badge"],
-                badgeType=ad["badge_type"],
+                image=ad.get("image"),
                 link=ad["link"]
             )
             for i, ad in enumerate(DEFAULT_ICON_ADS)
@@ -375,9 +363,6 @@ async def get_icon_ads(
             name=ad.name,
             icon=ad.icon,
             image=ad.image,
-            bg=ad.bg,
-            badge=ad.badge,
-            badgeType=ad.badge_type,
             link=ad.link
         )
         for ad in ads
@@ -403,9 +388,6 @@ async def get_all_icon_ads(
             name=ad.name,
             icon=ad.icon,
             image=ad.image,
-            bg=ad.bg,
-            badge=ad.badge,
-            badgeType=ad.badge_type,
             link=ad.link
         )
         for ad in ads
@@ -423,9 +405,7 @@ async def create_icon_ad(
         name=ad_in.name,
         icon=ad_in.icon,
         image=ad_in.image,
-        bg=ad_in.bg,
-        badge=ad_in.badge,
-        badge_type=ad_in.badge_type,
+        bg="",  # 保留字段但不使用
         link=ad_in.link,
         sort_order=ad_in.sort_order,
         is_active=ad_in.is_active
@@ -439,9 +419,6 @@ async def create_icon_ad(
         name=ad.name,
         icon=ad.icon,
         image=ad.image,
-        bg=ad.bg,
-        badge=ad.badge,
-        badgeType=ad.badge_type,
         link=ad.link
     )
 
@@ -467,12 +444,6 @@ async def update_icon_ad(
         ad.icon = ad_in.icon
     if ad_in.image is not None:
         ad.image = ad_in.image
-    if ad_in.bg is not None:
-        ad.bg = ad_in.bg
-    if ad_in.badge is not None:
-        ad.badge = ad_in.badge
-    if ad_in.badge_type is not None:
-        ad.badge_type = ad_in.badge_type
     if ad_in.link is not None:
         ad.link = ad_in.link
     if ad_in.sort_order is not None:
@@ -488,9 +459,6 @@ async def update_icon_ad(
         name=ad.name,
         icon=ad.icon,
         image=ad.image,
-        bg=ad.bg,
-        badge=ad.badge,
-        badgeType=ad.badge_type,
         link=ad.link
     )
 

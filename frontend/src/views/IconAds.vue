@@ -21,10 +21,7 @@
         
         <el-table-column label="预览" width="100">
           <template #default="{ row }">
-            <div 
-              class="ad-preview" 
-              :style="{ background: row.bg }"
-            >
+            <div class="ad-preview">
               <img v-if="row.image" :src="row.image" />
               <span v-else>{{ row.icon }}</span>
             </div>
@@ -78,21 +75,30 @@
           <div class="form-tip">支持emoji表情，如：🔥 💊 🎰 🌊 🅿 🏝 ❌ ⚡ 🎀 🔒</div>
         </el-form-item>
         
-        <el-form-item label="图片URL">
-          <el-input v-model="form.image" placeholder="图片链接（优先于图标）" />
-        </el-form-item>
-        
-        <el-form-item label="背景色" required>
-          <el-input v-model="form.bg" placeholder="CSS渐变色" />
-          <div class="color-presets">
-            <span 
-              v-for="color in colorPresets" 
-              :key="color.value"
-              class="color-item"
-              :style="{ background: color.value }"
-              @click="form.bg = color.value"
-              :title="color.name"
-            ></span>
+        <el-form-item label="图片">
+          <div class="upload-section">
+            <el-upload
+              class="image-uploader"
+              :action="uploadUrl"
+              :headers="uploadHeaders"
+              :show-file-list="false"
+              :on-success="handleUploadSuccess"
+              :on-error="handleUploadError"
+              :before-upload="beforeUpload"
+              accept="image/*"
+            >
+              <div v-if="form.image" class="uploaded-image">
+                <img :src="form.image" />
+                <div class="image-actions">
+                  <el-icon @click.stop="form.image = ''"><Delete /></el-icon>
+                </div>
+              </div>
+              <div v-else class="upload-placeholder">
+                <el-icon><Plus /></el-icon>
+                <span>上传图片</span>
+              </div>
+            </el-upload>
+            <div class="form-tip">建议尺寸：200x200，支持PNG/JPG/WEBP，图片优先于图标显示</div>
           </div>
         </el-form-item>
         
@@ -101,8 +107,8 @@
         </el-form-item>
         
         <el-form-item label="排序">
-          <el-input-number v-model="form.sort_order" :min="1" :max="10" />
-          <div class="form-tip">1-10，数字越小越靠前</div>
+          <el-input-number v-model="form.sort_order" :min="1" :max="100" />
+          <div class="form-tip">数字越小越靠前</div>
         </el-form-item>
         
         <el-form-item label="状态">
@@ -114,7 +120,7 @@
       <div class="preview-section">
         <div class="preview-title">预览效果</div>
         <div class="preview-wrapper">
-          <div class="ad-preview-large" :style="{ background: form.bg }">
+          <div class="ad-preview-large">
             <img v-if="form.image" :src="form.image" />
             <span v-else class="preview-icon">{{ form.icon || '?' }}</span>
           </div>
@@ -133,6 +139,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Delete } from '@element-plus/icons-vue'
 import api from '@/utils/api'
 
 const loading = ref(false)
@@ -141,6 +148,12 @@ const saving = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const ads = ref([])
+
+// 上传配置
+const uploadUrl = '/api/v1/ads/upload/image'
+const uploadHeaders = computed(() => ({
+  Authorization: `Bearer ${localStorage.getItem('token')}`
+}))
 
 // 按排序字段排序
 const sortedAds = computed(() => {
@@ -152,22 +165,10 @@ const form = reactive({
   name: '',
   icon: '',
   image: '',
-  bg: 'linear-gradient(135deg, #667eea, #764ba2)',
   link: '',
   sort_order: 1,
   is_active: true
 })
-
-const colorPresets = [
-  { name: '红色', value: 'linear-gradient(135deg, #ff6b6b, #ee5a24)' },
-  { name: '紫色', value: 'linear-gradient(135deg, #a55eea, #8854d0)' },
-  { name: '金色', value: 'linear-gradient(135deg, #fed330, #f7b731)' },
-  { name: '蓝色', value: 'linear-gradient(135deg, #45aaf2, #2d98da)' },
-  { name: '粉色', value: 'linear-gradient(135deg, #ff9ff3, #f368e0)' },
-  { name: '青色', value: 'linear-gradient(135deg, #00d2d3, #01a3a4)' },
-  { name: '橙色', value: 'linear-gradient(135deg, #ffa502, #ff7f50)' },
-  { name: '绿色', value: 'linear-gradient(135deg, #43e97b, #38f9d7)' }
-]
 
 const fetchAds = async () => {
   loading.value = true
@@ -175,7 +176,6 @@ const fetchAds = async () => {
     const res = await api.get('/ads/icons/admin')
     ads.value = res.data || res || []
   } catch (error) {
-    // 如果没有数据，显示空列表
     ads.value = []
   } finally {
     loading.value = false
@@ -202,7 +202,6 @@ const showAddDialog = () => {
     name: '',
     icon: '🔥',
     image: '',
-    bg: 'linear-gradient(135deg, #667eea, #764ba2)',
     link: '',
     sort_order: ads.value.length + 1,
     is_active: true
@@ -217,12 +216,42 @@ const editAd = (row) => {
     name: row.name,
     icon: row.icon || '',
     image: row.image || '',
-    bg: row.bg,
     link: row.link || '',
     sort_order: row.sort_order || 1,
     is_active: row.is_active !== false
   })
   dialogVisible.value = true
+}
+
+// 上传前验证
+const beforeUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt5M = file.size / 1024 / 1024 < 5
+  
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件')
+    return false
+  }
+  if (!isLt5M) {
+    ElMessage.error('图片大小不能超过5MB')
+    return false
+  }
+  return true
+}
+
+// 上传成功
+const handleUploadSuccess = (response) => {
+  if (response.url) {
+    form.image = response.url
+    ElMessage.success('上传成功')
+  } else {
+    ElMessage.error('上传失败')
+  }
+}
+
+// 上传失败
+const handleUploadError = () => {
+  ElMessage.error('上传失败，请重试')
 }
 
 const saveAd = async () => {
@@ -233,11 +262,20 @@ const saveAd = async () => {
   
   saving.value = true
   try {
+    const data = {
+      name: form.name,
+      icon: form.icon,
+      image: form.image,
+      link: form.link,
+      sort_order: form.sort_order,
+      is_active: form.is_active
+    }
+    
     if (isEdit.value) {
-      await api.put(`/ads/icons/${form.id}`, form)
+      await api.put(`/ads/icons/${form.id}`, data)
       ElMessage.success('更新成功')
     } else {
-      await api.post('/ads/icons', form)
+      await api.post('/ads/icons', data)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
@@ -296,6 +334,7 @@ onMounted(() => {
     align-items: center;
     position: relative;
     overflow: hidden;
+    background: #f5f5f5;
     
     img {
       width: 100%;
@@ -314,21 +353,81 @@ onMounted(() => {
     margin-top: 5px;
   }
   
-  .color-presets {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
-    flex-wrap: wrap;
+  .upload-section {
+    width: 100%;
     
-    .color-item {
-      width: 30px;
-      height: 30px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: transform 0.2s;
+    .image-uploader {
+      :deep(.el-upload) {
+        width: 120px;
+        height: 120px;
+        border: 1px dashed #d9d9d9;
+        border-radius: 8px;
+        cursor: pointer;
+        overflow: hidden;
+        transition: border-color 0.3s;
+        
+        &:hover {
+          border-color: #409eff;
+        }
+      }
+    }
+    
+    .uploaded-image {
+      width: 120px;
+      height: 120px;
+      position: relative;
       
-      &:hover {
-        transform: scale(1.1);
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      
+      .image-actions {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+        
+        .el-icon {
+          font-size: 24px;
+          color: #fff;
+          cursor: pointer;
+          
+          &:hover {
+            color: #f56c6c;
+          }
+        }
+      }
+      
+      &:hover .image-actions {
+        opacity: 1;
+      }
+    }
+    
+    .upload-placeholder {
+      width: 120px;
+      height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #999;
+      
+      .el-icon {
+        font-size: 28px;
+        margin-bottom: 8px;
+      }
+      
+      span {
+        font-size: 12px;
       }
     }
   }
@@ -359,6 +458,7 @@ onMounted(() => {
         align-items: center;
         position: relative;
         overflow: hidden;
+        background: #f5f5f5;
         
         img {
           width: 100%;
@@ -380,5 +480,3 @@ onMounted(() => {
   }
 }
 </style>
-
-
