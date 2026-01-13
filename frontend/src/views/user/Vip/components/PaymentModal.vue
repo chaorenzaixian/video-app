@@ -74,7 +74,7 @@ defineEmits(['close', 'confirm', 'update:selectedType'])
 .payment-sheet {
   width: 100%;
   max-width: 500px;
-  background: #fff;
+  background: linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 100%);
   border-radius: 16px 16px 0 0;
   padding: 12px 20px 32px;
   padding-bottom: calc(env(safe-area-inset-bottom) + 32px);
@@ -83,7 +83,7 @@ defineEmits(['close', 'confirm', 'update:selectedType'])
 .sheet-handle {
   width: 40px;
   height: 4px;
-  background: #ddd;
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 2px;
   margin: 0 auto 16px;
 }
@@ -91,7 +91,7 @@ defineEmits(['close', 'confirm', 'update:selectedType'])
 .sheet-title {
   font-size: 17px;
   font-weight: 600;
-  color: #333;
+  color: #fff;
   text-align: center;
   margin: 0 0 20px;
 }
@@ -106,7 +106,7 @@ defineEmits(['close', 'confirm', 'update:selectedType'])
   display: flex;
   align-items: center;
   padding: 16px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;
   
   &:last-child {
@@ -123,14 +123,14 @@ defineEmits(['close', 'confirm', 'update:selectedType'])
   .method-name {
     flex: 1;
     font-size: 16px;
-    color: #333;
+    color: #fff;
     font-weight: 500;
   }
   
   .radio-circle {
     width: 22px;
     height: 22px;
-    border: 2px solid #ddd;
+    border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -156,13 +156,13 @@ defineEmits(['close', 'confirm', 'update:selectedType'])
   .tips-title {
     font-size: 14px;
     font-weight: 600;
-    color: #333;
+    color: #fff;
     margin: 0 0 8px;
   }
   
   .tips-item {
     font-size: 13px;
-    color: #999;
+    color: rgba(255, 255, 255, 0.5);
     line-height: 1.6;
     margin: 0;
   }
@@ -194,7 +194,7 @@ defineEmits(['close', 'confirm', 'update:selectedType'])
 .support-text {
   text-align: center;
   font-size: 14px;
-  color: #999;
+  color: rgba(255, 255, 255, 0.5);
   margin: 16px 0 0;
   
   .link {
