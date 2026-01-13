@@ -265,7 +265,7 @@ async def get_home_init(
             result = await db.execute(
                 select(IconAd)
                 .where(IconAd.is_active == True)
-                .order_by(IconAd.sort_order)
+                .order_by(IconAd.sort_order, IconAd.id)
             )
             ads_db = result.scalars().all()
             
