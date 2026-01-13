@@ -156,7 +156,7 @@ const handleImgError = (e, ad) => {
   
   .ad-name {
     font-size: 12px;
-    background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #8b5cf6 100%);
+    background: linear-gradient(135deg, #a855f7, #6366f1);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
