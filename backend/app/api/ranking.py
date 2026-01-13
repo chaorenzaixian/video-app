@@ -34,7 +34,10 @@ async def get_video_ranking(
     db: AsyncSession = Depends(get_db)
 ):
     """视频排行榜"""
-    query = select(Video).options(selectinload(Video.category)).where(
+    query = select(Video).options(
+        selectinload(Video.category),
+        selectinload(Video.tags)
+    ).where(
         Video.status == VideoStatus.PUBLISHED,
         Video.is_short != True
     )
@@ -58,7 +61,8 @@ async def get_video_ranking(
                 "duration": v.duration or 0,
                 "view_count": v.view_count or 0,
                 "like_count": v.like_count or 0,
-                "category_name": v.category.name if v.category else None
+                "category_name": v.category.name if v.category else None,
+                "tags": [t.name for t in v.tags] if v.tags else []
             }
             for v in videos
         ]
@@ -73,7 +77,9 @@ async def get_short_ranking(
     db: AsyncSession = Depends(get_db)
 ):
     """短视频排行榜"""
-    query = select(Video).where(
+    query = select(Video).options(
+        selectinload(Video.tags)
+    ).where(
         Video.status == VideoStatus.PUBLISHED,
         Video.is_short == True
     )
@@ -96,7 +102,8 @@ async def get_short_ranking(
                 "cover_url": v.cover_url,
                 "duration": v.duration or 0,
                 "view_count": v.view_count or 0,
-                "like_count": v.like_count or 0
+                "like_count": v.like_count or 0,
+                "tags": [t.name for t in v.tags] if v.tags else []
             }
             for v in videos
         ]

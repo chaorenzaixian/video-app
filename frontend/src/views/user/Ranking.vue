@@ -1,38 +1,40 @@
 <template>
   <div class="ranking-page">
-    <!-- 顶部返回 -->
-    <div class="page-header">
-      <span class="back-btn" @click="$router.back()">‹</span>
-    </div>
+    <!-- 顶部背景区域（包含返回按钮、分类、时间筛选） -->
+    <div class="ranking-header-bg">
+      <!-- 顶部返回 -->
+      <div class="page-header">
+        <div class="back-btn" @click="$router.back()">
+          <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
+        </div>
+      </div>
 
-    <!-- 热门排行标题图 -->
-    <div class="ranking-banner">
-      <img src="/images/ranking/ranking_header.webp" alt="热门排行" class="banner-img" />
-      <p class="banner-subtitle">根据实时热度排行</p>
-    </div>
+      <!-- 底部内容区域 -->
+      <div class="header-bottom">
+        <!-- 分类标签 -->
+        <div class="category-tabs">
+          <span 
+            v-for="cat in categories" 
+            :key="cat.key"
+            :class="['tab-item', { active: activeCategory === cat.key }]"
+            @click="switchCategory(cat.key)"
+          >
+            {{ cat.label }}
+          </span>
+        </div>
 
-    <!-- 分类标签 -->
-    <div class="category-tabs">
-      <span 
-        v-for="cat in categories" 
-        :key="cat.key"
-        :class="['tab-item', { active: activeCategory === cat.key }]"
-        @click="switchCategory(cat.key)"
-      >
-        {{ cat.label }}
-      </span>
-    </div>
-
-    <!-- 时间筛选 -->
-    <div class="time-tabs">
-      <span 
-        v-for="time in timeFilters" 
-        :key="time.key"
-        :class="['time-item', { active: activeTime === time.key }]"
-        @click="switchTime(time.key)"
-      >
-        {{ time.label }}
-      </span>
+        <!-- 时间筛选 -->
+        <div class="time-tabs">
+          <span 
+            v-for="time in timeFilters" 
+            :key="time.key"
+            :class="['time-item', { active: activeTime === time.key }]"
+            @click="switchTime(time.key)"
+          >
+            {{ time.label }}
+          </span>
+        </div>
+      </div>
     </div>
 
     <!-- 排行列表 -->
@@ -55,11 +57,11 @@
         v-else
         v-for="(item, index) in list" 
         :key="item.id"
-        class="ranking-item"
+        :class="['ranking-item', { 'vertical-cover': ['douyin', 'novel', 'gallery'].includes(activeCategory) }]"
         @click="goToDetail(item)"
       >
         <!-- 左侧封面 -->
-        <div class="item-cover">
+        <div :class="['item-cover', { 'vertical': ['douyin', 'novel', 'gallery'].includes(activeCategory) }]">
           <img :src="item.cover_url || item.cover" :alt="item.title" />
           <div class="cover-stats">
             <span class="views">👁 {{ formatCount(item.view_count) }}</span>
@@ -78,8 +80,13 @@
           <p class="item-title">{{ item.title }}</p>
           
           <div class="item-meta">
-            <span class="tag" v-if="item.category_name || item.tag">{{ item.category_name || item.tag }}</span>
-            <span class="likes">☆ {{ formatCount(item.like_count || item.favorite_count || 0) }}</span>
+            <span class="tag" v-if="getFirstTag(item)">{{ getFirstTag(item) }}</span>
+            <span class="likes">
+              <svg class="star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+              {{ formatCount(item.like_count || item.favorite_count || 0) }}
+            </span>
           </div>
         </div>
       </div>
@@ -137,6 +144,19 @@ const formatCount = (count) => {
   if (count >= 10000) return (count / 10000).toFixed(1) + 'W'
   if (count >= 1000) return (count / 1000).toFixed(1) + 'K'
   return count.toString()
+}
+
+// 获取第一个标签
+const getFirstTag = (item) => {
+  // 优先使用 tags 数组
+  if (item.tags && item.tags.length > 0) {
+    return typeof item.tags[0] === 'string' ? item.tags[0] : item.tags[0].name
+  }
+  // 其次使用 tag 字段
+  if (item.tag) return item.tag
+  // 最后使用分类名
+  if (item.category_name) return item.category_name
+  return null
 }
 
 // 格式化时长
@@ -270,35 +290,36 @@ onMounted(() => {
   flex-direction: column;
 }
 
+.ranking-header-bg {
+  background: url('/images/ranking/ranking_header.webp') no-repeat center top;
+  background-size: cover;
+  min-height: 280px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
 .page-header {
   padding: 16px;
   
   .back-btn {
-    font-size: 32px;
-    color: #a855f7;
-    cursor: pointer;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
+    
+    .back-icon {
+      width: 24px;
+      height: 24px;
+    }
   }
 }
 
-.ranking-banner {
-  text-align: center;
-  padding: 0 20px 20px;
-  
-  .banner-img {
-    max-width: 200px;
-    height: auto;
-  }
-  
-  .banner-subtitle {
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 13px;
-    margin-top: 8px;
-  }
+.header-bottom {
+  margin-top: auto;
+  padding-bottom: 20px;
 }
 
 .category-tabs {
@@ -334,15 +355,15 @@ onMounted(() => {
 
 .time-tabs {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 12px;
-  padding: 0 16px 16px;
+  padding: 0 16px 8px;
   
   .time-item {
     font-size: 13px;
     color: rgba(255, 255, 255, 0.6);
-    padding: 6px 16px;
-    border-radius: 16px;
+    padding: 4px 12px;
+    border-radius: 4px;
     cursor: pointer;
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -358,17 +379,17 @@ onMounted(() => {
 .ranking-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 12px 20px;
+  padding: 0 0 20px;
   -webkit-overflow-scrolling: touch;
 }
 
 .ranking-item {
   display: flex;
-  gap: 12px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  gap: 10px;
+  padding: 4px 12px;
+  background: transparent;
   border-radius: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 2px;
   cursor: pointer;
   
   &:active {
@@ -378,12 +399,17 @@ onMounted(() => {
 
 .item-cover {
   position: relative;
-  width: 140px;
-  height: 80px;
+  width: 180px;
+  height: 105px;
   flex-shrink: 0;
   border-radius: 8px;
   overflow: hidden;
   background: #1a1a28;
+  
+  &.vertical {
+    width: 95px;
+    height: 130px;
+  }
   
   img {
     width: 100%;
@@ -425,13 +451,13 @@ onMounted(() => {
   
   .rank-num {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: normal;
     color: #f0c14b;
   }
 }
 
 .item-title {
-  font-size: 14px;
+  font-size: 12px;
   color: #eee;
   margin: 6px 0;
   overflow: hidden;
@@ -458,6 +484,17 @@ onMounted(() => {
   .likes {
     font-size: 12px;
     color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    
+    .star-icon {
+      width: 14px;
+      height: 14px;
+      color: rgba(255, 255, 255, 0.5);
+      vertical-align: middle;
+      margin-top: -1px;
+    }
   }
 }
 
