@@ -6,11 +6,11 @@
         v-for="ad in row1Ads" 
         :key="ad.id" 
         class="ad-item"
+        :class="{ hidden: ad._imgError }"
         @click="handleClick(ad)"
       >
         <div class="ad-icon">
-          <img v-if="ad.image" :src="ad.image" :alt="ad.name" @error="handleImgError($event, ad)" />
-          <span v-else class="fallback">{{ ad.icon || '📦' }}</span>
+          <img :src="ad.image" :alt="ad.name" @error="handleImgError($event, ad)" />
         </div>
         <span class="ad-name">{{ ad.name }}</span>
       </div>
@@ -23,11 +23,11 @@
           v-for="(ad, index) in scrollAds" 
           :key="`${ad.id}-${index}`" 
           class="ad-item"
+          :class="{ hidden: ad._imgError }"
           @click="handleClick(ad)"
         >
           <div class="ad-icon">
-            <img v-if="ad.image" :src="ad.image" :alt="ad.name" @error="handleImgError($event, ad)" />
-            <span v-else class="fallback">{{ ad.icon || '📦' }}</span>
+            <img :src="ad.image" :alt="ad.name" @error="handleImgError($event, ad)" />
           </div>
           <span class="ad-name">{{ ad.name }}</span>
         </div>
@@ -70,9 +70,8 @@ const handleClick = (ad) => {
   if (link) window.open(link, '_blank')
 }
 
-// 图片加载失败
+// 图片加载失败 - 使用响应式触发重新渲染
 const handleImgError = (e, ad) => {
-  e.target.style.display = 'none'
   ad._imgError = true
 }
 </script>
@@ -131,6 +130,10 @@ const handleImgError = (e, ad) => {
   min-width: 62px;
   transition: transform 0.2s;
   
+  &.hidden {
+    display: none;
+  }
+  
   &:active {
     transform: scale(0.95);
   }
@@ -140,7 +143,6 @@ const handleImgError = (e, ad) => {
     height: 56px;
     border-radius: 12px;
     overflow: hidden;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -149,10 +151,6 @@ const handleImgError = (e, ad) => {
       width: 100%;
       height: 100%;
       object-fit: cover;
-    }
-    
-    .fallback {
-      font-size: 22px;
     }
   }
   

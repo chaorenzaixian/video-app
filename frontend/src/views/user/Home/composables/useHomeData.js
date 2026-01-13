@@ -24,13 +24,7 @@ export function useHomeData(abortSignal) {
   const featuredCategories = ref([])
 
   // 功能入口
-  const funcItems = ref([
-    { id: 1, name: '广场', image: '', link: '' },
-    { id: 2, name: '会员中心', image: '', link: '/user/vip' },
-    { id: 3, name: '社区广场', image: '', link: '' },
-    { id: 4, name: '分享邀请', image: '', link: '' },
-    { id: 5, name: '排行榜', image: '/images/icons/ranking_icon.webp', link: '/user/ranking' }
-  ])
+  const funcItems = ref([])
 
   // 广告位
   const adRow1 = ref([])

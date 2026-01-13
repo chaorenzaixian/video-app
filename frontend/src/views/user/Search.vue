@@ -12,50 +12,46 @@
       />
     </div>
 
-    <!-- 广告位（不固定，正常滚动） -->
-    <div class="ad-section">
-        <!-- 第一行固定5个 -->
+    <!-- 广告位 - 只在有API数据时显示 -->
+    <div class="ad-section" v-if="adRow1.length > 0 && adRow1.some(item => !item._imgError)">
         <div class="ad-row">
           <div 
             class="ad-item" 
             v-for="item in adRow1" 
             :key="item.id"
+            :class="{ hidden: item._imgError }"
             @click="handleAdClick(item)"
           >
-            <div class="ad-img" :style="{ background: item.bg }">
-              <img v-if="item.image" :src="item.image" />
-              <span v-else class="ad-icon">{{ item.icon }}</span>
+            <div class="ad-img">
+              <img :src="item.image" @error="item._imgError = true" />
             </div>
             <span class="ad-name">{{ item.name }}</span>
           </div>
         </div>
-        <!-- 第二行自动滚动 -->
-        <div class="ad-row-scroll">
+        <div class="ad-row-scroll" v-if="adRow2.length > 0 && adRow2.some(item => !item._imgError)">
           <div class="scroll-track">
             <div class="scroll-content">
-              <!-- 第一组 -->
               <div 
                 class="ad-item" 
                 v-for="item in adRow2" 
                 :key="'a-' + item.id"
+                :class="{ hidden: item._imgError }"
                 @click="handleAdClick(item)"
               >
-                <div class="ad-img" :style="{ background: item.bg }">
-                  <img v-if="item.image" :src="item.image" />
-                  <span v-else class="ad-icon">{{ item.icon }}</span>
+                <div class="ad-img">
+                  <img :src="item.image" @error="item._imgError = true" />
                 </div>
                 <span class="ad-name">{{ item.name }}</span>
               </div>
-              <!-- 复制一组实现无缝循环 -->
               <div 
                 class="ad-item" 
                 v-for="item in adRow2" 
                 :key="'b-' + item.id"
+                :class="{ hidden: item._imgError }"
                 @click="handleAdClick(item)"
               >
-                <div class="ad-img" :style="{ background: item.bg }">
-                  <img v-if="item.image" :src="item.image" />
-                  <span v-else class="ad-icon">{{ item.icon }}</span>
+                <div class="ad-img">
+                  <img :src="item.image" @error="item._imgError = true" />
                 </div>
               <span class="ad-name">{{ item.name }}</span>
             </div>
@@ -108,107 +104,82 @@
       </div>
     </div>
 
-    <!-- 筛选栏（独立出来方便sticky） -->
-    <div class="filter-bar" :style="{ top: filterBarTop + 'px' }">
-      <div class="filter-tabs">
-        <span 
-          v-for="(filter, index) in filters" 
-          :key="filter.key"
-          :class="['filter-item', { active: activeFilter === index }]"
-          @click="changeFilter(index)"
-        >
-          {{ filter.label }}
-        </span>
-      </div>
-      <!-- 列表/网格切换 -->
-      <div class="view-toggle" @click="gridMode = gridMode === 1 ? 2 : 1">
-        <span class="toggle-label">切换</span>
-        <span class="toggle-icon" v-if="gridMode === 1">
-          <i></i><i></i><i></i>
-        </span>
-        <span class="toggle-icon grid" v-else>
-          <i></i><i></i><i></i><i></i>
-        </span>
-      </div>
-    </div>
-
-    <!-- 视频列表区域 -->
-    <div class="video-section">
-
-      <!-- 骨架屏加载状态 -->
-      <div v-if="loading && videos.length === 0" :class="['video-list', gridMode === 1 ? 'single-column' : 'double-column']">
-        <div v-for="i in 6" :key="'skeleton-'+i" class="video-card skeleton">
-          <div class="video-cover skeleton-cover">
-            <div class="skeleton-shimmer"></div>
-          </div>
-          <div class="video-info">
-            <div class="skeleton-title"></div>
-            <div class="skeleton-meta"></div>
-          </div>
+    <!-- 筛选栏和视频列表 - 只在有视频数据时显示 -->
+    <template v-if="videos.length > 0">
+      <div class="filter-bar" :style="{ top: filterBarTop + 'px' }">
+        <div class="filter-tabs">
+          <span 
+            v-for="(filter, index) in filters" 
+            :key="filter.key"
+            :class="['filter-item', { active: activeFilter === index }]"
+            @click="changeFilter(index)"
+          >
+            {{ filter.label }}
+          </span>
+        </div>
+        <div class="view-toggle" @click="gridMode = gridMode === 1 ? 2 : 1">
+          <span class="toggle-label">切换</span>
+          <span class="toggle-icon" v-if="gridMode === 1">
+            <i></i><i></i><i></i>
+          </span>
+          <span class="toggle-icon grid" v-else>
+            <i></i><i></i><i></i><i></i>
+          </span>
         </div>
       </div>
 
-      <!-- 暂无视频 -->
-      <div v-else-if="!loading && videos.length === 0" class="empty-videos">
-        <span>暂无视频</span>
-      </div>
-
-      <!-- 视频列表 -->
-      <div v-else :class="['video-list', gridMode === 1 ? 'single-column' : 'double-column']">
-        <div 
-          v-for="video in videos" 
-          :key="video.id"
-          class="video-card"
-          @click="handleVideoClick(video)"
-          @mouseenter="startPreview(video)"
-          @mouseleave="stopPreview(video)"
-          @touchstart.passive="onTouchStart"
-        >
-          <div class="video-cover">
-            <img 
-              :src="getCoverUrl(video.cover_url)" 
-              :alt="video.title"
-              :class="{ 'hidden': isPreviewPlaying(video.id) }"
-            />
-            <!-- 视频预览（悬停播放） -->
-            <video
-              v-if="video.preview_url"
-              :ref="el => setPreviewRef(video.id, el)"
-              :src="getPreviewUrl(video.preview_url)"
-              :class="['preview-video', { 'visible': isPreviewPlaying(video.id) }]"
-              muted
-              loop
-              playsinline
-              preload="metadata"
-            ></video>
-            <!-- 左下角播放量 -->
-            <div class="cover-views">
-              <span class="play-icon">▶</span>
-              <span>{{ formatCount(video.view_count) }}</span>
+      <div class="video-section">
+        <div :class="['video-list', gridMode === 1 ? 'single-column' : 'double-column']">
+          <div 
+            v-for="video in videos" 
+            :key="video.id"
+            class="video-card"
+            @click="handleVideoClick(video)"
+            @mouseenter="startPreview(video)"
+            @mouseleave="stopPreview(video)"
+            @touchstart.passive="onTouchStart"
+          >
+            <div class="video-cover">
+              <img 
+                :src="getCoverUrl(video.cover_url)" 
+                :alt="video.title"
+                :class="{ 'hidden': isPreviewPlaying(video.id) }"
+              />
+              <video
+                v-if="video.preview_url"
+                :ref="el => setPreviewRef(video.id, el)"
+                :src="getPreviewUrl(video.preview_url)"
+                :class="['preview-video', { 'visible': isPreviewPlaying(video.id) }]"
+                muted
+                loop
+                playsinline
+                preload="metadata"
+              ></video>
+              <div class="cover-views">
+                <span class="play-icon">▶</span>
+                <span>{{ formatCount(video.view_count) }}</span>
+              </div>
+              <div class="video-duration">{{ formatDuration(video.duration) }}</div>
+              <div v-if="video.is_vip_only" class="vip-tag">VIP</div>
             </div>
-            <!-- 右下角时长 -->
-            <div class="video-duration">{{ formatDuration(video.duration) }}</div>
-            <!-- VIP标签 -->
-            <div v-if="video.is_vip_only" class="vip-tag">VIP</div>
-          </div>
-          <div class="video-info">
-            <p class="video-title">{{ video.title }}</p>
-            <div class="video-meta">
-              <span class="video-tag" v-if="video.tags && video.tags.length > 0">{{ video.tags[0] }}</span>
-              <span class="video-tag" v-else-if="video.category_name">{{ video.category_name }}</span>
-              <span class="video-tag" v-else-if="video.tag">{{ video.tag }}</span>
-              <span class="video-tag" v-else>精选</span>
-              <span class="video-comments">评论 {{ video.comment_count || 0 }}</span>
+            <div class="video-info">
+              <p class="video-title">{{ video.title }}</p>
+              <div class="video-meta">
+                <span class="video-tag" v-if="video.tags && video.tags.length > 0">{{ video.tags[0] }}</span>
+                <span class="video-tag" v-else-if="video.category_name">{{ video.category_name }}</span>
+                <span class="video-tag" v-else-if="video.tag">{{ video.tag }}</span>
+                <span class="video-tag" v-else>精选</span>
+                <span class="video-comments">评论 {{ video.comment_count || 0 }}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- 加载更多 -->
-      <div class="load-more" v-if="hasMore && videos.length" @click="loadMore">
-        加载更多
+        <div class="load-more" v-if="hasMore && videos.length" @click="loadMore">
+          加载更多
+        </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -405,21 +376,8 @@ const fetchAds = async () => {
       adRow2.value = res.data.slice(5)
     }
   } catch (error) {
-    // 使用默认数据
-    adRow1.value = [
-      { id: 1, name: '同城约炮', icon: '🔥', bg: 'linear-gradient(135deg, #ff6b6b, #ee5a24)', badge: '白门', badgeType: 'hot', link: '#' },
-      { id: 2, name: '色色春药', icon: '💊', bg: 'linear-gradient(135deg, #a55eea, #8854d0)', badge: '催情春药', badgeType: 'purple', link: '#' },
-      { id: 3, name: '新葡京', icon: '🎰', bg: 'linear-gradient(135deg, #fed330, #f7b731)', badge: '373.com', badgeType: 'gold', link: '#' },
-      { id: 4, name: '海角乱伦', icon: '🌊', bg: 'linear-gradient(135deg, #45aaf2, #2d98da)', badge: '免费', badgeType: 'blue', link: '#' },
-      { id: 5, name: 'P站中文版', icon: '🅿', bg: 'linear-gradient(135deg, #ff9ff3, #f368e0)', badge: '推荐', badgeType: 'pink', link: '#' }
-    ]
-    adRow2.value = [
-      { id: 6, name: '萝莉岛', icon: '🏝', bg: 'linear-gradient(135deg, #00d2d3, #01a3a4)', badge: '围养全球', badgeType: 'cyan', link: '#' },
-      { id: 7, name: 'XVideos', icon: '❌', bg: 'linear-gradient(135deg, #ff6b6b, #ee5a24)', badge: '免费看片', badgeType: 'red', link: '#' },
-      { id: 8, name: '快手视频', icon: '⚡', bg: 'linear-gradient(135deg, #ffa502, #ff7f50)', badge: '推荐', badgeType: 'orange', link: '#' },
-      { id: 9, name: '萝丽塔', icon: '🎀', bg: 'linear-gradient(135deg, #ff9ff3, #f368e0)', badge: '原创萝莉', badgeType: 'pink', link: '#' },
-      { id: 10, name: '91论坛', icon: '💬', bg: 'linear-gradient(135deg, #a55eea, #8854d0)', badge: '官方', badgeType: 'purple', link: '#' }
-    ]
+    // API失败时不显示广告，保持空数组
+    console.log('获取广告失败')
   }
 }
 
@@ -463,14 +421,8 @@ const fetchVideos = async () => {
       is_hot: v.view_count > 100000
     }))
   } catch (error) {
-    // 模拟数据
-    const mockVideos = [
-      { id: 1, title: '淫欲老师淫穴教学，肉穴满足男学生性幻想', cover_url: '/uploads/thumbnails/3.webp', duration: 2524, view_count: 267000, tag: '国产', comment_count: 2, is_hot: true },
-      { id: 2, title: '【我是假亲妈，可你是真畜生啊！你怎么又内射我？】第二...', cover_url: '/uploads/thumbnails/3.webp', duration: 1003, view_count: 151000, tag: '国产', comment_count: 0, is_hot: false },
-      { id: 3, title: '清纯学妹被室友偷拍私密视频流出', cover_url: '/uploads/thumbnails/3.webp', duration: 1845, view_count: 89000, tag: '国产', comment_count: 5, is_hot: false },
-      { id: 4, title: '人妻出轨被老公发现后的惩罚', cover_url: '/uploads/thumbnails/3.webp', duration: 2100, view_count: 156000, tag: '国产', comment_count: 3, is_hot: true }
-    ]
-    videos.value = mockVideos
+    // API失败时不显示视频，保持空数组
+    console.log('获取视频失败')
   } finally {
     loading.value = false
   }
@@ -651,6 +603,10 @@ onUnmounted(() => {
   width: 68px;
   cursor: pointer;
   transition: transform 0.2s;
+  
+  &.hidden {
+    display: none;
+  }
   
   &:active {
     transform: scale(0.95);

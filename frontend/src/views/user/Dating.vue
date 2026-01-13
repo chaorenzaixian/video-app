@@ -34,17 +34,25 @@
 
     <!-- 内容区域 -->
     <div class="content-area">
-      <!-- 图标广告 - 直播页面不显示 -->
-      <IconAdsGrid v-if="activeMainTab !== 'live'" :row1="adRow1" :row2="adRow2" />
+      <!-- 图标广告 - 只在有API数据时显示 -->
+      <IconAdsGrid v-if="activeMainTab !== 'live' && adRow1.length > 0" :row1="adRow1" :row2="adRow2" />
 
-      <!-- SOUL群内容 -->
-      <template v-if="activeMainTab === 'soul'">
+      <!-- SOUL群内容 - 只在有数据时显示 -->
+      <template v-if="activeMainTab === 'soul' && groupList.length > 0">
         <div class="section-title">猜你喜欢</div>
         
         <!-- 群聊列表 -->
         <div class="group-list">
-          <div v-for="group in groupList" :key="group.id" class="group-card">
-            <img :src="group.avatar" class="group-avatar" />
+          <div 
+            v-for="group in groupList" 
+            :key="group.id" 
+            class="group-card"
+          >
+            <img 
+              :src="group._imgError ? '/images/icons/default_group_avatar.webp' : group.avatar" 
+              class="group-avatar" 
+              @error="group._imgError = true" 
+            />
             <div class="group-info">
               <div class="group-name">{{ group.name }}</div>
               <div class="group-desc">{{ group.description }}</div>
@@ -67,8 +75,8 @@
         </div>
       </template>
 
-      <!-- 裸聊内容 -->
-      <template v-if="activeMainTab === 'chat'">
+      <!-- 裸聊内容 - 只在有数据时显示 -->
+      <template v-if="activeMainTab === 'chat' && userList.length > 0">
         <!-- 子分类标签 -->
         <div class="sub-tabs">
           <span 
@@ -105,8 +113,8 @@
         </div>
       </template>
 
-      <!-- 直播内容 -->
-      <template v-if="activeMainTab === 'live'">
+      <!-- 直播内容 - 只在有数据时显示 -->
+      <template v-if="activeMainTab === 'live' && hostList.length > 0">
         <!-- 子分类标签 - 独立在导航下 -->
         <div class="sub-tabs live-sub-tabs">
           <span 
@@ -187,23 +195,8 @@ const fetchIconAds = async () => {
     adRow1.value = ads.slice(0, 5)
     adRow2.value = ads.slice(5, 11)
   } catch (error) {
-    console.log('获取广告失败，使用默认数据')
-    // 默认数据
-    adRow1.value = [
-      { id: 1, name: '同城约炮', image: '/images/backgrounds/dating_banner.webp' },
-      { id: 2, name: '美高梅', image: '/images/backgrounds/dating_banner.webp' },
-      { id: 3, name: '新葡京', image: '/images/backgrounds/dating_banner.webp' },
-      { id: 4, name: '春药迷药', image: '/images/backgrounds/dating_banner.webp' },
-      { id: 5, name: '464娱乐', image: '/images/backgrounds/dating_banner.webp' }
-    ]
-    adRow2.value = [
-      { id: 6, name: 'XVideos', image: '/images/backgrounds/dating_banner.webp' },
-      { id: 7, name: '海角乱伦', image: '/images/backgrounds/dating_banner.webp' },
-      { id: 8, name: 'Y1妖精漫画', image: '/images/backgrounds/dating_banner.webp' },
-      { id: 9, name: 'Y1YouTube', image: '/images/backgrounds/dating_banner.webp' },
-      { id: 10, name: '逼哩', image: '/images/backgrounds/dating_banner.webp' },
-      { id: 11, name: 'Y191暗网', image: '/images/backgrounds/dating_banner.webp' }
-    ]
+    // API失败时不显示广告，保持空数组
+    console.log('获取广告失败')
   }
 }
 
@@ -232,11 +225,8 @@ const fetchGroups = async () => {
       joinUrl: g.join_url
     }))
   } catch (error) {
-    console.log('获取群聊失败，使用默认数据')
-    groupList.value = [
-      { id: 1, name: '大学生约炮聊骚群', description: '在校大学生排解寂寞，鸡把大的优...', memberCount: '10w', coinCost: 1000, isFree: true, avatar: '/images/backgrounds/dating_group_card.webp' },
-      { id: 2, name: '上海线下绿帽群', description: '这里可以满足你所有的绿帽癖，绿...', memberCount: '10w', coinCost: 1000, isFree: false, avatar: '/images/backgrounds/dating_group_card.webp' }
-    ]
+    // API失败时不显示群聊，保持空数组
+    console.log('获取群聊失败')
   }
 }
 

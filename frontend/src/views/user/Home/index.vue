@@ -9,8 +9,7 @@
           </div>
         </div>
         <div class="header-center">
-          <img v-if="siteSettings.logo" :src="siteSettings.logo" alt="Logo" class="logo-img" />
-          <span v-else class="logo-text">Soul</span>
+          <img :src="siteSettings.logo || '/images/icons/default_logo.webp'" alt="Logo" class="logo-img" />
         </div>
         <div class="header-right">
           <router-link to="/user/search" class="header-icon search-icon">
@@ -40,8 +39,8 @@
         <!-- 图标广告位 -->
         <IconAdsGrid :row1="adRow1" :row2="adRow2" />
 
-        <!-- 功能入口 -->
-        <FuncEntries :items="funcItems" />
+        <!-- 功能入口 - 只在有数据时显示 -->
+        <FuncEntries v-if="funcItems.length > 0" :items="funcItems" />
 
         <!-- 二级分类 -->
         <div class="hot-section" v-if="currentSubCategories.length > 0">

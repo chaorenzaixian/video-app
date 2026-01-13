@@ -1,21 +1,20 @@
 <template>
-  <div class="func-scroll-wrapper">
+  <div class="func-scroll-wrapper" v-if="hasVisibleItems">
     <div class="func-scroll">
       <div 
         v-for="func in items" 
         :key="func.id" 
         class="func-item"
+        :class="{ hidden: func._imgError }"
         @click="handleClick(func)"
       >
-        <div class="func-icon-box" :class="{ 'has-image': func.image && !func.imageError }">
+        <div class="func-icon-box">
           <img 
-            v-if="func.image && !func.imageError" 
             :src="func.image" 
             :alt="func.name" 
             class="func-icon-img"
-            @error="func.imageError = true"
+            @error="func._imgError = true"
           />
-          <span v-else class="func-icon-text">{{ getShortName(func.name) }}</span>
         </div>
         <span class="func-name">{{ func.name }}</span>
       </div>
@@ -24,21 +23,17 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
-defineProps({
+const props = defineProps({
   items: { type: Array, default: () => [] }
 })
 
 const router = useRouter()
 
-const getShortName = (name) => {
-  const shortNames = {
-    '广场': '广', 'AI广场': 'A', '会员中心': '会',
-    '社区广场': '社', '分享邀请': '分', '排行榜': '排', '签到福利': '签'
-  }
-  return shortNames[name] || name.charAt(0)
-}
+// 检查是否有可见项目
+const hasVisibleItems = computed(() => props.items.some(item => !item._imgError))
 
 const handleClick = (func) => {
   if (func.link) {
@@ -81,6 +76,8 @@ const handleClick = (func) => {
     
     &:hover { transform: scale(1.05); }
     &:active { transform: scale(0.95); }
+    
+    &.hidden { display: none; }
     
     .func-icon-box {
       width: clamp(48px, 13vw, 60px);
