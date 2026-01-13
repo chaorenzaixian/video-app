@@ -87,6 +87,9 @@ class EpayService:
         Returns:
             支付跳转URL
         """
+        # 金额保留2位小数
+        money_str = f"{float(money):.2f}"
+        
         params = {
             'pid': self.pid,
             'type': pay_type,
@@ -94,10 +97,14 @@ class EpayService:
             'notify_url': notify_url or self.notify_url,
             'return_url': return_url or self.return_url,
             'name': name,
-            'money': str(money),
-            'param': param,
-            'clientip': clientip or ''
+            'money': money_str,
         }
+        # 只有非空才添加
+        if param:
+            params['param'] = param
+        if clientip:
+            params['clientip'] = clientip
+            
         params = self._build_request_param(params)
         return f"{self.submit_url}?{urlencode(params)}"
     
@@ -154,6 +161,9 @@ class EpayService:
         Returns:
             PaymentResult 包含 qr_code 和 payment_url
         """
+        # 金额保留2位小数
+        money_str = f"{float(amount):.2f}"
+        
         params = {
             'pid': self.pid,
             'type': pay_type,
@@ -161,9 +171,11 @@ class EpayService:
             'notify_url': notify_url or self.notify_url,
             'return_url': return_url or self.return_url,
             'name': subject,
-            'money': str(amount),
-            'clientip': client_ip or ''
+            'money': money_str,
         }
+        if client_ip:
+            params['clientip'] = client_ip
+            
         params = self._build_request_param(params)
         
         try:
