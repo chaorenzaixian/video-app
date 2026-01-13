@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" ref="scrollContainer">
     <!-- 固定头部 -->
     <header class="fixed-header">
       <div class="header-top">
@@ -149,6 +149,7 @@ import { useVideoPreview } from './composables/useVideoPreview'
 
 const router = useRouter()
 const { signal: abortSignal } = useAbortController()
+const scrollContainer = ref(null)
 const timers = useTimers()
 const videoCleanup = useVideoCleanup()
 
@@ -189,10 +190,10 @@ onMounted(() => {
 // keep-alive 激活时滚动到顶部
 onActivated(async () => {
   await nextTick()
-  // 多种方式确保滚动到顶部
-  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  document.documentElement.scrollTop = 0
-  document.body.scrollTop = 0
+  // 滚动容器到顶部
+  if (scrollContainer.value) {
+    scrollContainer.value.scrollTop = 0
+  }
 })
 </script>
 
@@ -203,8 +204,8 @@ $breakpoint-xl: 1024px;
 $breakpoint-xxl: 1280px;
 
 .app-container {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   background: #0a0a0a;
   color: #fff;
   padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
@@ -213,7 +214,8 @@ $breakpoint-xxl: 1280px;
   width: 100%;
   max-width: 100vw;
   margin: 0 auto;
-  overflow-x: clip;
+  overflow-x: hidden;
+  overflow-y: auto;
   
   @media (min-width: $breakpoint-lg) { max-width: 750px; }
   @media (min-width: $breakpoint-xl) { max-width: 900px; }

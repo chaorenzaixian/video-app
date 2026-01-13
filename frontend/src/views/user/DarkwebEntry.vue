@@ -1,5 +1,5 @@
 <template>
-  <div class="darkweb-entry">
+  <div class="darkweb-entry" ref="scrollContainer">
     <!-- 加载中 -->
     <div v-if="loading" class="loading-screen">
       <div class="loading-spinner"></div>
@@ -65,6 +65,7 @@ const userVipLevel = ref(0)
 const minVipLevel = ref(0)  // 暗网最低VIP等级要求
 const loading = ref(true)
 const hasChecked = ref(false)  // 是否已检查过
+const scrollContainer = ref(null)
 
 // 检查VIP状态
 const checkVipStatus = async () => {
@@ -114,10 +115,10 @@ onMounted(() => {
 // keep-alive 激活时滚动到顶部，如果还没检查过则检查
 onActivated(async () => {
   await nextTick()
-  // 多种方式确保滚动到顶部
-  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  document.documentElement.scrollTop = 0
-  document.body.scrollTop = 0
+  // 滚动容器到顶部
+  if (scrollContainer.value) {
+    scrollContainer.value.scrollTop = 0
+  }
   
   if (!hasChecked.value) {
     checkVipStatus()
@@ -127,10 +128,13 @@ onActivated(async () => {
 
 <style lang="scss" scoped>
 .darkweb-entry {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   background: #0a0a0a;
   position: relative;
   padding-bottom: 70px;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .loading-screen {

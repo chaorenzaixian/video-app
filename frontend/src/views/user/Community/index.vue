@@ -1,5 +1,5 @@
 <template>
-  <div class="community-page">
+  <div class="community-page" ref="scrollContainer">
     <!-- 顶部导航 -->
     <header class="top-header">
       <div class="main-tabs">
@@ -98,6 +98,7 @@ const router = useRouter()
 const route = useRoute()
 const { signal } = useAbortController()
 const { withLock } = useActionLock()
+const scrollContainer = ref(null)
 
 // Tab配置
 const mainTabs = [
@@ -188,18 +189,21 @@ onMounted(() => {
 // keep-alive 激活时滚动到顶部
 onActivated(async () => {
   await nextTick()
-  // 多种方式确保滚动到顶部
-  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  document.documentElement.scrollTop = 0
-  document.body.scrollTop = 0
+  // 滚动容器到顶部
+  if (scrollContainer.value) {
+    scrollContainer.value.scrollTop = 0
+  }
 })
 </script>
 
 <style lang="scss" scoped>
 .community-page {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   background: #0d0d0d;
   padding-bottom: 70px;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .top-header {

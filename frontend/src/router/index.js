@@ -855,14 +855,4 @@ router.beforeEach(async (to, from, next) => {
   next()
 })
 
-// 路由切换后滚动到顶部（作为备用方案）
-router.afterEach((to, from) => {
-  // 底部导航的5个主页面切换时滚动到顶部
-  const mainPages = ['/user', '/user/darkweb-entry', '/user/dating', '/user/community', '/user/profile']
-  if (mainPages.includes(to.path)) {
-    // 组件内的 onActivated 会处理滚动，这里作为备用
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  }
-})
-
 export default router

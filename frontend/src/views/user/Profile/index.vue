@@ -1,5 +1,5 @@
 <template>
-  <div class="profile-page">
+  <div class="profile-page" ref="scrollContainer">
     <div class="profile-bg">
       <img src="/images/backgrounds/profile_bg.webp" alt="" />
       <div class="bg-overlay"></div>
@@ -64,6 +64,7 @@ import { useProfileData } from './composables/useProfileData'
 
 const userStore = useUserStore()
 const { signal } = useAbortController()
+const scrollContainer = ref(null)
 
 // 是否已初始化
 const hasInitialized = ref(false)
@@ -146,10 +147,10 @@ onMounted(() => {
 // keep-alive 激活时滚动到顶部，只刷新未读消息数
 onActivated(async () => {
   await nextTick()
-  // 多种方式确保滚动到顶部
-  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  document.documentElement.scrollTop = 0
-  document.body.scrollTop = 0
+  // 滚动容器到顶部
+  if (scrollContainer.value) {
+    scrollContainer.value.scrollTop = 0
+  }
   
   if (hasInitialized.value) {
     // 只刷新未读消息数，不重新加载全部数据
@@ -160,8 +161,8 @@ onActivated(async () => {
 
 <style lang="scss" scoped>
 .profile-page {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   background: #0d0d0d;
   color: #fff;
   padding-bottom: calc(65px + env(safe-area-inset-bottom, 0px));
@@ -169,6 +170,8 @@ onActivated(async () => {
   max-width: 100vw;
   margin: 0 auto;
   position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
 
   @media (min-width: 768px) { max-width: 750px; }
   @media (min-width: 1024px) { max-width: 900px; }

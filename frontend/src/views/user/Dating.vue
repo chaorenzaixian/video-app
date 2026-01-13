@@ -1,5 +1,5 @@
 <template>
-  <div class="dating-page">
+  <div class="dating-page" ref="scrollContainer">
     <!-- 主标签导航 -->
     <div class="main-tabs">
       <div 
@@ -187,6 +187,7 @@ const router = useRouter()
 const activeMainTab = ref('soul')
 const activeSubTab = ref('学生萝莉')
 const activeLiveTab = ref('推荐')
+const scrollContainer = ref(null)
 
 // 子分类
 const chatSubTabs = ['学生萝莉', '人妻少妇', '主播御姐', '模特兼职']
@@ -335,10 +336,10 @@ onMounted(() => {
 // keep-alive 激活时滚动到顶部
 onActivated(async () => {
   await nextTick()
-  // 多种方式确保滚动到顶部
-  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  document.documentElement.scrollTop = 0
-  document.body.scrollTop = 0
+  // 滚动容器到顶部
+  if (scrollContainer.value) {
+    scrollContainer.value.scrollTop = 0
+  }
 })
 
 // 监听子分类切换
@@ -360,10 +361,13 @@ watch(activeMainTab, (newTab) => {
 
 <style lang="scss" scoped>
 .dating-page {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   background: #0a0a0a;
   color: #fff;
   padding-bottom: 70px;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 // 主标签导航
