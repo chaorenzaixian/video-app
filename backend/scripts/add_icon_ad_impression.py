@@ -6,11 +6,11 @@ import sys
 sys.path.insert(0, '/www/wwwroot/video-app/backend')
 
 from sqlalchemy import text
-from app.core.database import async_engine
+from app.core.database import engine
 
 async def add_impression_count():
     """添加 impression_count 字段到 icon_ads 表"""
-    async with async_engine.begin() as conn:
+    async with engine.begin() as conn:
         # 检查字段是否存在
         result = await conn.execute(text("""
             SELECT COUNT(*) FROM pragma_table_info('icon_ads') 
