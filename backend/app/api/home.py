@@ -107,6 +107,7 @@ class HomeInitResponse(BaseModel):
     icon_ads: List[IconAdItem]
     videos: List[VideoItem]
     announcements: List[AnnouncementItem]
+    banners: List[dict] = []  # 轮播图
     is_vip: bool = False
     cache_time: int = 300
 
@@ -313,6 +314,35 @@ async def get_home_init(
                 link=ann.link
             ))
         
+        # 获取轮播图
+        now = datetime.utcnow()
+        banner_query = select(Banner).where(
+            Banner.is_active == True,
+            Banner.position == "home"
+        )
+        banner_query = banner_query.where(
+            (Banner.start_time == None) | (Banner.start_time <= now)
+        )
+        banner_query = banner_query.where(
+            (Banner.end_time == None) | (Banner.end_time >= now)
+        )
+        banner_query = banner_query.order_by(Banner.sort_order.asc())
+        
+        result = await db.execute(banner_query)
+        banners_db = result.scalars().all()
+        
+        banners = [
+            {
+                "id": b.id,
+                "title": b.title,
+                "image_url": b.image_url,
+                "link_url": b.link_url,
+                "link_type": b.link_type or "none",
+                "position": b.position
+            }
+            for b in banners_db
+        ]
+        
         # 获取视频列表（排除短视频）
         query = select(Video).where(
             Video.status == VideoStatus.PUBLISHED,
@@ -356,6 +386,7 @@ async def get_home_init(
             icon_ads=icon_ads,
             videos=videos,
             announcements=announcements,
+            banners=banners,
             is_vip=is_vip,
             cache_time=CACHE_TTL
         )

@@ -158,7 +158,7 @@ const {
   siteSettings, categories, activeCategory, currentSubCategories,
   funcItems, adRow1, adRow2, announcementText, banners,
   videos, loadingVideos, videoFilters, activeVideoFilter,
-  fetchHomeInit, fetchBanners, changeVideoFilter, selectCategory
+  fetchHomeInit, changeVideoFilter, selectCategory
 } = useHomeData(abortSignal)
 
 // 视频预览
@@ -184,7 +184,6 @@ const handleVideoClick = (video) => {
 
 onMounted(() => {
   fetchHomeInit()
-  fetchBanners()
 })
 
 // keep-alive 激活时滚动到顶部

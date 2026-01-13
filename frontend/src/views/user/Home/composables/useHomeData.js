@@ -125,6 +125,11 @@ export function useHomeData(abortSignal) {
           announcementText.value = data.announcements.map(a => a.content).join(' 🔸 ')
         }
         
+        // 轮播图
+        if (data.banners) {
+          banners.value = data.banners
+        }
+        
         // 视频列表
         if (data.videos) {
           videos.value = data.videos
@@ -161,18 +166,6 @@ export function useHomeData(abortSignal) {
     }
   }
 
-  // 获取轮播广告
-  const fetchBanners = async () => {
-    try {
-      const res = await axios.get('/api/v1/home/banners', { params: { position: 'home' }, signal: abortSignal })
-      banners.value = res.data || []
-    } catch (e) {
-      if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
-        console.error('获取轮播广告失败:', e)
-      }
-    }
-  }
-
   // 切换视频筛选
   const changeVideoFilter = (index) => {
     activeVideoFilter.value = index
@@ -203,7 +196,6 @@ export function useHomeData(abortSignal) {
     activeVideoFilter,
     fetchHomeInit,
     fetchVideos,
-    fetchBanners,
     changeVideoFilter,
     selectCategory
   }
