@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-"""为 PostgreSQL 数据库的 banners 表添加统计字段"""
+"""Add stats columns to banners table in PostgreSQL"""
 import asyncio
 import asyncpg
 
 async def add_columns():
     conn = await asyncpg.connect('postgresql://video_app:VideoApp2024!@127.0.0.1:5432/video_app')
     
-    # 检查并添加 impression_count 列
+    # Add impression_count column
     try:
         await conn.execute('ALTER TABLE banners ADD COLUMN IF NOT EXISTS impression_count INTEGER DEFAULT 0')
-        print('impression_count 列添加成功')
+        print('impression_count column added')
     except Exception as e:
-        print(f'impression_count: {e}')
+        print(f'impression_count error: {e}')
     
-    # 检查并添加 click_count 列
+    # Add click_count column
     try:
         await conn.execute('ALTER TABLE banners ADD COLUMN IF NOT EXISTS click_count INTEGER DEFAULT 0')
-        print('click_count 列添加成功')
+        print('click_count column added')
     except Exception as e:
-        print(f'click_count: {e}')
+        print(f'click_count error: {e}')
     
     await conn.close()
-    print('数据库迁移完成')
+    print('Migration completed')
 
 if __name__ == '__main__':
     asyncio.run(add_columns())
