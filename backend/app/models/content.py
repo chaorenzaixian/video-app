@@ -21,6 +21,9 @@ class Banner(Base):
     is_active = Column(Boolean, default=True, comment="是否启用")
     start_time = Column(DateTime, nullable=True, comment="开始时间")
     end_time = Column(DateTime, nullable=True, comment="结束时间")
+    # 统计字段
+    impression_count = Column(Integer, default=0, comment="展示次数")
+    click_count = Column(Integer, default=0, comment="点击次数")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update
 from sqlalchemy.orm import selectinload
 from typing import Optional, List, Any
 from datetime import datetime
@@ -127,6 +127,15 @@ async def get_public_banners(
     cache_key = f"banners:{position}"
     cached = await CacheService.get(cache_key)
     if cached:
+        # 异步更新展示次数（不阻塞响应）
+        banner_ids = [b["id"] for b in cached]
+        if banner_ids:
+            await db.execute(
+                Banner.__table__.update()
+                .where(Banner.id.in_(banner_ids))
+                .values(impression_count=Banner.impression_count + 1)
+            )
+            await db.commit()
         return cached
     
     now = datetime.utcnow()
@@ -148,6 +157,11 @@ async def get_public_banners(
     
     result = await db.execute(query)
     banners = result.scalars().all()
+    
+    # 更新展示次数
+    for b in banners:
+        b.impression_count = (b.impression_count or 0) + 1
+    await db.commit()
     
     data = [
         {

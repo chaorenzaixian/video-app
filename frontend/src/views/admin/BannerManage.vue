@@ -46,6 +46,21 @@
         </template>
       </el-table-column>
       <el-table-column prop="sort_order" label="排序" width="80" />
+      <el-table-column label="展示" width="90">
+        <template #default="{ row }">
+          {{ formatCount(row.impression_count || 0) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="点击" width="90">
+        <template #default="{ row }">
+          {{ formatCount(row.click_count || 0) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="CTR" width="80">
+        <template #default="{ row }">
+          {{ calcCTR(row) }}%
+        </template>
+      </el-table-column>
       <el-table-column prop="is_active" label="状态" width="80">
         <template #default="{ row }">
           <el-switch 
@@ -371,6 +386,19 @@ const deleteBanner = async (row) => {
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString('zh-CN')
+}
+
+const formatCount = (num) => {
+  if (num >= 10000) return (num / 10000).toFixed(1) + 'w'
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
+  return num
+}
+
+const calcCTR = (row) => {
+  const impressions = row.impression_count || 0
+  const clicks = row.click_count || 0
+  if (impressions === 0) return '0.00'
+  return ((clicks / impressions) * 100).toFixed(2)
 }
 </script>
 

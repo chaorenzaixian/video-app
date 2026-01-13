@@ -86,6 +86,8 @@ async def get_banners(
                 "position": b.position,
                 "sort_order": b.sort_order,
                 "is_active": b.is_active,
+                "impression_count": b.impression_count or 0,
+                "click_count": b.click_count or 0,
                 "start_time": b.start_time,
                 "end_time": b.end_time,
                 "created_at": b.created_at
@@ -157,6 +159,23 @@ async def delete_banner(
     await db.delete(banner)
     await db.commit()
     return {"message": "删除成功"}
+
+
+@router.post("/banners/{banner_id}/click")
+async def record_banner_click(
+    banner_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """记录轮播图点击（无需登录）"""
+    result = await db.execute(select(Banner).where(Banner.id == banner_id))
+    banner = result.scalar_one_or_none()
+    
+    if not banner:
+        raise HTTPException(status_code=404, detail="轮播图不存在")
+    
+    banner.click_count = (banner.click_count or 0) + 1
+    await db.commit()
+    return {"success": True, "link_url": banner.link_url}
 
 
 # ==================== 公告管理 ====================
