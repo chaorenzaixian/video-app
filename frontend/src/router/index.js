@@ -860,7 +860,12 @@ router.afterEach((to, from) => {
   // 底部导航的5个主页面切换时滚动到顶部
   const mainPages = ['/user', '/user/darkweb-entry', '/user/dating', '/user/community', '/user/profile']
   if (mainPages.includes(to.path)) {
-    window.scrollTo(0, 0)
+    // 使用 nextTick 确保 DOM 更新后再滚动
+    setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    }, 0)
   }
 })
 
