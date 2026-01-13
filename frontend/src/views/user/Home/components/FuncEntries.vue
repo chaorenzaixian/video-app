@@ -87,9 +87,7 @@ const handleClick = (func) => {
       align-items: center;
       border-radius: clamp(12px, 3.5vw, 16px);
       overflow: hidden;
-      background: linear-gradient(145deg, #6366f1 0%, #8b5cf6 100%);
-      
-      &.has-image { background: transparent; }
+      background: transparent;
       
       .func-icon-img {
         width: 100%;
