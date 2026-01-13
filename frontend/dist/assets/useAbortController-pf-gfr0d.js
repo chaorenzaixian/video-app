@@ -1,0 +1,1 @@
+import{W as r}from"./vue-vendor-Ba_vealp.js";function t(){const t=new AbortController;let o=!1;return r(()=>{o||(t.abort(),o=!0)}),{signal:t.signal,abort:()=>{o||(t.abort(),o=!0)},get isAborted(){return o}}}export{t as u};

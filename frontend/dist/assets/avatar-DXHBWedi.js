@@ -1,0 +1,1 @@
+function a(a,t){if(a)return a.startsWith("/")?a:"/"+a;const r=(parseInt(t)||1)%52;return r<17?`/images/avatars/icon_avatar_${r+1}.webp`:r<32?`/images/avatars/DM_20251217202131_${String(r-17+1).padStart(3,"0")}.JPEG`:`/images/avatars/DM_20251217202341_${String(r-32+1).padStart(3,"0")}.JPEG`}export{a as g};
