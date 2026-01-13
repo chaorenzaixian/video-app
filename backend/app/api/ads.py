@@ -470,6 +470,23 @@ async def create_icon_ad(
     )
 
 
+@router.put("/icons/sort")
+async def update_icon_ads_sort(
+    sort_data: IconAdSortRequest,
+    current_user: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """管理后台：批量更新图标广告排序"""
+    for item in sort_data.items:
+        result = await db.execute(select(IconAd).where(IconAd.id == item.id))
+        ad = result.scalar_one_or_none()
+        if ad:
+            ad.sort_order = item.sort_order
+    
+    await db.commit()
+    return {"message": "排序更新成功", "count": len(sort_data.items)}
+
+
 @router.put("/icons/{ad_id}", response_model=IconAdResponse)
 async def update_icon_ad(
     ad_id: int,
@@ -618,23 +635,6 @@ async def copy_icon_ad(
         created_at=new_ad.created_at,
         updated_at=new_ad.updated_at
     )
-
-
-@router.put("/icons/sort")
-async def update_icon_ads_sort(
-    sort_data: IconAdSortRequest,
-    current_user: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """管理后台：批量更新图标广告排序"""
-    for item in sort_data.items:
-        result = await db.execute(select(IconAd).where(IconAd.id == item.id))
-        ad = result.scalar_one_or_none()
-        if ad:
-            ad.sort_order = item.sort_order
-    
-    await db.commit()
-    return {"message": "排序更新成功", "count": len(sort_data.items)}
 
 
 @router.get("/icons/stats", response_model=IconAdStatsResponse)
