@@ -30,12 +30,52 @@
     
     <div class="header-placeholder"></div>
 
+    <!-- 离线提示条 -->
+    <transition name="slide-down">
+      <div class="offline-banner" v-if="isOffline && hasCache">
+        <svg class="offline-icon" viewBox="0 0 24 24" fill="none">
+          <path d="M1 1l22 22M9 9a3 3 0 0 0 4.24 4.24M5.64 5.64A9 9 0 0 0 3 12c0 2.21.8 4.24 2.12 5.82M8.11 8.11A6 6 0 0 0 6 12c0 1.66.67 3.16 1.76 4.24M12 20h.01M16.24 7.76A6 6 0 0 1 18 12M19.07 4.93A10 10 0 0 1 21 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span>离线模式 · 显示缓存内容</span>
+        <button class="retry-btn-small" @click="retryLoad">重试</button>
+      </div>
+    </transition>
+
+    <!-- 无网络空状态 -->
+    <div class="offline-empty" v-if="isOffline && !hasCache && !loadingVideos">
+      <div class="empty-illustration">
+        <svg viewBox="0 0 200 200" fill="none">
+          <!-- 云朵 -->
+          <ellipse cx="100" cy="90" rx="50" ry="30" fill="rgba(168, 85, 247, 0.15)"/>
+          <ellipse cx="70" cy="85" rx="30" ry="20" fill="rgba(168, 85, 247, 0.1)"/>
+          <ellipse cx="130" cy="85" rx="30" ry="20" fill="rgba(168, 85, 247, 0.1)"/>
+          <!-- 断开的WiFi -->
+          <path d="M100 130 L100 150" stroke="rgba(168, 85, 247, 0.6)" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="100" cy="160" r="6" fill="rgba(168, 85, 247, 0.6)"/>
+          <path d="M70 110 Q100 80 130 110" stroke="rgba(168, 85, 247, 0.4)" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <path d="M55 95 Q100 55 145 95" stroke="rgba(168, 85, 247, 0.3)" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- 断开线 -->
+          <path d="M85 100 L115 130" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+          <path d="M115 100 L85 130" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h3 class="empty-title">网络连接失败</h3>
+      <p class="empty-desc">请检查网络设置后重试</p>
+      <button class="retry-btn" @click="retryLoad">
+        <svg viewBox="0 0 24 24" fill="none" class="retry-icon">
+          <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        点击重试
+      </button>
+    </div>
+
     <!-- 轮播广告 -->
-    <BannerCarousel :banners="banners" />
+    <BannerCarousel v-if="!isOffline || hasCache" :banners="banners" />
 
     <!-- 页面内容 -->
     <transition :name="slideDirection" mode="out-in">
-      <div class="page-content" :key="activeCategory">
+      <div class="page-content" :key="activeCategory" v-if="!isOffline || hasCache">
         <!-- 图标广告位 -->
         <IconAdsGrid :row1="adRow1" :row2="adRow2" />
 
@@ -156,8 +196,8 @@ const videoCleanup = useVideoCleanup()
 const {
   siteSettings, categories, activeCategory, currentSubCategories,
   funcItems, adRow1, adRow2, announcementText, banners,
-  videos, loadingVideos, videoFilters, activeVideoFilter,
-  fetchHomeInit, changeVideoFilter, selectCategory
+  videos, loadingVideos, isOffline, hasCache, videoFilters, activeVideoFilter,
+  fetchHomeInit, changeVideoFilter, selectCategory, retryLoad
 } = useHomeData(abortSignal)
 
 // 视频预览
@@ -302,6 +342,123 @@ $breakpoint-xxl: 1280px;
 .header-placeholder {
   height: clamp(100px, 28vw, 130px);
   height: calc(clamp(100px, 28vw, 130px) + env(safe-area-inset-top, 0px));
+}
+
+// 离线提示条
+.offline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%);
+  border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  
+  .offline-icon {
+    width: 16px;
+    height: 16px;
+    color: #a855f7;
+  }
+  
+  .retry-btn-small {
+    margin-left: 8px;
+    padding: 4px 12px;
+    background: rgba(168, 85, 247, 0.3);
+    border: 1px solid rgba(168, 85, 247, 0.5);
+    border-radius: 12px;
+    color: #a855f7;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    &:hover {
+      background: rgba(168, 85, 247, 0.4);
+    }
+    
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
+// 离线空状态
+.offline-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  min-height: 50vh;
+  
+  .empty-illustration {
+    width: 180px;
+    height: 180px;
+    margin-bottom: 24px;
+    animation: float 3s ease-in-out infinite;
+    
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+  
+  .empty-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 8px;
+  }
+  
+  .empty-desc {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0 0 32px;
+  }
+  
+  .retry-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 32px;
+    background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+    border: none;
+    border-radius: 25px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4);
+    
+    .retry-icon {
+      width: 18px;
+      height: 18px;
+    }
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(168, 85, 247, 0.5);
+    }
+    
+    &:active {
+      transform: translateY(0) scale(0.98);
+    }
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.slide-down-enter-active, .slide-down-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-down-enter-from, .slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-100%);
 }
 
 .page-content { width: 100%; }
