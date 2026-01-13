@@ -56,8 +56,8 @@
       </div>
     </Teleport>
 
-    <!-- 会员推广条 -->
-    <div class="vip-promo" @click="$router.push('/user/vip')">
+    <!-- 会员推广条 - VIP免费观看时不显示 -->
+    <div class="vip-promo" @click="$router.push('/user/vip')" v-if="!isVipFree">
       <!-- 非会员样式 -->
       <template v-if="!isVip">
         <span class="promo-text">开通会员 享专属特权</span>
@@ -532,7 +532,7 @@ const showShareModal = ref(false)  // 分享弹窗
 const purchasing = ref(false)
 const userCoins = ref(0)
 const trialWatchTime = ref(0)
-const isVipFree = ref(false)  // VIP免费观看
+const isVipFree = ref(true)  // VIP免费观看，默认true避免闪烁
 const currentPlayTime = ref(0)  // 当前播放时间
 
 // 分享相关
@@ -1027,6 +1027,7 @@ const checkVideoPurchase = async () => {
   if (!v.pay_type || v.pay_type === 'free') {
     needsPurchase.value = false
     hasPurchased.value = true
+    isVipFree.value = true  // 免费视频也设置为VIP免费，隐藏推广条
     return
   }
   

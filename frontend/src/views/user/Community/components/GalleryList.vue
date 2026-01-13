@@ -30,12 +30,12 @@ defineEmits(['detail'])
 </script>
 
 <style lang="scss" scoped>
-.gallery-list { padding: 12px; }
+.gallery-list { padding: 8px 0 0; }
 
 .gallery-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px 12px;
+  gap: 12px 8px;
 }
 
 .gallery-item { cursor: pointer; display: flex; flex-direction: column; }

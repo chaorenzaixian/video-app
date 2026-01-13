@@ -30,12 +30,12 @@ defineEmits(['detail'])
 </script>
 
 <style lang="scss" scoped>
-.novel-list { padding: 12px; }
+.novel-list { padding: 8px 0 0; }
 
 .novel-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px 12px;
+  gap: 12px 8px;
   align-items: start;
 }
 

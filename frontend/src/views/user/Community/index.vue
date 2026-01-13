@@ -12,28 +12,12 @@
         </router-link>
       </div>
 
-      <!-- 图标广告位 -->
-      <IconAdsGrid :ads="iconAds" />
-      
       <!-- 社区分类 -->
       <template v-if="activeMainTab === 'community'">
         <div class="category-tabs">
           <div class="category-scroll">
             <span v-for="cat in topCategories" :key="cat.id" :class="['category-tab', { active: selectedCategory === cat.id }]" @click="selectCategory(cat)">{{ cat.name }}</span>
           </div>
-        </div>
-        
-        <div class="topic-cards" v-if="currentSubTopics.length">
-          <div class="topic-grid">
-            <div v-for="topic in currentSubTopics" :key="topic.id" :class="['topic-card', { active: selectedTopic === topic.id }]" :style="topic.cover ? { backgroundImage: `url(${topic.cover})` } : {}" @click="selectTopic(topic)">
-              <span class="topic-name">{{ topic.name }}</span>
-              <span class="topic-count">{{ formatCount(topic.post_count) }}个帖子</span>
-            </div>
-          </div>
-        </div>
-        
-        <div class="filter-tabs">
-          <span v-for="filter in filterTabs" :key="filter.value" :class="['filter-tab', { active: activeFilter === filter.value }]" @click="setFilter(filter.value)">{{ filter.label }}</span>
         </div>
       </template>
 
@@ -54,6 +38,25 @@
           <span v-for="cat in novelCategories" :key="cat.id" :class="['category-tab', { active: selectedNovelCategory === cat.id }]" @click="selectNovelCategory(cat.id)">{{ cat.name }}</span>
         </div>
       </div>
+
+      <!-- 图标广告位 -->
+      <IconAdsGrid :ads="iconAds" />
+      
+      <!-- 社区话题卡片和筛选 -->
+      <template v-if="activeMainTab === 'community'">
+        <div class="topic-cards" v-if="currentSubTopics.length">
+          <div class="topic-grid">
+            <div v-for="topic in currentSubTopics" :key="topic.id" :class="['topic-card', { active: selectedTopic === topic.id }]" :style="topic.cover ? { backgroundImage: `url(${topic.cover})` } : {}" @click="selectTopic(topic)">
+              <span class="topic-name">{{ topic.name }}</span>
+              <span class="topic-count">{{ formatCount(topic.post_count) }}个帖子</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="filter-tabs">
+          <span v-for="filter in filterTabs" :key="filter.value" :class="['filter-tab', { active: activeFilter === filter.value }]" @click="setFilter(filter.value)">{{ filter.label }}</span>
+        </div>
+      </template>
     </header>
 
     <!-- 内容区域 -->
@@ -218,6 +221,7 @@ onActivated(async () => {
   align-items: center;
   padding: 12px 16px;
   gap: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .tab-item {
@@ -245,7 +249,7 @@ onActivated(async () => {
 .category-tab {
   flex-shrink: 0;
   color: #888;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
   white-space: nowrap;
   padding: 4px 0;

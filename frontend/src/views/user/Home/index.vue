@@ -247,6 +247,7 @@ $breakpoint-xxl: 1280px;
     justify-content: space-between;
     align-items: center;
     padding: clamp(8px, 2vw, 14px) clamp(10px, 3vw, 20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
   
   .header-left {
@@ -254,7 +255,7 @@ $breakpoint-xxl: 1280px;
     .welfare-icon {
       cursor: pointer;
       width: fit-content;
-      .fuli-img { width: 36px; height: 36px; object-fit: contain; }
+      .fuli-img { width: 32px; height: 32px; object-fit: contain; }
     }
   }
   
