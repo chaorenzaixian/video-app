@@ -1,10 +1,41 @@
 <template>
   <div class="icon-ads-page">
+    <!-- 统计卡片 -->
+    <el-row :gutter="16" class="stats-row" v-if="stats">
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-value">{{ stats.total_ads }}</div>
+          <div class="stat-label">总广告数</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card active">
+          <div class="stat-value">{{ stats.active_ads }}</div>
+          <div class="stat-label">启用中</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card clicks">
+          <div class="stat-value">{{ formatNumber(stats.total_clicks) }}</div>
+          <div class="stat-label">总点击</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card ctr">
+          <div class="stat-value">{{ stats.avg_ctr }}%</div>
+          <div class="stat-label">平均点击率</div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <el-card>
       <template #header>
         <div class="card-header">
           <span>图标广告位管理</span>
           <div class="header-actions">
+            <el-button @click="fetchStats" :loading="statsLoading">
+              <el-icon><DataAnalysis /></el-icon> 刷新统计
+            </el-button>
             <el-button type="primary" @click="initAds" :loading="initLoading">
               <el-icon><Refresh /></el-icon> 初始化默认数据
             </el-button>
@@ -15,11 +46,23 @@
         </div>
       </template>
 
-      <!-- 广告位列表 -->
-      <el-table :data="sortedAds" v-loading="loading" stripe>
-        <el-table-column label="排序" width="80" prop="sort_order" sortable />
+      <!-- 广告位列表 - 支持拖拽排序 -->
+      <el-table 
+        :data="ads" 
+        v-loading="loading" 
+        stripe 
+        row-key="id"
+        @row-drop="handleDrop"
+      >
+        <el-table-column label="拖拽" width="60">
+          <template #default>
+            <el-icon class="drag-handle" style="cursor: move;"><Rank /></el-icon>
+          </template>
+        </el-table-column>
         
-        <el-table-column label="预览" width="100">
+        <el-table-column label="排序" width="70" prop="sort_order" />
+        
+        <el-table-column label="预览" width="80">
           <template #default="{ row }">
             <div class="ad-preview">
               <img v-if="row.image" :src="row.image" />
@@ -30,13 +73,27 @@
         
         <el-table-column label="名称" prop="name" width="120" />
         
-        <el-table-column label="图标" prop="icon" width="80" />
+        <el-table-column label="跳转链接" prop="link" min-width="180" show-overflow-tooltip />
         
-        <el-table-column label="跳转链接" prop="link" min-width="200" show-overflow-tooltip />
+        <el-table-column label="展示" width="90" sortable>
+          <template #default="{ row }">
+            <span class="stat-num">{{ formatNumber(row.impression_count || 0) }}</span>
+          </template>
+        </el-table-column>
         
-        <el-table-column label="点击量" prop="click_count" width="80" />
+        <el-table-column label="点击" width="90" sortable>
+          <template #default="{ row }">
+            <span class="stat-num clicks">{{ formatNumber(row.click_count || 0) }}</span>
+          </template>
+        </el-table-column>
         
-        <el-table-column label="状态" width="80">
+        <el-table-column label="点击率" width="90">
+          <template #default="{ row }">
+            <span class="stat-num ctr">{{ calcCTR(row) }}%</span>
+          </template>
+        </el-table-column>
+        
+        <el-table-column label="状态" width="70">
           <template #default="{ row }">
             <el-switch 
               v-model="row.is_active" 
@@ -46,9 +103,10 @@
           </template>
         </el-table-column>
         
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="editAd(row)">编辑</el-button>
+            <el-button link type="success" @click="copyAd(row)" :loading="row._copying">复制</el-button>
             <el-popconfirm title="确定删除这个广告位吗？" @confirm="deleteAd(row.id)">
               <template #reference>
                 <el-button link type="danger">删除</el-button>
@@ -57,6 +115,14 @@
           </template>
         </el-table-column>
       </el-table>
+      
+      <!-- 保存排序按钮 -->
+      <div class="sort-actions" v-if="sortChanged">
+        <el-button type="primary" @click="saveSortOrder" :loading="sortSaving">
+          保存排序
+        </el-button>
+        <el-button @click="resetSort">取消</el-button>
+      </div>
     </el-card>
 
     <!-- 新增/编辑对话框 -->
@@ -139,7 +205,8 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Delete } from '@element-plus/icons-vue'
+import { Delete, DataAnalysis, Rank } from '@element-plus/icons-vue'
+import Sortable from 'sortablejs'
 import api from '@/utils/api'
 
 const loading = ref(false)
@@ -148,17 +215,17 @@ const saving = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const ads = ref([])
+const originalAds = ref([])
+const sortChanged = ref(false)
+const sortSaving = ref(false)
+const stats = ref(null)
+const statsLoading = ref(false)
 
 // 上传配置
 const uploadUrl = '/api/v1/ads/upload/image'
 const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`
 }))
-
-// 按排序字段排序
-const sortedAds = computed(() => {
-  return [...ads.value].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-})
 
 const form = reactive({
   id: null,
@@ -170,15 +237,108 @@ const form = reactive({
   is_active: true
 })
 
+// 格式化数字
+const formatNumber = (num) => {
+  if (num >= 10000) return (num / 10000).toFixed(1) + 'w'
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
+  return num
+}
+
+// 计算点击率
+const calcCTR = (row) => {
+  const impressions = row.impression_count || 0
+  const clicks = row.click_count || 0
+  if (impressions === 0) return '0.00'
+  return ((clicks / impressions) * 100).toFixed(2)
+}
+
 const fetchAds = async () => {
   loading.value = true
   try {
     const res = await api.get('/ads/icons/admin')
-    ads.value = res.data || res || []
+    ads.value = (res.data || res || []).map(ad => ({ ...ad, _copying: false }))
+    originalAds.value = JSON.parse(JSON.stringify(ads.value))
+    sortChanged.value = false
+    // 初始化拖拽
+    initSortable()
   } catch (error) {
     ads.value = []
   } finally {
     loading.value = false
+  }
+}
+
+const fetchStats = async () => {
+  statsLoading.value = true
+  try {
+    const res = await api.get('/ads/icons/stats')
+    stats.value = res.data || res
+  } catch (error) {
+    console.error('获取统计失败', error)
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+// 初始化拖拽排序
+const initSortable = () => {
+  const table = document.querySelector('.el-table__body-wrapper tbody')
+  if (table) {
+    Sortable.create(table, {
+      handle: '.drag-handle',
+      animation: 150,
+      onEnd: ({ oldIndex, newIndex }) => {
+        if (oldIndex !== newIndex) {
+          const movedItem = ads.value.splice(oldIndex, 1)[0]
+          ads.value.splice(newIndex, 0, movedItem)
+          // 更新排序值
+          ads.value.forEach((ad, index) => {
+            ad.sort_order = index + 1
+          })
+          sortChanged.value = true
+        }
+      }
+    })
+  }
+}
+
+// 保存排序
+const saveSortOrder = async () => {
+  sortSaving.value = true
+  try {
+    const items = ads.value.map(ad => ({
+      id: ad.id,
+      sort_order: ad.sort_order
+    }))
+    await api.put('/ads/icons/sort', { items })
+    ElMessage.success('排序保存成功')
+    originalAds.value = JSON.parse(JSON.stringify(ads.value))
+    sortChanged.value = false
+  } catch (error) {
+    ElMessage.error('保存排序失败')
+  } finally {
+    sortSaving.value = false
+  }
+}
+
+// 重置排序
+const resetSort = () => {
+  ads.value = JSON.parse(JSON.stringify(originalAds.value))
+  sortChanged.value = false
+}
+
+// 复制广告位
+const copyAd = async (row) => {
+  row._copying = true
+  try {
+    await api.post(`/ads/icons/${row.id}/copy`)
+    ElMessage.success('复制成功')
+    fetchAds()
+    fetchStats()
+  } catch (error) {
+    ElMessage.error(error.response?.data?.detail || '复制失败')
+  } finally {
+    row._copying = false
   }
 }
 
@@ -188,6 +348,7 @@ const initAds = async () => {
     await api.post('/ads/icons/init')
     ElMessage.success('初始化成功')
     fetchAds()
+    fetchStats()
   } catch (error) {
     ElMessage.warning(error.response?.data?.detail || '初始化失败')
   } finally {
@@ -280,6 +441,7 @@ const saveAd = async () => {
     }
     dialogVisible.value = false
     fetchAds()
+    fetchStats()
   } catch (error) {
     ElMessage.error(error.response?.data?.detail || '保存失败')
   } finally {
@@ -291,6 +453,7 @@ const updateAdStatus = async (row) => {
   try {
     await api.put(`/ads/icons/${row.id}`, { is_active: row.is_active })
     ElMessage.success(row.is_active ? '已启用' : '已禁用')
+    fetchStats()
   } catch (error) {
     row.is_active = !row.is_active
     ElMessage.error('操作失败')
@@ -302,6 +465,7 @@ const deleteAd = async (id) => {
     await api.delete(`/ads/icons/${id}`)
     ElMessage.success('删除成功')
     fetchAds()
+    fetchStats()
   } catch (error) {
     ElMessage.error('删除失败')
   }
@@ -309,11 +473,36 @@ const deleteAd = async (id) => {
 
 onMounted(() => {
   fetchAds()
+  fetchStats()
 })
 </script>
 
 <style lang="scss" scoped>
 .icon-ads-page {
+  .stats-row {
+    margin-bottom: 20px;
+    
+    .stat-card {
+      text-align: center;
+      
+      .stat-value {
+        font-size: 28px;
+        font-weight: bold;
+        color: #303133;
+      }
+      
+      .stat-label {
+        font-size: 14px;
+        color: #909399;
+        margin-top: 8px;
+      }
+      
+      &.active .stat-value { color: #67c23a; }
+      &.clicks .stat-value { color: #409eff; }
+      &.ctr .stat-value { color: #e6a23c; }
+    }
+  }
+  
   .card-header {
     display: flex;
     justify-content: space-between;
@@ -323,6 +512,12 @@ onMounted(() => {
       display: flex;
       gap: 12px;
     }
+  }
+  
+  .stat-num {
+    font-weight: 500;
+    &.clicks { color: #409eff; }
+    &.ctr { color: #e6a23c; }
   }
   
   .ad-preview {
@@ -345,6 +540,14 @@ onMounted(() => {
     span {
       font-size: 24px;
     }
+  }
+  
+  .sort-actions {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 12px;
   }
   
   .form-tip {

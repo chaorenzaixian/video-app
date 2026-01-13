@@ -278,6 +278,21 @@ class IconAdResponse(BaseModel):
     link: Optional[str] = None
 
 
+class IconAdAdminResponse(BaseModel):
+    """图标广告位管理响应（含统计）"""
+    id: int
+    name: str
+    icon: Optional[str] = None
+    image: Optional[str] = None
+    link: Optional[str] = None
+    sort_order: int = 0
+    is_active: bool = True
+    click_count: int = 0
+    impression_count: int = 0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
 class IconAdCreate(BaseModel):
     """创建图标广告位"""
     name: str
@@ -296,6 +311,27 @@ class IconAdUpdate(BaseModel):
     link: Optional[str] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
+
+
+class IconAdSortItem(BaseModel):
+    """排序项"""
+    id: int
+    sort_order: int
+
+
+class IconAdSortRequest(BaseModel):
+    """批量排序请求"""
+    items: List[IconAdSortItem]
+
+
+class IconAdStatsResponse(BaseModel):
+    """图标广告统计响应"""
+    total_ads: int
+    active_ads: int
+    total_clicks: int
+    total_impressions: int
+    avg_ctr: float  # 平均点击率
+    ads_stats: List[dict]  # 各广告详细统计
 
 
 # 默认广告位数据（前5个为固定位，后面为滚动位）
@@ -357,6 +393,11 @@ async def get_icon_ads(
             for i, ad in enumerate(DEFAULT_ICON_ADS)
         ]
     
+    # 更新展示次数
+    for ad in ads:
+        ad.impression_count = (ad.impression_count or 0) + 1
+    await db.commit()
+    
     return [
         IconAdResponse(
             id=ad.id,
@@ -371,24 +412,30 @@ async def get_icon_ads(
 
 # ========== 管理后台API ==========
 
-@router.get("/icons/admin", response_model=List[IconAdResponse])
+@router.get("/icons/admin", response_model=List[IconAdAdminResponse])
 async def get_all_icon_ads(
     current_user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """管理后台：获取所有图标广告位"""
+    """管理后台：获取所有图标广告位（含统计）"""
     result = await db.execute(
         select(IconAd).order_by(IconAd.sort_order)
     )
     ads = result.scalars().all()
     
     return [
-        IconAdResponse(
+        IconAdAdminResponse(
             id=ad.id,
             name=ad.name,
             icon=ad.icon,
             image=ad.image,
-            link=ad.link
+            link=ad.link,
+            sort_order=ad.sort_order or 0,
+            is_active=ad.is_active,
+            click_count=ad.click_count or 0,
+            impression_count=ad.impression_count or 0,
+            created_at=ad.created_at,
+            updated_at=ad.updated_at
         )
         for ad in ads
     ]
@@ -501,6 +548,135 @@ async def init_icon_ads(
     await db.commit()
     
     return {"message": "初始化成功", "count": len(DEFAULT_ICON_ADS)}
+
+
+@router.post("/icons/{ad_id}/click")
+async def record_icon_ad_click(
+    ad_id: int,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db)
+):
+    """记录图标广告点击"""
+    result = await db.execute(select(IconAd).where(IconAd.id == ad_id))
+    ad = result.scalar_one_or_none()
+    
+    if not ad:
+        raise HTTPException(status_code=404, detail="广告位不存在")
+    
+    # 更新点击次数
+    ad.click_count = (ad.click_count or 0) + 1
+    await db.commit()
+    
+    return {"success": True, "link": ad.link}
+
+
+@router.post("/icons/{ad_id}/copy", response_model=IconAdAdminResponse)
+async def copy_icon_ad(
+    ad_id: int,
+    current_user: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """管理后台：复制图标广告位"""
+    result = await db.execute(select(IconAd).where(IconAd.id == ad_id))
+    ad = result.scalar_one_or_none()
+    
+    if not ad:
+        raise HTTPException(status_code=404, detail="广告位不存在")
+    
+    # 获取最大排序值
+    max_result = await db.execute(
+        select(IconAd.sort_order).order_by(IconAd.sort_order.desc()).limit(1)
+    )
+    max_sort = max_result.scalar() or 0
+    
+    # 创建副本
+    new_ad = IconAd(
+        name=f"{ad.name}(副本)",
+        icon=ad.icon,
+        image=ad.image,
+        bg=ad.bg or "",
+        link=ad.link,
+        sort_order=max_sort + 1,
+        is_active=False,  # 默认禁用
+        click_count=0,
+        impression_count=0
+    )
+    db.add(new_ad)
+    await db.commit()
+    await db.refresh(new_ad)
+    
+    return IconAdAdminResponse(
+        id=new_ad.id,
+        name=new_ad.name,
+        icon=new_ad.icon,
+        image=new_ad.image,
+        link=new_ad.link,
+        sort_order=new_ad.sort_order,
+        is_active=new_ad.is_active,
+        click_count=new_ad.click_count or 0,
+        impression_count=new_ad.impression_count or 0,
+        created_at=new_ad.created_at,
+        updated_at=new_ad.updated_at
+    )
+
+
+@router.put("/icons/sort")
+async def update_icon_ads_sort(
+    sort_data: IconAdSortRequest,
+    current_user: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """管理后台：批量更新图标广告排序"""
+    for item in sort_data.items:
+        result = await db.execute(select(IconAd).where(IconAd.id == item.id))
+        ad = result.scalar_one_or_none()
+        if ad:
+            ad.sort_order = item.sort_order
+    
+    await db.commit()
+    return {"message": "排序更新成功", "count": len(sort_data.items)}
+
+
+@router.get("/icons/stats", response_model=IconAdStatsResponse)
+async def get_icon_ads_stats(
+    current_user: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """管理后台：获取图标广告统计数据"""
+    result = await db.execute(select(IconAd).order_by(IconAd.sort_order))
+    ads = result.scalars().all()
+    
+    total_ads = len(ads)
+    active_ads = sum(1 for ad in ads if ad.is_active)
+    total_clicks = sum(ad.click_count or 0 for ad in ads)
+    total_impressions = sum(ad.impression_count or 0 for ad in ads)
+    
+    # 计算平均点击率
+    avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
+    
+    # 各广告详细统计
+    ads_stats = []
+    for ad in ads:
+        clicks = ad.click_count or 0
+        impressions = ad.impression_count or 0
+        ctr = (clicks / impressions * 100) if impressions > 0 else 0
+        ads_stats.append({
+            "id": ad.id,
+            "name": ad.name,
+            "clicks": clicks,
+            "impressions": impressions,
+            "ctr": round(ctr, 2),
+            "is_active": ad.is_active
+        })
+    
+    return IconAdStatsResponse(
+        total_ads=total_ads,
+        active_ads=active_ads,
+        total_clicks=total_clicks,
+        total_impressions=total_impressions,
+        avg_ctr=round(avg_ctr, 2),
+        ads_stats=ads_stats
+    )
 
 
 @router.post("/{ad_id}/click")

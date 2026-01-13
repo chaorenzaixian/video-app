@@ -109,6 +109,7 @@ class IconAd(Base):
     
     # 统计
     click_count = Column(Integer, default=0)           # 点击次数
+    impression_count = Column(Integer, default=0)      # 展示次数
     
     # 时间
     created_at = Column(DateTime, default=datetime.utcnow)

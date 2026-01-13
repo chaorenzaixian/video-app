@@ -21,6 +21,7 @@
     "jsqr": "^1.4.0",
     "pinia": "^2.1.7",
     "qrcode": "^1.5.4",
+    "sortablejs": "^1.15.2",
     "video.js": "^8.9.0",
     "vue": "^3.4.0",
     "vue-echarts": "^6.6.8",
