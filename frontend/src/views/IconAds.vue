@@ -168,6 +168,11 @@
           </div>
         </el-form-item>
         
+        <el-form-item label="图片链接">
+          <el-input v-model="form.image" placeholder="直接输入图片URL地址" clearable />
+          <div class="form-tip">可直接粘贴图片链接，与上传二选一</div>
+        </el-form-item>
+        
         <el-form-item label="跳转链接">
           <el-input v-model="form.link" placeholder="点击跳转的URL" />
         </el-form-item>

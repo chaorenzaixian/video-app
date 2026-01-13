@@ -125,7 +125,7 @@ const handleImgError = (e, ad) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   cursor: pointer;
   min-width: 62px;
   transition: transform 0.2s;
@@ -155,13 +155,14 @@ const handleImgError = (e, ad) => {
   }
   
   .ad-name {
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
     text-align: center;
-    max-width: 58px;
+    max-width: 62px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-weight: 500;
   }
 }
 
@@ -173,6 +174,11 @@ const handleImgError = (e, ad) => {
     .ad-icon {
       width: 60px;
       height: 60px;
+    }
+    
+    .ad-name {
+      font-size: 13px;
+      max-width: 66px;
     }
   }
 }
@@ -192,8 +198,8 @@ const handleImgError = (e, ad) => {
     }
     
     .ad-name {
-      font-size: 11px;
-      max-width: 64px;
+      font-size: 14px;
+      max-width: 72px;
     }
   }
 }
