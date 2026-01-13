@@ -8,9 +8,8 @@ export function useVipPayment() {
   const isProcessing = ref(false)
 
   const paymentMethods = [
-    { type: 'alipay', name: '支付宝', icon: '💳' },
-    { type: 'wxpay', name: '微信支付', icon: '💚' },
-    { type: 'qqpay', name: 'QQ钱包', icon: '🐧' }
+    { type: 'alipay', name: '支付宝', icon: '/images/icons/ic_alipay.png' },
+    { type: 'wxpay', name: '微信', icon: '/images/icons/ic_wechat.png' }
   ]
 
   // 根据VIP等级获取订单类型
