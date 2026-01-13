@@ -41,33 +41,27 @@
       </div>
     </transition>
 
-    <!-- 无网络空状态 -->
-    <div class="offline-empty" v-if="isOffline && !hasCache && !loadingVideos">
-      <div class="empty-illustration">
-        <svg viewBox="0 0 200 200" fill="none">
-          <!-- 云朵 -->
-          <ellipse cx="100" cy="90" rx="50" ry="30" fill="rgba(168, 85, 247, 0.15)"/>
-          <ellipse cx="70" cy="85" rx="30" ry="20" fill="rgba(168, 85, 247, 0.1)"/>
-          <ellipse cx="130" cy="85" rx="30" ry="20" fill="rgba(168, 85, 247, 0.1)"/>
-          <!-- 断开的WiFi -->
-          <path d="M100 130 L100 150" stroke="rgba(168, 85, 247, 0.6)" stroke-width="4" stroke-linecap="round"/>
-          <circle cx="100" cy="160" r="6" fill="rgba(168, 85, 247, 0.6)"/>
-          <path d="M70 110 Q100 80 130 110" stroke="rgba(168, 85, 247, 0.4)" stroke-width="4" stroke-linecap="round" fill="none"/>
-          <path d="M55 95 Q100 55 145 95" stroke="rgba(168, 85, 247, 0.3)" stroke-width="4" stroke-linecap="round" fill="none"/>
-          <!-- 断开线 -->
-          <path d="M85 100 L115 130" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
-          <path d="M115 100 L85 130" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
-        </svg>
+    <!-- 无网络空状态 - 显示骨架屏 -->
+    <div class="offline-skeleton" v-if="isOffline && !hasCache && !loadingVideos">
+      <HomePageSkeleton />
+      <div class="skeleton-overlay">
+        <div class="retry-card">
+          <svg class="wifi-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M1 1l22 22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M5 12.55a11 11 0 0 1 14.08 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+            <circle cx="12" cy="20" r="1.5" fill="currentColor"/>
+          </svg>
+          <p class="retry-text">网络连接失败</p>
+          <button class="retry-btn" @click="retryLoad">
+            <svg viewBox="0 0 24 24" fill="none" class="retry-icon">
+              <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            点击重试
+          </button>
+        </div>
       </div>
-      <h3 class="empty-title">网络连接失败</h3>
-      <p class="empty-desc">请检查网络设置后重试</p>
-      <button class="retry-btn" @click="retryLoad">
-        <svg viewBox="0 0 24 24" fill="none" class="retry-icon">
-          <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        点击重试
-      </button>
     </div>
 
     <!-- 轮播广告 -->
@@ -183,6 +177,7 @@ import CategoryNav from './components/CategoryNav.vue'
 import VideoList from './components/VideoList.vue'
 import FuncEntries from './components/FuncEntries.vue'
 import PopupAd from '@/components/PopupAd.vue'
+import HomePageSkeleton from '@/components/Skeleton/HomePageSkeleton.vue'
 import { useHomeData } from './composables/useHomeData'
 import { useVideoPreview } from './composables/useVideoPreview'
 
@@ -383,67 +378,75 @@ $breakpoint-xxl: 1280px;
   }
 }
 
-// 离线空状态
-.offline-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  min-height: 50vh;
+// 离线骨架屏
+.offline-skeleton {
+  position: relative;
   
-  .empty-illustration {
-    width: 180px;
-    height: 180px;
-    margin-bottom: 24px;
-    animation: float 3s ease-in-out infinite;
-    
-    svg {
-      width: 100%;
-      height: 100%;
-    }
-  }
-  
-  .empty-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #fff;
-    margin: 0 0 8px;
-  }
-  
-  .empty-desc {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.5);
-    margin: 0 0 32px;
-  }
-  
-  .retry-btn {
+  .skeleton-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 14px 32px;
-    background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
-    border: none;
-    border-radius: 25px;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s;
-    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4);
+    justify-content: center;
+    background: rgba(10, 10, 10, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 10;
+  }
+  
+  .retry-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 48px;
+    background: rgba(26, 26, 46, 0.95);
+    border-radius: 20px;
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     
-    .retry-icon {
-      width: 18px;
-      height: 18px;
+    .wifi-icon {
+      width: 48px;
+      height: 48px;
+      color: rgba(168, 85, 247, 0.8);
+      margin-bottom: 16px;
     }
     
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 25px rgba(168, 85, 247, 0.5);
+    .retry-text {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.85);
+      margin: 0 0 20px;
     }
     
-    &:active {
-      transform: translateY(0) scale(0.98);
+    .retry-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+      border: none;
+      border-radius: 22px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 16px rgba(168, 85, 247, 0.4);
+      
+      .retry-icon {
+        width: 16px;
+        height: 16px;
+      }
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(168, 85, 247, 0.5);
+      }
+      
+      &:active {
+        transform: translateY(0) scale(0.98);
+      }
     }
   }
 }
