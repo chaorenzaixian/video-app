@@ -446,34 +446,28 @@ async def save_read_progress(
         raise HTTPException(status_code=401, detail="请先登录")
     
     from app.models.community import NovelReadProgress
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
     
-    # 查找现有进度
-    result = await db.execute(
-        select(NovelReadProgress).where(
-            NovelReadProgress.user_id == current_user.id,
-            NovelReadProgress.novel_id == novel_id
-        )
+    # 使用 upsert 避免并发冲突
+    stmt = pg_insert(NovelReadProgress).values(
+        user_id=current_user.id,
+        novel_id=novel_id,
+        chapter_id=data.chapter_id,
+        chapter_num=data.chapter_num,
+        scroll_position=data.scroll_position,
+        audio_position=data.audio_position
+    ).on_conflict_do_update(
+        index_elements=['user_id', 'novel_id'],
+        set_={
+            'chapter_id': data.chapter_id,
+            'chapter_num': data.chapter_num,
+            'scroll_position': data.scroll_position,
+            'audio_position': data.audio_position,
+            'updated_at': func.now()
+        }
     )
-    progress = result.scalar_one_or_none()
     
-    if progress:
-        # 更新进度
-        progress.chapter_id = data.chapter_id
-        progress.chapter_num = data.chapter_num
-        progress.scroll_position = data.scroll_position
-        progress.audio_position = data.audio_position
-    else:
-        # 创建新进度
-        progress = NovelReadProgress(
-            user_id=current_user.id,
-            novel_id=novel_id,
-            chapter_id=data.chapter_id,
-            chapter_num=data.chapter_num,
-            scroll_position=data.scroll_position,
-            audio_position=data.audio_position
-        )
-        db.add(progress)
-    
+    await db.execute(stmt)
     await db.commit()
     return {"success": True}
 
