@@ -35,29 +35,7 @@
     <!-- 内容区域 -->
     <div class="content-area">
       <!-- 图标广告 - 直播页面不显示 -->
-      <template v-if="activeMainTab !== 'live'">
-        <!-- 第一排广告 - 固定 -->
-        <div class="ad-row-fixed">
-          <div v-for="ad in adRow1" :key="ad.id" class="ad-item" @click="handleAdClick(ad)">
-            <div class="ad-icon-wrap">
-              <img :src="ad.image" :alt="ad.name" />
-            </div>
-            <span class="ad-name">{{ ad.name }}</span>
-          </div>
-        </div>
-
-        <!-- 第二排广告 - 循环滚动 -->
-        <div class="ad-row-scroll">
-          <div class="ad-scroll-track">
-            <div v-for="(ad, index) in [...adRow2, ...adRow2]" :key="'scroll-' + index" class="ad-item" @click="handleAdClick(ad)">
-              <div class="ad-icon-wrap">
-                <img :src="ad.image" :alt="ad.name" />
-              </div>
-              <span class="ad-name">{{ ad.name }}</span>
-            </div>
-          </div>
-        </div>
-      </template>
+      <IconAdsGrid v-if="activeMainTab !== 'live'" :row1="adRow1" :row2="adRow2" />
 
       <!-- SOUL群内容 -->
       <template v-if="activeMainTab === 'soul'">
@@ -181,6 +159,7 @@ defineOptions({ name: 'Dating' })
 import { ref, onMounted, onActivated, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import BottomNav from '@/components/common/BottomNav.vue'
+import IconAdsGrid from '@/components/common/IconAdsGrid.vue'
 import api from '@/utils/api'
 
 const router = useRouter()
@@ -424,69 +403,7 @@ watch(activeMainTab, (newTab) => {
 
 // 内容区域
 .content-area {
-  padding: 12px;
-}
-
-// 第一排广告 - 固定
-.ad-row-fixed {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  padding: 8px 0;
-}
-
-// 第二排广告 - 循环滚动
-.ad-row-scroll {
-  overflow: hidden;
-  padding: 8px 0;
-  
-  .ad-scroll-track {
-    display: flex;
-    gap: 8px;
-    width: max-content;
-    animation: scroll-ads 20s linear infinite;
-  }
-}
-
-@keyframes scroll-ads {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-.ad-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  min-width: 60px;
-  
-  .ad-icon-wrap {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
-    overflow: hidden;
-    
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-  }
-  
-  .ad-name {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.7);
-    text-align: center;
-    max-width: 60px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  padding: 0 12px 12px;
 }
 
 // 区块标题

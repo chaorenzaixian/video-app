@@ -17,14 +17,8 @@
 
     <QuickMenu @coming-soon="showComingSoon" />
 
-    <div class="ad-section" v-if="iconAds.length > 0">
-      <div class="ad-row">
-        <div v-for="ad in iconAds.slice(0, 5)" :key="ad.id" class="ad-item" @click="handleAdClick(ad)">
-          <div class="ad-icon"><img v-if="ad.image" :src="ad.image" :alt="ad.name" /><span v-else>{{ ad.icon }}</span></div>
-          <span class="ad-name">{{ ad.name }}</span>
-        </div>
-      </div>
-    </div>
+    <!-- 图标广告位 -->
+    <IconAdsGrid v-if="iconAds.length > 0" :ads="iconAds" />
 
     <MenuList @check-update="checkUpdate" />
 
@@ -55,6 +49,7 @@ import api from '@/utils/api'
 import { useAbortController } from '@/composables/useAbortController'
 import { useAsyncLock } from '@/composables/useDebounce'
 import BottomNav from '@/components/common/BottomNav.vue'
+import IconAdsGrid from '@/components/common/IconAdsGrid.vue'
 import UserHeader from './components/UserHeader.vue'
 import UserInfo from './components/UserInfo.vue'
 import VipBanner from './components/VipBanner.vue'
@@ -115,7 +110,6 @@ const handleSign = async () => {
   }
 }
 
-const handleAdClick = (ad) => { if (ad.link) window.open(ad.link, '_blank') }
 const checkUpdate = () => { ElMessage.success('当前已是最新版本 v1.0.0') }
 const showComingSoon = () => { ElMessage.info('正在开发中，敬请期待') }
 const selectDesktopIcon = (iconId) => { selectedIcon.value = iconId; ElMessage.success('桌面图标已更换') }
@@ -216,52 +210,6 @@ onActivated(async () => {
     &.card-vip { background-image: url("/images/backgrounds/vip_center.webp"); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
     &.card-wallet { background-image: url("/images/backgrounds/my_wallet.webp"); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
     &.card-agent { background-image: url("/images/backgrounds/agent.webp"); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
-  }
-}
-
-.ad-section {
-  padding: 0 clamp(12px, 4vw, 20px);
-  margin-bottom: clamp(12px, 4vw, 18px);
-
-  .ad-row {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: clamp(1px, 0.5vw, 2px);
-    margin-bottom: clamp(8px, 2.5vw, 12px);
-  }
-
-  .ad-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: clamp(4px, 1.5vw, 6px);
-    cursor: pointer;
-    transition: transform 0.2s;
-    &:hover { transform: scale(1.05); }
-
-    .ad-icon {
-      width: clamp(56px, 16vw, 75px);
-      height: clamp(56px, 16vw, 75px);
-      border-radius: clamp(10px, 3.5vw, 16px);
-      overflow: hidden;
-      background: #1a1a1a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      img { width: 100%; height: 100%; object-fit: cover; }
-      span { font-size: clamp(22px, 7vw, 32px); }
-    }
-
-    .ad-name {
-      font-size: clamp(10px, 3vw, 12px);
-      color: rgba(255, 255, 255, 0.7);
-      text-align: center;
-      max-width: clamp(48px, 14vw, 68px);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
   }
 }
 

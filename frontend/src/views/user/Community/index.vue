@@ -13,7 +13,7 @@
       </div>
 
       <!-- 图标广告位 -->
-      <IconAds :ads="iconAds" />
+      <IconAdsGrid :ads="iconAds" />
       
       <!-- 社区分类 -->
       <template v-if="activeMainTab === 'community'">
@@ -85,7 +85,7 @@ import { formatCount } from '@/utils/format'
 import { useAbortController } from '@/composables/useAbortController'
 import { useActionLock } from '@/composables/useDebounce'
 import BottomNav from '@/components/common/BottomNav.vue'
-import IconAds from './components/IconAds.vue'
+import IconAdsGrid from '@/components/common/IconAdsGrid.vue'
 import PostList from './components/PostList.vue'
 import GalleryList from './components/GalleryList.vue'
 import NovelList from './components/NovelList.vue'

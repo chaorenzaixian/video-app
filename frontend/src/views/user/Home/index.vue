@@ -37,8 +37,8 @@
     <!-- 页面内容 -->
     <transition :name="slideDirection" mode="out-in">
       <div class="page-content" :key="activeCategory">
-        <!-- 广告位 -->
-        <PromoGrid :ad-row1="adRow1" :ad-row2="adRow2" />
+        <!-- 图标广告位 -->
+        <IconAdsGrid :row1="adRow1" :row2="adRow2" />
 
         <!-- 功能入口 -->
         <FuncEntries :items="funcItems" />
@@ -138,10 +138,10 @@ import { useRouter } from 'vue-router'
 import { useAbortController } from '@/composables/useAbortController'
 import { useTimers, useVideoCleanup } from '@/composables/useCleanup'
 import BottomNav from '@/components/common/BottomNav.vue'
+import IconAdsGrid from '@/components/common/IconAdsGrid.vue'
 import BannerCarousel from './components/BannerCarousel.vue'
 import CategoryNav from './components/CategoryNav.vue'
 import VideoList from './components/VideoList.vue'
-import PromoGrid from './components/PromoGrid.vue'
 import FuncEntries from './components/FuncEntries.vue'
 import PopupAd from '@/components/PopupAd.vue'
 import { useHomeData } from './composables/useHomeData'
