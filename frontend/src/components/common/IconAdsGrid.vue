@@ -82,12 +82,13 @@ const handleImgError = (e, ad) => {
   padding: 6px 4px;
 }
 
-// 第一行：固定5个，紧凑间距
+// 第一行：固定5个，两边有边距，图标紧凑
 .ads-row-fixed {
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
+  gap: 8px;
   margin-bottom: 6px;
-  padding: 0;
+  padding: 0 2px;
   
   .ad-item {
     min-width: 66px;
