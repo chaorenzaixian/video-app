@@ -48,7 +48,7 @@
 <script setup>
 defineOptions({ name: 'UserProfile' })
 
-import { ref, onMounted, onActivated } from 'vue'
+import { ref, onMounted, onActivated, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
@@ -144,8 +144,13 @@ onMounted(() => {
 })
 
 // keep-alive 激活时滚动到顶部，只刷新未读消息数
-onActivated(() => {
-  window.scrollTo(0, 0)
+onActivated(async () => {
+  await nextTick()
+  // 多种方式确保滚动到顶部
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  document.documentElement.scrollTop = 0
+  document.body.scrollTop = 0
+  
   if (hasInitialized.value) {
     // 只刷新未读消息数，不重新加载全部数据
     fetchUnreadCount()

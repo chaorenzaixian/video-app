@@ -78,7 +78,7 @@
 <script setup>
 defineOptions({ name: 'Community' })
 
-import { ref, onMounted, onActivated } from 'vue'
+import { ref, onMounted, onActivated, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '@/utils/api'
 import { formatCount } from '@/utils/format'
@@ -186,8 +186,12 @@ onMounted(() => {
 })
 
 // keep-alive 激活时滚动到顶部
-onActivated(() => {
-  window.scrollTo(0, 0)
+onActivated(async () => {
+  await nextTick()
+  // 多种方式确保滚动到顶部
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  document.documentElement.scrollTop = 0
+  document.body.scrollTop = 0
 })
 </script>
 

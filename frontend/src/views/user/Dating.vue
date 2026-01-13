@@ -178,7 +178,7 @@
 <script setup>
 defineOptions({ name: 'Dating' })
 
-import { ref, onMounted, onActivated, watch } from 'vue'
+import { ref, onMounted, onActivated, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import BottomNav from '@/components/common/BottomNav.vue'
 import api from '@/utils/api'
@@ -333,8 +333,12 @@ onMounted(() => {
 })
 
 // keep-alive 激活时滚动到顶部
-onActivated(() => {
-  window.scrollTo(0, 0)
+onActivated(async () => {
+  await nextTick()
+  // 多种方式确保滚动到顶部
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  document.documentElement.scrollTop = 0
+  document.body.scrollTop = 0
 })
 
 // 监听子分类切换

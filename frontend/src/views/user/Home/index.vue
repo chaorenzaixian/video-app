@@ -133,7 +133,7 @@
 <script setup>
 defineOptions({ name: 'UserHome' })
 
-import { ref, onMounted, onActivated } from 'vue'
+import { ref, onMounted, onActivated, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAbortController } from '@/composables/useAbortController'
 import { useTimers, useVideoCleanup } from '@/composables/useCleanup'
@@ -187,8 +187,12 @@ onMounted(() => {
 })
 
 // keep-alive 激活时滚动到顶部
-onActivated(() => {
-  window.scrollTo(0, 0)
+onActivated(async () => {
+  await nextTick()
+  // 多种方式确保滚动到顶部
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  document.documentElement.scrollTop = 0
+  document.body.scrollTop = 0
 })
 </script>
 
