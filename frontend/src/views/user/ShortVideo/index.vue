@@ -41,6 +41,8 @@
           @tap="togglePlay(index)"
           @double-tap="handleDoubleTap(index)"
           @time-update="onTimeUpdate(index, $event)"
+          @play="onVideoPlay(index)"
+          @pause="onVideoPause(index)"
         />
       </div>
     </div>
@@ -288,6 +290,20 @@ const onTimeUpdate = (index, { currentTime }) => {
       getCurrentVideoEl()?.pause()
       isPlaying.value = false
     }
+  }
+}
+
+// 视频播放事件
+const onVideoPlay = (index) => {
+  if (index === currentIndex.value) {
+    isPlaying.value = true
+  }
+}
+
+// 视频暂停事件
+const onVideoPause = (index) => {
+  if (index === currentIndex.value) {
+    isPlaying.value = false
   }
 }
 
