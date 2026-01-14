@@ -483,6 +483,21 @@ const isFilterFixed = ref(false)
 const filterBarOriginalTop = ref(0)
 const fixedHeaderHeight = ref(0) // 动态获取的固定头部高度
 
+// 初始化固定头部高度 CSS 变量
+const initHeaderHeight = () => {
+  const headerEl = document.querySelector('.fixed-header')
+  if (headerEl) {
+    const height = headerEl.offsetHeight
+    const rect = headerEl.getBoundingClientRect()
+    console.log('=== 头部高度调试 ===')
+    console.log('offsetHeight:', height)
+    console.log('getBoundingClientRect:', rect)
+    console.log('bottom:', rect.bottom)
+    fixedHeaderHeight.value = height
+    document.documentElement.style.setProperty('--fixed-header-height', `${height}px`)
+  }
+}
+
 // 滚动动画
 const scrollContainer = ref(null)
 
@@ -873,6 +888,7 @@ const handleScroll = () => {
   // 获取固定头部的实际高度
   const headerEl = document.querySelector('.fixed-header')
   const headerHeight = headerEl?.offsetHeight || 0
+  const headerRect = headerEl?.getBoundingClientRect()
   
   // 更新固定头部高度（用于 CSS 变量）
   if (headerHeight !== fixedHeaderHeight.value) {
@@ -882,6 +898,15 @@ const handleScroll = () => {
   
   // 获取筛选栏相对于视口的位置
   const rect = filterBarRef.value.getBoundingClientRect()
+  
+  // 调试输出
+  if (!isFilterFixed.value && rect.top <= headerHeight + 5) {
+    console.log('=== 筛选栏固定调试 ===')
+    console.log('headerHeight:', headerHeight)
+    console.log('headerRect.bottom:', headerRect?.bottom)
+    console.log('filterBar rect.top:', rect.top)
+    console.log('差值:', rect.top - headerHeight)
+  }
   
   // 当筛选栏顶部到达固定头部底部时，固定筛选栏
   if (rect.top <= headerHeight && !isFilterFixed.value) {
@@ -899,6 +924,12 @@ const handleScroll = () => {
 }
 
 onMounted(() => {
+  // 立即初始化固定头部高度 CSS 变量（避免布局闪烁）
+  initHeaderHeight()
+  
+  // DOM 完全渲染后再执行一次确保准确
+  timers.setTimeout(initHeaderHeight, 50)
+  
   // 使用聚合接口，1个请求替代6个
   fetchHomeInit()
   fetchBanners()
@@ -907,23 +938,18 @@ onMounted(() => {
     startScrollAnimation()
   }, 1000)
   
-  // 初始化固定头部高度 CSS 变量
-  timers.setTimeout(() => {
-    const headerEl = document.querySelector('.fixed-header')
-    if (headerEl) {
-      fixedHeaderHeight.value = headerEl.offsetHeight
-      document.documentElement.style.setProperty('--fixed-header-height', `${headerEl.offsetHeight}px`)
-    }
-  }, 100)
-  
   // 监听滚动
   window.addEventListener('scroll', handleScroll, { passive: true })
+  
+  // 监听窗口大小变化，重新计算头部高度
+  window.addEventListener('resize', initHeaderHeight, { passive: true })
 })
 
 // 资源清理由 composables 自动处理
 onUnmounted(() => {
   // timers 和 videoCleanup 会在组件卸载时自动清理
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', initHeaderHeight)
 })
 </script>
 
@@ -1281,8 +1307,7 @@ $breakpoint-xxl: 1280px; // 大桌面
 }
 
 .header-placeholder {
-  height: clamp(100px, 28vw, 130px);
-  height: calc(clamp(100px, 28vw, 130px) + env(safe-area-inset-top, 0px));
+  height: var(--fixed-header-height, 100px);
 }
 
 // 轮播区

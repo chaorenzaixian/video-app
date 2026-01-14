@@ -166,7 +166,7 @@
 <script setup>
 defineOptions({ name: 'UserHome' })
 
-import { ref, onMounted, onActivated, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, onActivated, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAbortController } from '@/composables/useAbortController'
 import { useTimers, useVideoCleanup } from '@/composables/useCleanup'
@@ -216,8 +216,25 @@ const handleVideoClick = (video) => {
   previewHandleClick(video, (id) => router.push(`/user/video/${id}`))
 }
 
+// 设置固定头部高度 CSS 变量
+const updateHeaderHeight = () => {
+  const header = document.querySelector('.fixed-header')
+  if (header) {
+    const rect = header.getBoundingClientRect()
+    const height = Math.floor(rect.bottom)
+    document.documentElement.style.setProperty('--header-height', `${height}px`)
+  }
+}
+
 onMounted(() => {
   fetchHomeInit()
+  
+  // 初始化头部高度
+  updateHeaderHeight()
+  // DOM 渲染完成后再次更新
+  setTimeout(updateHeaderHeight, 100)
+  // 监听窗口大小变化
+  window.addEventListener('resize', updateHeaderHeight)
 })
 
 // keep-alive 激活时滚动到顶部
@@ -227,6 +244,12 @@ onActivated(async () => {
   if (scrollContainer.value) {
     scrollContainer.value.scrollTop = 0
   }
+  // 重新计算头部高度
+  updateHeaderHeight()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateHeaderHeight)
 })
 </script>
 
@@ -503,8 +526,11 @@ $breakpoint-xxl: 1280px;
   border-radius: clamp(8px, 3vw, 14px) clamp(8px, 3vw, 14px) 0 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   position: sticky;
-  top: calc(clamp(100px, 28vw, 130px) + env(safe-area-inset-top, 0px) - 1px);
+  top: var(--header-height, 100px);
   z-index: 40;
+  
+  // 用 box-shadow 向上延伸背景色，覆盖可能的缝隙
+  box-shadow: 0 -10px 0 0 #0a0a0a;
   
   .filter-tabs {
     display: flex;

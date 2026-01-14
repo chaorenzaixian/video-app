@@ -78,36 +78,27 @@ const handleImgError = (e, ad) => {
 
 <style lang="scss" scoped>
 .icon-ads-container {
-  padding: 6px 4px;
+  padding: clamp(4px, 1.5vw, 8px) clamp(2px, 1vw, 8px);
 }
 
-// 第一行：固定5个，两边有边距，图标紧凑
+// 第一行：固定5个，自适应间距
 .ads-row-fixed {
   display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  padding: 0 2px;
-  
-  .ad-item {
-    min-width: 66px;
-    
-    .ad-icon {
-      width: 62px;
-      height: 62px;
-    }
-  }
+  justify-content: space-between;
+  margin-bottom: clamp(4px, 1.5vw, 8px);
+  padding: 0 clamp(2px, 1vw, 8px);
 }
 
 // 第二行：快速滚动
 .ads-row-scroll {
   overflow: hidden;
+  margin: 0 clamp(2px, 1vw, 8px);
   
   .scroll-track {
     display: flex;
-    gap: 2px;
+    gap: clamp(2px, 0.8vw, 6px);
     width: max-content;
-    animation: scroll-loop 8s linear infinite;
+    animation: scroll-loop 12s linear infinite;
     
     &:hover {
       animation-play-state: paused;
@@ -120,14 +111,14 @@ const handleImgError = (e, ad) => {
   100% { transform: translateX(-50%); }
 }
 
-// 广告项
+// 广告项 - 使用 clamp 实现平滑响应式
 .ad-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: clamp(3px, 1vw, 6px);
   cursor: pointer;
-  min-width: 62px;
+  min-width: clamp(54px, 15vw, 72px);
   transition: transform 0.2s;
   
   &.hidden {
@@ -139,9 +130,9 @@ const handleImgError = (e, ad) => {
   }
   
   .ad-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
+    width: clamp(48px, 13vw, 64px);
+    height: clamp(48px, 13vw, 64px);
+    border-radius: clamp(10px, 3vw, 14px);
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -155,10 +146,10 @@ const handleImgError = (e, ad) => {
   }
   
   .ad-name {
-    font-size: 12px;
+    font-size: clamp(11px, 3vw, 14px);
     color: rgba(255, 255, 255, 0.75);
     text-align: center;
-    max-width: 62px;
+    max-width: clamp(54px, 15vw, 72px);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -166,41 +157,17 @@ const handleImgError = (e, ad) => {
   }
 }
 
-// 响应式
-@media (min-width: 400px) {
-  .ad-item {
-    min-width: 66px;
-    
-    .ad-icon {
-      width: 60px;
-      height: 60px;
-    }
-    
-    .ad-name {
-      font-size: 13px;
-      max-width: 66px;
-    }
-  }
-}
-
-@media (min-width: 768px) {
-  .icon-ads-container {
-    padding: 8px 8px;
+// 第一行的广告项稍大一点
+.ads-row-fixed .ad-item {
+  min-width: clamp(58px, 16vw, 76px);
+  
+  .ad-icon {
+    width: clamp(52px, 14vw, 68px);
+    height: clamp(52px, 14vw, 68px);
   }
   
-  .ad-item {
-    min-width: 72px;
-    
-    .ad-icon {
-      width: 64px;
-      height: 64px;
-      border-radius: 14px;
-    }
-    
-    .ad-name {
-      font-size: 14px;
-      max-width: 72px;
-    }
+  .ad-name {
+    max-width: clamp(58px, 16vw, 76px);
   }
 }
 </style>
