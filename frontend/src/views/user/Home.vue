@@ -481,6 +481,7 @@ const gridMode = ref(2) // 1=单列, 2=双列
 const filterBarRef = ref(null)
 const isFilterFixed = ref(false)
 const filterBarOriginalTop = ref(0)
+const fixedHeaderHeight = ref(0) // 动态获取的固定头部高度
 
 // 滚动动画
 const scrollContainer = ref(null)
@@ -869,8 +870,15 @@ const handleBannerClick = (banner) => {
 const handleScroll = () => {
   if (!filterBarRef.value) return
   
-  // 获取固定头部的高度
-  const headerHeight = document.querySelector('.fixed-header')?.offsetHeight || 0
+  // 获取固定头部的实际高度
+  const headerEl = document.querySelector('.fixed-header')
+  const headerHeight = headerEl?.offsetHeight || 0
+  
+  // 更新固定头部高度（用于 CSS 变量）
+  if (headerHeight !== fixedHeaderHeight.value) {
+    fixedHeaderHeight.value = headerHeight
+    document.documentElement.style.setProperty('--fixed-header-height', `${headerHeight}px`)
+  }
   
   // 获取筛选栏相对于视口的位置
   const rect = filterBarRef.value.getBoundingClientRect()
@@ -878,8 +886,8 @@ const handleScroll = () => {
   // 当筛选栏顶部到达固定头部底部时，固定筛选栏
   if (rect.top <= headerHeight && !isFilterFixed.value) {
     isFilterFixed.value = true
-  } else if (rect.top > headerHeight && isFilterFixed.value) {
-    // 需要检查占位元素的位置
+  } else if (isFilterFixed.value) {
+    // 需要检查占位元素的位置来决定是否取消固定
     const placeholder = document.querySelector('.filter-bar-placeholder')
     if (placeholder) {
       const placeholderRect = placeholder.getBoundingClientRect()
@@ -898,6 +906,15 @@ onMounted(() => {
   timers.setTimeout(() => {
     startScrollAnimation()
   }, 1000)
+  
+  // 初始化固定头部高度 CSS 变量
+  timers.setTimeout(() => {
+    const headerEl = document.querySelector('.fixed-header')
+    if (headerEl) {
+      fixedHeaderHeight.value = headerEl.offsetHeight
+      document.documentElement.style.setProperty('--fixed-header-height', `${headerEl.offsetHeight}px`)
+    }
+  }, 100)
   
   // 监听滚动
   window.addEventListener('scroll', handleScroll, { passive: true })
@@ -1586,14 +1603,15 @@ $breakpoint-xxl: 1280px; // 大桌面
   -ms-overflow-style: none;
   z-index: 50;
   
-  // 固定状态
+  // 固定状态 - 使用 CSS 变量动态设置 top 值
   &.is-fixed {
     position: fixed;
-    top: calc(clamp(100px, 28vw, 130px) + env(safe-area-inset-top, 0px));
+    top: var(--fixed-header-height, 100px);
     left: clamp(4px, 1.5vw, 10px);
     right: clamp(4px, 1.5vw, 10px);
     width: auto;
     margin: 0;
+    border-radius: 0;
     
     @media (min-width: $breakpoint-lg) {
       left: 50%;
