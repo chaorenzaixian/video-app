@@ -717,9 +717,13 @@ const goToNovel = (id) => {
   router.replace(`/user/novel/${id}`)
 }
 
-// 返回小说列表页
+// 返回上一页
 const goBack = () => {
-  router.push('/user/community?tab=novel')
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/user/community?tab=novel')
+  }
 }
 
 // 继续阅读

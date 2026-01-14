@@ -301,7 +301,7 @@ const goToDetail = (item) => {
       router.push(`/user/video/${item.id}`)
       break
     case 'douyin':
-      router.push(`/user/short-video/${item.id}`)
+      router.push(`/shorts/${item.id}`)
       break
     case 'post':
       router.push(`/user/community/post/${item.id}`)

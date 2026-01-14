@@ -504,9 +504,13 @@ const formatAnnouncementTime = (dateStr) => {
 
 const goToVip = () => router.push('/user/vip')
 
-// 返回图集列表页
+// 返回上一页
 const goBack = () => {
-  router.push('/user/community?tab=gallery')
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/user/community?tab=gallery')
+  }
 }
 
 // 分享相关
