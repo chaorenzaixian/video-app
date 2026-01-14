@@ -119,8 +119,7 @@ async def get_post_ranking(
 ):
     """帖子排行榜"""
     query = select(Post).options(
-        selectinload(Post.user),
-        selectinload(Post.topics)
+        selectinload(Post.user)
     ).where(Post.status == "published")
     
     start_time = get_time_range(time_range)
@@ -132,6 +131,22 @@ async def get_post_ranking(
     
     result = await db.execute(query)
     posts = result.scalars().all()
+    
+    # 获取所有话题ID
+    all_topic_ids = set()
+    for p in posts:
+        if p.topic_ids:
+            all_topic_ids.update(p.topic_ids)
+    
+    # 批量查询话题
+    topics_map = {}
+    if all_topic_ids:
+        from app.models.community import Topic
+        topic_result = await db.execute(
+            select(Topic).where(Topic.id.in_(all_topic_ids))
+        )
+        for t in topic_result.scalars().all():
+            topics_map[t.id] = {"id": t.id, "name": t.name}
     
     return {
         "items": [
@@ -150,10 +165,10 @@ async def get_post_ranking(
                     "username": p.user.username,
                     "nickname": p.user.nickname,
                     "avatar": p.user.avatar,
-                    "is_vip": p.user.is_vip if hasattr(p.user, 'is_vip') else False,
-                    "vip_level": p.user.vip_level if hasattr(p.user, 'vip_level') else 0
+                    "is_vip": getattr(p.user, 'is_vip', False),
+                    "vip_level": getattr(p.user, 'vip_level', 0)
                 } if p.user else None,
-                "topics": [{"id": t.id, "name": t.name} for t in p.topics] if p.topics else []
+                "topics": [topics_map[tid] for tid in (p.topic_ids or []) if tid in topics_map]
             }
             for p in posts
         ]
