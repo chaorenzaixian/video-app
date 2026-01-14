@@ -180,21 +180,11 @@ const getRankIcon = (rank) => {
   return '/images/ranking/rank_default.webp'
 }
 
-// 前三名样式类
-const getTopRankClass = (index) => {
-  if (index === 0) return 'rank-gold'
-  if (index === 1) return 'rank-silver'
-  if (index === 2) return 'rank-bronze'
-  return ''
-}
+// 前三名样式类（已禁用）
+const getTopRankClass = (index) => ''
 
-// 前三名徽章样式
-const getTopRankBadgeClass = (index) => {
-  if (index === 0) return 'badge-gold'
-  if (index === 1) return 'badge-silver'
-  if (index === 2) return 'badge-bronze'
-  return ''
-}
+// 前三名徽章样式（已禁用）
+const getTopRankBadgeClass = (index) => ''
 
 // WebP 图片 URL 处理
 const getWebpUrl = (url) => {
