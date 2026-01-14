@@ -118,7 +118,10 @@ async def get_post_ranking(
     db: AsyncSession = Depends(get_db)
 ):
     """帖子排行榜"""
-    query = select(Post).where(Post.status == "published")
+    query = select(Post).options(
+        selectinload(Post.user),
+        selectinload(Post.topics)
+    ).where(Post.status == "published")
     
     start_time = get_time_range(time_range)
     if start_time:
@@ -135,9 +138,22 @@ async def get_post_ranking(
             {
                 "id": p.id,
                 "title": p.content[:50] if p.content else "",
+                "content": p.content,
                 "cover_url": p.images[0] if p.images else None,
+                "images": p.images or [],
                 "view_count": p.view_count or 0,
-                "like_count": p.like_count or 0
+                "like_count": p.like_count or 0,
+                "comment_count": p.comment_count or 0,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "user": {
+                    "id": p.user.id,
+                    "username": p.user.username,
+                    "nickname": p.user.nickname,
+                    "avatar": p.user.avatar,
+                    "is_vip": p.user.is_vip if hasattr(p.user, 'is_vip') else False,
+                    "vip_level": p.user.vip_level if hasattr(p.user, 'vip_level') else 0
+                } if p.user else None,
+                "topics": [{"id": t.id, "name": t.name} for t in p.topics] if p.topics else []
             }
             for p in posts
         ]
