@@ -1,17 +1,14 @@
 <template>
   <div class="ranking-page">
-    <!-- 顶部背景区域（包含返回按钮、分类、时间筛选） -->
+    <!-- 顶部背景区域 -->
     <div class="ranking-header-bg">
-      <!-- 顶部返回 -->
       <div class="page-header">
         <div class="back-btn" @click="$router.back()">
           <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
         </div>
       </div>
 
-      <!-- 底部内容区域 -->
       <div class="header-bottom">
-        <!-- 分类标签 -->
         <div class="category-tabs">
           <span 
             v-for="cat in categories" 
@@ -23,7 +20,6 @@
           </span>
         </div>
 
-        <!-- 时间筛选 -->
         <div class="time-tabs">
           <span 
             v-for="time in timeFilters" 
@@ -53,16 +49,17 @@
         暂无排行数据
       </div>
 
-      <!-- 帖子列表 - 使用社区样式 -->
+      <!-- 帖子列表 -->
       <template v-else-if="activeCategory === 'post'">
         <div 
           v-for="(item, index) in list" 
           :key="item.id"
-          class="post-card"
+          :class="['post-card', 'animate-item', getTopRankClass(index)]"
+          :style="{ animationDelay: `${Math.min(index, 10) * 0.05}s` }"
           @click="goToDetail(item)"
         >
           <div class="post-header">
-            <img :src="getAvatarUrl(item.user?.avatar, item.user?.id)" class="avatar" @click.stop="goToProfile(item.user?.id)" />
+            <img :src="getAvatarUrl(item.user?.avatar, item.user?.id)" class="avatar" loading="lazy" @click.stop="goToProfile(item.user?.id)" />
             <div class="user-info">
               <div class="user-name-row">
                 <span class="username" @click.stop="goToProfile(item.user?.id)">{{ item.user?.nickname || item.user?.username || '匿名用户' }}</span>
@@ -70,7 +67,7 @@
               </div>
               <span class="time">{{ formatCommentTime(item.created_at) }}</span>
             </div>
-            <div class="rank-badge-right">
+            <div :class="['rank-badge-right', getTopRankBadgeClass(index)]">
               <img :src="getRankIcon(index + 1)" class="rank-icon-small" />
               <span class="rank-num-small">NO.{{ index + 1 }}</span>
             </div>
@@ -79,7 +76,7 @@
           <div v-if="item.images?.length" class="post-images">
             <div :class="['images-grid', `grid-${Math.min(item.images.length, 4)}`]">
               <div v-for="(img, idx) in item.images.slice(0, 4)" :key="idx" class="img-item">
-                <img :src="img" />
+                <img :src="getWebpUrl(img)" loading="lazy" />
                 <span v-if="idx === 3 && item.images.length > 4" class="more-count">+{{ item.images.length - 4 }}</span>
               </div>
             </div>
@@ -93,27 +90,25 @@
         </div>
       </template>
 
-      <!-- 其他类型列表 - 原有样式 -->
+      <!-- 其他类型列表 -->
       <div 
         v-else
         v-for="(item, index) in list" 
         :key="item.id"
-        :class="['ranking-item', { 'vertical-cover': ['douyin', 'novel', 'gallery'].includes(activeCategory) }]"
+        :class="['ranking-item', 'animate-item', getTopRankClass(index), { 'vertical-cover': ['douyin', 'novel', 'gallery'].includes(activeCategory) }]"
+        :style="{ animationDelay: `${Math.min(index, 10) * 0.05}s` }"
         @click="goToDetail(item)"
       >
-        <!-- 左侧封面 -->
         <div :class="['item-cover', { 'vertical': ['douyin', 'novel', 'gallery'].includes(activeCategory) }]">
-          <img :src="item.cover_url || item.cover" :alt="item.title" />
+          <img :src="getWebpUrl(item.cover_url || item.cover)" :alt="item.title" loading="lazy" />
           <div class="cover-stats">
             <span class="views">👁 {{ formatCount(item.view_count) }}</span>
             <span class="duration" v-if="item.duration">{{ formatDuration(item.duration) }}</span>
           </div>
         </div>
 
-        <!-- 右侧信息 -->
         <div class="item-info">
-          <!-- 排名图标 -->
-          <div class="rank-badge">
+          <div :class="['rank-badge', getTopRankBadgeClass(index)]">
             <img :src="getRankIcon(index + 1)" class="rank-icon" />
             <span class="rank-num">NO.{{ index + 1 }}</span>
           </div>
@@ -132,7 +127,6 @@
         </div>
       </div>
 
-      <!-- 加载更多 -->
       <div v-if="loadingMore" class="loading-more">加载中...</div>
       <div v-if="!hasMore && list.length > 0" class="no-more">已加载全部</div>
     </div>
@@ -140,7 +134,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/utils/api'
 import { getAvatarUrl } from '@/utils/avatar'
@@ -174,12 +168,42 @@ const hasMore = ref(true)
 const page = ref(1)
 const pageSize = 20
 
+// 数据缓存
+const cache = ref({})
+const getCacheKey = () => `${activeCategory.value}_${activeTime.value}`
+
 // 获取排名图标
 const getRankIcon = (rank) => {
   if (rank === 1) return '/images/ranking/rank_1.webp'
   if (rank === 2) return '/images/ranking/rank_2.webp'
   if (rank === 3) return '/images/ranking/rank_3.webp'
   return '/images/ranking/rank_default.webp'
+}
+
+// 前三名样式类
+const getTopRankClass = (index) => {
+  if (index === 0) return 'rank-gold'
+  if (index === 1) return 'rank-silver'
+  if (index === 2) return 'rank-bronze'
+  return ''
+}
+
+// 前三名徽章样式
+const getTopRankBadgeClass = (index) => {
+  if (index === 0) return 'badge-gold'
+  if (index === 1) return 'badge-silver'
+  if (index === 2) return 'badge-bronze'
+  return ''
+}
+
+// WebP 图片 URL 处理
+const getWebpUrl = (url) => {
+  if (!url) return ''
+  // 如果已经是 webp 格式，直接返回
+  if (url.includes('.webp')) return url
+  // 如果是外部 URL 或已有查询参数，直接返回
+  if (url.includes('?') || url.startsWith('http')) return url
+  return url
 }
 
 // 格式化数量
@@ -192,13 +216,10 @@ const formatCount = (count) => {
 
 // 获取第一个标签
 const getFirstTag = (item) => {
-  // 优先使用 tags 数组
   if (item.tags && item.tags.length > 0) {
     return typeof item.tags[0] === 'string' ? item.tags[0] : item.tags[0].name
   }
-  // 其次使用 tag 字段
   if (item.tag) return item.tag
-  // 最后使用分类名
   if (item.category_name) return item.category_name
   return null
 }
@@ -215,72 +236,112 @@ const formatDuration = (seconds) => {
 
 // 切换分类
 const switchCategory = (key) => {
+  if (activeCategory.value === key) return
   activeCategory.value = key
-  page.value = 1
-  list.value = []
-  hasMore.value = true
-  fetchRanking()
+  loadFromCacheOrFetch()
 }
 
 // 切换时间
 const switchTime = (key) => {
+  if (activeTime.value === key) return
   activeTime.value = key
-  page.value = 1
-  list.value = []
-  hasMore.value = true
-  fetchRanking()
+  loadFromCacheOrFetch()
+}
+
+// 从缓存加载或请求数据
+const loadFromCacheOrFetch = () => {
+  const cacheKey = getCacheKey()
+  if (cache.value[cacheKey]) {
+    // 从缓存恢复
+    const cached = cache.value[cacheKey]
+    list.value = cached.list
+    page.value = cached.page
+    hasMore.value = cached.hasMore
+    // 滚动到顶部
+    if (listRef.value) listRef.value.scrollTop = 0
+  } else {
+    // 重新请求
+    page.value = 1
+    list.value = []
+    hasMore.value = true
+    fetchRanking()
+  }
+}
+
+// 保存到缓存
+const saveToCache = () => {
+  const cacheKey = getCacheKey()
+  cache.value[cacheKey] = {
+    list: list.value,
+    page: page.value,
+    hasMore: hasMore.value,
+    timestamp: Date.now()
+  }
 }
 
 // 获取排行数据
-const fetchRanking = async () => {
-  if (page.value === 1) {
-    loading.value = true
-  } else {
-    loadingMore.value = true
+const fetchRanking = async (preload = false) => {
+  if (!preload) {
+    if (page.value === 1) {
+      loading.value = true
+    } else {
+      loadingMore.value = true
+    }
   }
 
   try {
     let endpoint = ''
     const params = { 
-      page: page.value, 
+      page: preload ? page.value + 1 : page.value, 
       page_size: pageSize,
       time_range: activeTime.value
     }
 
     switch (activeCategory.value) {
-      case 'video':
-        endpoint = '/ranking/videos'
-        break
-      case 'douyin':
-        endpoint = '/ranking/shorts'
-        break
-      case 'post':
-        endpoint = '/ranking/posts'
-        break
-      case 'novel':
-        endpoint = '/ranking/novels'
-        break
-      case 'gallery':
-        endpoint = '/ranking/galleries'
-        break
+      case 'video': endpoint = '/ranking/videos'; break
+      case 'douyin': endpoint = '/ranking/shorts'; break
+      case 'post': endpoint = '/ranking/posts'; break
+      case 'novel': endpoint = '/ranking/novels'; break
+      case 'gallery': endpoint = '/ranking/galleries'; break
     }
 
     const res = await api.get(endpoint, { params })
     const items = res.data?.items || res.data || []
 
-    if (page.value === 1) {
-      list.value = items
+    if (preload) {
+      // 预加载数据存入临时缓存
+      preloadCache.value = items
     } else {
-      list.value = [...list.value, ...items]
+      if (page.value === 1) {
+        list.value = items
+      } else {
+        list.value = [...list.value, ...items]
+      }
+      hasMore.value = items.length >= pageSize && list.value.length < 1000
+      saveToCache()
+      
+      // 预加载下一页
+      if (hasMore.value && items.length > 0) {
+        preloadNextPage()
+      }
     }
-
-    hasMore.value = items.length >= pageSize && list.value.length < 1000
   } catch (e) {
     console.error('获取排行失败:', e)
   } finally {
-    loading.value = false
-    loadingMore.value = false
+    if (!preload) {
+      loading.value = false
+      loadingMore.value = false
+    }
   }
+}
+
+// 预加载缓存
+const preloadCache = ref([])
+
+// 预加载下一页
+const preloadNextPage = () => {
+  if (!hasMore.value || loadingMore.value) return
+  fetchRanking(true)
 }
 
 // 滚动加载
@@ -288,42 +349,39 @@ const handleScroll = () => {
   if (!listRef.value || loadingMore.value || !hasMore.value) return
   
   const { scrollTop, scrollHeight, clientHeight } = listRef.value
-  if (scrollTop + clientHeight >= scrollHeight - 100) {
-    page.value++
-    fetchRanking()
+  if (scrollTop + clientHeight >= scrollHeight - 200) {
+    // 使用预加载的数据
+    if (preloadCache.value.length > 0) {
+      list.value = [...list.value, ...preloadCache.value]
+      page.value++
+      hasMore.value = preloadCache.value.length >= pageSize
+      preloadCache.value = []
+      saveToCache()
+      // 继续预加载
+      if (hasMore.value) preloadNextPage()
+    } else {
+      page.value++
+      fetchRanking()
+    }
   }
 }
 
 // 跳转详情
 const goToDetail = (item) => {
   switch (activeCategory.value) {
-    case 'video':
-      router.push(`/user/video/${item.id}`)
-      break
-    case 'douyin':
-      router.push(`/shorts/${item.id}`)
-      break
-    case 'post':
-      router.push(`/user/community/post/${item.id}`)
-      break
+    case 'video': router.push(`/user/video/${item.id}`); break
+    case 'douyin': router.push(`/shorts/${item.id}`); break
+    case 'post': router.push(`/user/community/post/${item.id}`); break
     case 'novel':
-      if (item.novel_type === 'audio') {
-        router.push(`/user/audio-novel/${item.id}`)
-      } else {
-        router.push(`/user/novel/${item.id}`)
-      }
+      router.push(item.novel_type === 'audio' ? `/user/audio-novel/${item.id}` : `/user/novel/${item.id}`)
       break
-    case 'gallery':
-      router.push(`/user/gallery/${item.id}`)
-      break
+    case 'gallery': router.push(`/user/gallery/${item.id}`); break
   }
 }
 
 // 跳转用户主页
 const goToProfile = (userId) => {
-  if (userId) {
-    router.push(`/user/profile/${userId}`)
-  }
+  if (userId) router.push(`/user/profile/${userId}`)
 }
 
 onMounted(() => {
@@ -385,6 +443,7 @@ onMounted(() => {
     cursor: pointer;
     padding-bottom: 8px;
     position: relative;
+    transition: color 0.2s;
     
     &.active {
       color: #fff;
@@ -418,6 +477,7 @@ onMounted(() => {
     cursor: pointer;
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s;
     
     &.active {
       background: linear-gradient(135deg, #a855f7, #7c3aed);
@@ -434,14 +494,100 @@ onMounted(() => {
   -webkit-overflow-scrolling: touch;
 }
 
+/* 列表项入场动画 */
+.animate-item {
+  animation: slideIn 0.4s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes slideIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 前三名特殊样式 */
+.rank-gold {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 180, 0, 0.05)) !important;
+  border-left: 3px solid #ffd700;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(ellipse at top left, rgba(255, 215, 0, 0.2), transparent 60%);
+    pointer-events: none;
+  }
+}
+
+.rank-silver {
+  position: relative;
+  background: linear-gradient(135deg, rgba(192, 192, 192, 0.15), rgba(169, 169, 169, 0.05)) !important;
+  border-left: 3px solid #c0c0c0;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(ellipse at top left, rgba(192, 192, 192, 0.2), transparent 60%);
+    pointer-events: none;
+  }
+}
+
+.rank-bronze {
+  position: relative;
+  background: linear-gradient(135deg, rgba(205, 127, 50, 0.15), rgba(184, 115, 51, 0.05)) !important;
+  border-left: 3px solid #cd7f32;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(ellipse at top left, rgba(205, 127, 50, 0.2), transparent 60%);
+    pointer-events: none;
+  }
+}
+
+/* 前三名徽章样式 */
+.badge-gold .rank-num,
+.badge-gold .rank-num-small {
+  color: #ffd700 !important;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.badge-silver .rank-num,
+.badge-silver .rank-num-small {
+  color: #c0c0c0 !important;
+  text-shadow: 0 0 10px rgba(192, 192, 192, 0.5);
+}
+
+.badge-bronze .rank-num,
+.badge-bronze .rank-num-small {
+  color: #cd7f32 !important;
+  text-shadow: 0 0 10px rgba(205, 127, 50, 0.5);
+}
+
 .ranking-item {
   display: flex;
   gap: 10px;
-  padding: 4px 12px;
+  padding: 8px 12px;
   background: transparent;
   border-radius: 12px;
   margin-bottom: 2px;
   cursor: pointer;
+  transition: background 0.2s;
   
   &:active {
     background: rgba(255, 255, 255, 0.08);
@@ -466,6 +612,11 @@ onMounted(() => {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.3s;
+  }
+  
+  &:hover img {
+    transform: scale(1.05);
   }
   
   .cover-stats {
@@ -504,6 +655,7 @@ onMounted(() => {
     font-size: 14px;
     font-weight: normal;
     color: #f0c14b;
+    transition: all 0.3s;
   }
 }
 
@@ -557,12 +709,15 @@ onMounted(() => {
     gap: 12px;
     padding: 12px;
     margin-bottom: 12px;
+    animation: pulse 1.5s infinite;
     
     .skeleton-cover {
       width: 140px;
       height: 80px;
-      background: #1a1a28;
+      background: linear-gradient(90deg, #1a1a28 25%, #252538 50%, #1a1a28 75%);
+      background-size: 200% 100%;
       border-radius: 8px;
+      animation: shimmer 1.5s infinite;
     }
     
     .skeleton-info {
@@ -570,19 +725,28 @@ onMounted(() => {
       
       .skeleton-title {
         height: 16px;
-        background: #1a1a28;
+        background: linear-gradient(90deg, #1a1a28 25%, #252538 50%, #1a1a28 75%);
+        background-size: 200% 100%;
         border-radius: 4px;
         margin-bottom: 12px;
+        animation: shimmer 1.5s infinite;
       }
       
       .skeleton-meta {
         height: 12px;
         width: 60%;
-        background: #1a1a28;
+        background: linear-gradient(90deg, #1a1a28 25%, #252538 50%, #1a1a28 75%);
+        background-size: 200% 100%;
         border-radius: 4px;
+        animation: shimmer 1.5s infinite;
       }
     }
   }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .empty-state {
@@ -598,12 +762,17 @@ onMounted(() => {
   font-size: 13px;
 }
 
-/* 帖子卡片样式 - 社区风格 */
+/* 帖子卡片样式 */
 .post-card {
   background: #151515;
   border-radius: 12px;
   padding: 16px;
   margin: 0 12px 12px;
+  transition: transform 0.2s;
+  
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .post-header {
@@ -627,6 +796,7 @@ onMounted(() => {
     font-size: 14px;
     color: #f0c14b;
     font-weight: normal;
+    transition: all 0.3s;
   }
 }
 
@@ -636,6 +806,7 @@ onMounted(() => {
   border-radius: 50%;
   object-fit: cover;
   cursor: pointer;
+  transition: transform 0.2s;
   
   &:hover {
     transform: scale(1.05);
@@ -695,22 +866,10 @@ onMounted(() => {
   border-radius: 8px;
   overflow: hidden;
   
-  &.grid-1 {
-    grid-template-columns: 1fr;
-    max-width: 70%;
-  }
-  
-  &.grid-2 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  &.grid-3 {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  
-  &.grid-4 {
-    grid-template-columns: repeat(4, 1fr);
-  }
+  &.grid-1 { grid-template-columns: 1fr; max-width: 70%; }
+  &.grid-2 { grid-template-columns: repeat(2, 1fr); }
+  &.grid-3 { grid-template-columns: repeat(3, 1fr); }
+  &.grid-4 { grid-template-columns: repeat(4, 1fr); }
 }
 
 .img-item {
@@ -742,9 +901,7 @@ onMounted(() => {
   color: #666;
   font-size: 13px;
   
-  span {
-    cursor: pointer;
-  }
+  span { cursor: pointer; }
 }
 
 .post-topic-tag {
