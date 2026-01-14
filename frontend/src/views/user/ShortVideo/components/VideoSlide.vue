@@ -236,7 +236,7 @@ defineExpose({ play, pause, seek, getVideoElement, videoRef })
 <style lang="scss" scoped>
 .video-slide {
   width: 100%;
-  height: 100vh;
+  height: var(--slide-height, 100dvh);
   position: relative;
   display: flex;
   align-items: center;

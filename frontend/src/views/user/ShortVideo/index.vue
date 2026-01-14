@@ -576,8 +576,13 @@ const stopAllVideos = () => {
 
 // 窗口大小变化
 const handleResize = () => {
-  slideHeight.value = window.innerHeight
+  // 使用 visualViewport 获取实际可视高度（排除地址栏）
+  const vh = window.visualViewport?.height || window.innerHeight
+  slideHeight.value = vh
   translateY.value = -currentIndex.value * slideHeight.value
+  
+  // 更新 CSS 变量供子组件使用
+  document.documentElement.style.setProperty('--slide-height', `${vh}px`)
 }
 
 // 获取金币余额
@@ -597,7 +602,15 @@ onMounted(async () => {
     fetchCoinsBalance()
   }
   
-  slideHeight.value = window.innerHeight
+  // 使用 visualViewport 获取实际可视高度
+  const vh = window.visualViewport?.height || window.innerHeight
+  slideHeight.value = vh
+  document.documentElement.style.setProperty('--slide-height', `${vh}px`)
+  
+  // 监听 visualViewport 变化
+  if (window.visualViewport) {
+    events.addEventListener(window.visualViewport, 'resize', handleResize)
+  }
   
   const targetVideoId = route.query.id || route.params.id
   if (targetVideoId) {
