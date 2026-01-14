@@ -12,53 +12,8 @@
       />
     </div>
 
-    <!-- 广告位 - 只在有API数据时显示 -->
-    <div class="ad-section" v-if="adRow1.length > 0 && adRow1.some(item => !item._imgError)">
-        <div class="ad-row">
-          <div 
-            class="ad-item" 
-            v-for="item in adRow1" 
-            :key="item.id"
-            :class="{ hidden: item._imgError }"
-            @click="handleAdClick(item)"
-          >
-            <div class="ad-img">
-              <img :src="item.image" @error="item._imgError = true" />
-            </div>
-            <span class="ad-name">{{ item.name }}</span>
-          </div>
-        </div>
-        <div class="ad-row-scroll" v-if="adRow2.length > 0 && adRow2.some(item => !item._imgError)">
-          <div class="scroll-track">
-            <div class="scroll-content">
-              <div 
-                class="ad-item" 
-                v-for="item in adRow2" 
-                :key="'a-' + item.id"
-                :class="{ hidden: item._imgError }"
-                @click="handleAdClick(item)"
-              >
-                <div class="ad-img">
-                  <img :src="item.image" @error="item._imgError = true" />
-                </div>
-                <span class="ad-name">{{ item.name }}</span>
-              </div>
-              <div 
-                class="ad-item" 
-                v-for="item in adRow2" 
-                :key="'b-' + item.id"
-                :class="{ hidden: item._imgError }"
-                @click="handleAdClick(item)"
-              >
-                <div class="ad-img">
-                  <img :src="item.image" @error="item._imgError = true" />
-                </div>
-              <span class="ad-name">{{ item.name }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- 广告位 - 使用统一组件 -->
+    <IconAdsGrid :row1="adRow1" :row2="adRow2" />
 
     <!-- 搜索记录 -->
     <div class="search-history-section" v-if="searchHistory.length > 0">
@@ -188,6 +143,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/utils/api'
 import SearchHeader from '@/components/SearchHeader.vue'
+import IconAdsGrid from '@/components/common/IconAdsGrid.vue'
 
 // 顶部固定区域引用
 const stickyTopRef = ref(null)
@@ -378,13 +334,6 @@ const fetchAds = async () => {
   } catch (error) {
     // API失败时不显示广告，保持空数组
     console.log('获取广告失败')
-  }
-}
-
-// 广告点击
-const handleAdClick = (item) => {
-  if (item.link && item.link !== '#') {
-    window.open(item.link, '_blank')
   }
 }
 
@@ -593,145 +542,6 @@ onUnmounted(() => {
   }
 }
 
-
-// 广告位公共样式
-.ad-item {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 68px;
-  cursor: pointer;
-  transition: transform 0.2s;
-  
-  &.hidden {
-    display: none;
-  }
-  
-  &:active {
-    transform: scale(0.95);
-  }
-  
-  .ad-img {
-    width: 60px;
-    height: 60px;
-    border-radius: 14px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .ad-icon {
-      font-size: 24px;
-    }
-    
-    .ad-badge {
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      right: 3px;
-      font-size: 8px;
-      padding: 2px 4px;
-      border-radius: 4px;
-      text-align: center;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(4px);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      
-      &.hot { background: rgba(255, 55, 95, 0.9); }
-      &.purple { background: rgba(139, 92, 246, 0.9); }
-      &.gold { background: rgba(255, 204, 0, 0.95); color: #000; }
-      &.blue { background: rgba(59, 130, 246, 0.9); }
-      &.pink { background: rgba(236, 72, 153, 0.9); }
-      &.cyan { background: rgba(6, 182, 212, 0.9); }
-      &.red { background: rgba(239, 68, 68, 0.9); }
-      &.orange { background: rgba(249, 115, 22, 0.9); }
-    }
-  }
-  
-  .ad-name {
-    margin-top: 6px;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.85);
-    text-align: center;
-    white-space: nowrap;
-  }
-}
-
-// 广告位区域
-.ad-section {
-  padding: 8px 10px 16px;
-  
-  // 第一行固定居中
-  .ad-row {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  
-  // 第二行自动滚动
-  .ad-row-scroll {
-    overflow: hidden;
-    position: relative;
-    
-    &::before,
-    &::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 20px;
-      z-index: 2;
-      pointer-events: none;
-    }
-    
-    &::before {
-      left: 0;
-      background: linear-gradient(to right, #0a0a12, transparent);
-    }
-    
-    &::after {
-      right: 0;
-      background: linear-gradient(to left, #0a0a12, transparent);
-    }
-    
-    .scroll-track {
-      overflow: hidden;
-    }
-    
-    .scroll-content {
-      display: flex;
-      gap: 10px;
-      padding: 4px 0;
-      animation: scrollLoop 20s linear infinite;
-      width: fit-content;
-      
-      &:hover {
-        animation-play-state: paused;
-      }
-    }
-  }
-}
-
-@keyframes scrollLoop {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
 
 // 搜索记录
 .search-history-section {
@@ -1231,12 +1041,6 @@ onUnmounted(() => {
     }
   }
   
-  .ad-item {
-    width: 60px;
-    .ad-img { width: 52px; height: 52px; }
-    .ad-name { font-size: 10px; }
-  }
-  
   .search-history-section {
     margin: 0 10px 12px;
     padding: 12px;
@@ -1293,18 +1097,6 @@ onUnmounted(() => {
     .header-tabs {
       gap: 40px;
       .tab { font-size: 18px; }
-    }
-  }
-  
-  .ad-section {
-    padding: 12px 24px 20px;
-    
-    .ad-row { gap: 12px; }
-    
-    .ad-item {
-      width: 80px;
-      .ad-img { width: 70px; height: 70px; }
-      .ad-name { font-size: 12px; }
     }
   }
   
@@ -1442,15 +1234,13 @@ onUnmounted(() => {
   }
   
   .history-tag:hover,
-  .hot-item:hover,
-  .ad-item:hover {
+  .hot-item:hover {
     background: transparent !important;
     transform: none !important;
   }
   
   .history-tag:active,
-  .hot-item:active,
-  .ad-item:active {
+  .hot-item:active {
     opacity: 0.7;
   }
 }

@@ -1034,31 +1034,30 @@ onMounted(() => {
 .novel-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px 12px;
-  align-items: start;
+  gap: 12px;
 }
 
 .novel-item {
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  min-width: 0;
   
   .novel-cover-wrap {
     position: relative;
     width: 100%;
-    height: 0;
-    padding-bottom: 133.33%;
+    aspect-ratio: 3 / 4;
     border-radius: 8px;
     overflow: hidden;
     background: #1a1a1a;
+    flex-shrink: 0;
     
     .novel-cover {
-      position: absolute;
-      top: 0;
-      left: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
     }
     
     .audio-badge {
@@ -1074,6 +1073,7 @@ onMounted(() => {
   
   .novel-info {
     padding: 8px 0;
+    min-width: 0;
     
     .novel-title {
       color: #eee;
@@ -1089,6 +1089,9 @@ onMounted(() => {
       color: #888;
       font-size: 11px;
       margin: 0 0 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     
     .novel-chapters {

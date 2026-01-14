@@ -4,7 +4,7 @@
     <header class="fixed-header">
       <div class="header-top">
         <div class="header-left">
-          <div class="welfare-icon" @click="$router.push('/user/vip')">
+          <div class="welfare-icon" @click="$router.push('/user/tasks')">
             <img src="/images/backgrounds/fuli.webp" alt="福利" class="fuli-img" />
           </div>
         </div>
