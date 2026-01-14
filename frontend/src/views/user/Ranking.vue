@@ -72,7 +72,7 @@
             </div>
             <div class="rank-badge-right">
               <img :src="getRankIcon(index + 1)" class="rank-icon-small" />
-              <span class="rank-num-small">{{ index + 1 }}</span>
+              <span class="rank-num-small">NO.{{ index + 1 }}</span>
             </div>
           </div>
           <p class="post-text">{{ item.content || item.title }}</p>
