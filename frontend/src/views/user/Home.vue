@@ -1549,8 +1549,20 @@ $breakpoint-xxl: 1280px; // 大桌面
   scrollbar-width: none;
   -ms-overflow-style: none;
   position: sticky;
-  top: calc(clamp(100px, 28vw, 130px) + env(safe-area-inset-top, 0px) - 5px);
+  top: calc(clamp(100px, 28vw, 130px) + env(safe-area-inset-top, 0px));
   z-index: 40;
+  
+  // 伪元素向上延伸背景，彻底遮盖缝隙
+  &::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: -10px;
+    right: -10px;
+    height: 20px;
+    background: #0a0a0a;
+    z-index: -1;
+  }
   
   &::-webkit-scrollbar {
     display: none;
