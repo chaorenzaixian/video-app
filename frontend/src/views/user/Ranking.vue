@@ -616,17 +616,17 @@ onMounted(() => {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   
   .rank-icon-small {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
   }
   
   .rank-num-small {
-    font-size: 12px;
+    font-size: 14px;
     color: #f0c14b;
-    font-weight: 500;
+    font-weight: normal;
   }
 }
 
