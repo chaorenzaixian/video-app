@@ -53,6 +53,47 @@
         暂无排行数据
       </div>
 
+      <!-- 帖子列表 - 使用社区样式 -->
+      <template v-else-if="activeCategory === 'post'">
+        <div 
+          v-for="(item, index) in list" 
+          :key="item.id"
+          class="post-card"
+          @click="goToDetail(item)"
+        >
+          <div class="post-header">
+            <div class="rank-badge-inline">
+              <img :src="getRankIcon(index + 1)" class="rank-icon-small" />
+              <span class="rank-num-small">{{ index + 1 }}</span>
+            </div>
+            <img :src="getAvatarUrl(item.user?.avatar, item.user?.id)" class="avatar" @click.stop="goToProfile(item.user?.id)" />
+            <div class="user-info">
+              <div class="user-name-row">
+                <span class="username" @click.stop="goToProfile(item.user?.id)">{{ item.user?.nickname || item.user?.username || '匿名用户' }}</span>
+                <img v-if="item.user?.is_vip" :src="getVipLevelIcon(item.user?.vip_level)" class="vip-icon" alt="VIP" />
+              </div>
+              <span class="time">{{ formatCommentTime(item.created_at) }}</span>
+            </div>
+          </div>
+          <p class="post-text">{{ item.content || item.title }}</p>
+          <div v-if="item.images?.length" class="post-images">
+            <div :class="['images-grid', `grid-${Math.min(item.images.length, 4)}`]">
+              <div v-for="(img, idx) in item.images.slice(0, 4)" :key="idx" class="img-item">
+                <img :src="img" />
+                <span v-if="idx === 3 && item.images.length > 4" class="more-count">+{{ item.images.length - 4 }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="post-stats">
+            <span>👁 {{ formatCount(item.view_count) }}</span>
+            <span>💬 {{ item.comment_count || 0 }}</span>
+            <span>{{ item.is_liked ? '❤️' : '🤍' }} {{ formatCount(item.like_count) }}</span>
+            <span v-if="item.topics?.length" class="post-topic-tag">#{{ item.topics[0].name }}</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- 其他类型列表 - 原有样式 -->
       <div 
         v-else
         v-for="(item, index) in list" 
@@ -102,6 +143,9 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/utils/api'
+import { getAvatarUrl } from '@/utils/avatar'
+import { formatCommentTime } from '@/utils/format'
+import { getVipLevelIcon } from '@/constants/vip'
 
 const router = useRouter()
 const listRef = ref(null)
@@ -272,6 +316,13 @@ const goToDetail = (item) => {
     case 'gallery':
       router.push(`/user/gallery/${item.id}`)
       break
+  }
+}
+
+// 跳转用户主页
+const goToProfile = (userId) => {
+  if (userId) {
+    router.push(`/user/profile/${userId}`)
   }
 }
 
@@ -477,8 +528,10 @@ onMounted(() => {
     font-size: 11px;
     color: #a855f7;
     padding: 2px 8px;
-    background: rgba(168, 85, 247, 0.15);
-    border-radius: 10px;
+    background: transparent;
+    border: 1px solid;
+    border-image: linear-gradient(135deg, #a855f7, #7c3aed) 1;
+    border-radius: 0;
   }
   
   .likes {
@@ -543,5 +596,164 @@ onMounted(() => {
   padding: 20px;
   color: rgba(255, 255, 255, 0.4);
   font-size: 13px;
+}
+
+/* 帖子卡片样式 - 社区风格 */
+.post-card {
+  background: #151515;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 0 12px 12px;
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.rank-badge-inline {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 10px;
+  
+  .rank-icon-small {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .rank-num-small {
+    font-size: 12px;
+    color: #f0c14b;
+    font-weight: 500;
+  }
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+  
+  &:hover {
+    transform: scale(1.05);
+  }
+}
+
+.user-info {
+  margin-left: 12px;
+}
+
+.user-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.username {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  
+  &:hover {
+    color: #a855f7;
+  }
+}
+
+.vip-icon {
+  width: 36px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.time {
+  color: #666;
+  font-size: 12px;
+}
+
+.post-text {
+  color: #ddd;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.post-images {
+  margin-bottom: 12px;
+}
+
+.images-grid {
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  overflow: hidden;
+  
+  &.grid-1 {
+    grid-template-columns: 1fr;
+    max-width: 70%;
+  }
+  
+  &.grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  &.grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  &.grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.img-item {
+  position: relative;
+  aspect-ratio: 1;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.more-count {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+}
+
+.post-stats {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: #666;
+  font-size: 13px;
+  
+  span {
+    cursor: pointer;
+  }
+}
+
+.post-topic-tag {
+  margin-left: auto;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  border-radius: 12px;
+  color: #a855f7;
+  font-size: 12px;
 }
 </style>
