@@ -1544,35 +1544,37 @@ $breakpoint-xxl: 1280px; // 大桌面
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   width: calc(100% - clamp(8px, 3vw, 20px));
   box-sizing: border-box;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  overflow: visible; // 改为visible让伪元素可见
   position: sticky;
   top: calc(clamp(100px, 28vw, 130px) + env(safe-area-inset-top, 0px));
-  z-index: 40;
+  z-index: 50; // 提高z-index
   
   // 伪元素向上延伸背景，彻底遮盖缝隙
   &::before {
     content: '';
     position: absolute;
-    top: -20px;
-    left: -10px;
-    right: -10px;
-    height: 20px;
+    top: -30px;
+    left: -20px;
+    right: -20px;
+    height: 30px;
     background: #0a0a0a;
-    z-index: -1;
+    pointer-events: none;
   }
   
-  &::-webkit-scrollbar {
-    display: none;
-  }
-  
+  // 内容区域允许横向滚动
   .filter-tabs {
     display: flex;
     align-items: center;
     gap: clamp(10px, 3vw, 24px);
     flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    
+    &::-webkit-scrollbar {
+      display: none;
+    }
     
     .filter-item {
       font-size: clamp(12px, 3.5vw, 15px);
