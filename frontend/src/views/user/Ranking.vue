@@ -62,10 +62,6 @@
           @click="goToDetail(item)"
         >
           <div class="post-header">
-            <div class="rank-badge-inline">
-              <img :src="getRankIcon(index + 1)" class="rank-icon-small" />
-              <span class="rank-num-small">{{ index + 1 }}</span>
-            </div>
             <img :src="getAvatarUrl(item.user?.avatar, item.user?.id)" class="avatar" @click.stop="goToProfile(item.user?.id)" />
             <div class="user-info">
               <div class="user-name-row">
@@ -73,6 +69,10 @@
                 <img v-if="item.user?.is_vip" :src="getVipLevelIcon(item.user?.vip_level)" class="vip-icon" alt="VIP" />
               </div>
               <span class="time">{{ formatCommentTime(item.created_at) }}</span>
+            </div>
+            <div class="rank-badge-right">
+              <img :src="getRankIcon(index + 1)" class="rank-icon-small" />
+              <span class="rank-num-small">{{ index + 1 }}</span>
             </div>
           </div>
           <p class="post-text">{{ item.content || item.title }}</p>
@@ -612,11 +612,11 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
-.rank-badge-inline {
+.rank-badge-right {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 2px;
-  margin-right: 10px;
   
   .rank-icon-small {
     width: 20px;
