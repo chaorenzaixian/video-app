@@ -148,7 +148,7 @@
         </div>
 
         <!-- 视频筛选 -->
-        <div class="filter-bar">
+        <div ref="filterBarRef" :class="['filter-bar', { 'is-fixed': isFilterFixed }]">
           <div class="filter-tabs">
             <span 
               v-for="(filter, index) in videoFilters" 
@@ -171,6 +171,8 @@
             </span>
           </div>
         </div>
+        <!-- 筛选栏固定时的占位 -->
+        <div class="filter-bar-placeholder" v-if="isFilterFixed"></div>
 
         <!-- 骨架屏加载状态 -->
         <div v-if="loadingVideos && videos.length === 0" :class="['video-list', gridMode === 1 ? 'single-column' : 'double-column']">
@@ -474,6 +476,11 @@ const activeVideoFilter = ref(0)
 const videos = ref([])
 const loadingVideos = ref(false)
 const gridMode = ref(2) // 1=单列, 2=双列
+
+// 筛选栏固定
+const filterBarRef = ref(null)
+const isFilterFixed = ref(false)
+const filterBarOriginalTop = ref(0)
 
 // 滚动动画
 const scrollContainer = ref(null)
@@ -858,6 +865,31 @@ const handleBannerClick = (banner) => {
   }
 }
 
+// 处理滚动，控制筛选栏固定
+const handleScroll = () => {
+  if (!filterBarRef.value) return
+  
+  // 获取固定头部的高度
+  const headerHeight = document.querySelector('.fixed-header')?.offsetHeight || 0
+  
+  // 获取筛选栏相对于视口的位置
+  const rect = filterBarRef.value.getBoundingClientRect()
+  
+  // 当筛选栏顶部到达固定头部底部时，固定筛选栏
+  if (rect.top <= headerHeight && !isFilterFixed.value) {
+    isFilterFixed.value = true
+  } else if (rect.top > headerHeight && isFilterFixed.value) {
+    // 需要检查占位元素的位置
+    const placeholder = document.querySelector('.filter-bar-placeholder')
+    if (placeholder) {
+      const placeholderRect = placeholder.getBoundingClientRect()
+      if (placeholderRect.top > headerHeight) {
+        isFilterFixed.value = false
+      }
+    }
+  }
+}
+
 onMounted(() => {
   // 使用聚合接口，1个请求替代6个
   fetchHomeInit()
@@ -866,11 +898,15 @@ onMounted(() => {
   timers.setTimeout(() => {
     startScrollAnimation()
   }, 1000)
+  
+  // 监听滚动
+  window.addEventListener('scroll', handleScroll, { passive: true })
 })
 
 // 资源清理由 composables 自动处理
 onUnmounted(() => {
   // timers 和 videoCleanup 会在组件卸载时自动清理
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -988,18 +1024,6 @@ $breakpoint-xxl: 1280px; // 大桌面
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
   box-sizing: border-box;
-  
-  // 底部延伸背景，消除与筛选栏的缝隙
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: -20px;
-    left: 0;
-    right: 0;
-    height: 20px;
-    background: #0a0a0a;
-    pointer-events: none;
-  }
   
   @media (min-width: $breakpoint-lg) {
     max-width: 750px;
@@ -1544,7 +1568,7 @@ $breakpoint-xxl: 1280px; // 大桌面
   }
 }
 
-// 视频筛选 - sticky吸顶效果
+// 视频筛选
 .filter-bar {
   display: flex;
   justify-content: space-between;
@@ -1560,9 +1584,31 @@ $breakpoint-xxl: 1280px; // 大桌面
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  position: sticky;
-  top: calc(clamp(100px, 28vw, 130px) + env(safe-area-inset-top, 0px));
   z-index: 50;
+  
+  // 固定状态
+  &.is-fixed {
+    position: fixed;
+    top: calc(clamp(100px, 28vw, 130px) + env(safe-area-inset-top, 0px));
+    left: clamp(4px, 1.5vw, 10px);
+    right: clamp(4px, 1.5vw, 10px);
+    width: auto;
+    margin: 0;
+    
+    @media (min-width: $breakpoint-lg) {
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: calc(750px - clamp(8px, 3vw, 20px));
+    }
+    
+    @media (min-width: $breakpoint-xl) {
+      max-width: calc(900px - clamp(8px, 3vw, 20px));
+    }
+    
+    @media (min-width: $breakpoint-xxl) {
+      max-width: calc(1200px - clamp(8px, 3vw, 20px));
+    }
+  }
   
   &::-webkit-scrollbar {
     display: none;
@@ -1658,6 +1704,12 @@ $breakpoint-xxl: 1280px; // 大桌面
       }
     }
   }
+}
+
+// 筛选栏固定时的占位元素
+.filter-bar-placeholder {
+  height: 50px; // 筛选栏的大概高度
+  margin: 0 clamp(4px, 1.5vw, 10px);
 }
 
 // 骨架屏加载效果
