@@ -1,7 +1,7 @@
 <template>
   <div class="community-page">
-    <!-- 固定顶部区域：导航 + 一级分类 -->
-    <header ref="fixedHeaderRef" class="top-header">
+    <!-- 固定顶部导航：只有主标签 -->
+    <header class="top-header">
       <div class="main-tabs">
         <div 
           v-for="tab in mainTabs" 
@@ -16,56 +16,56 @@
           <img src="/images/backgrounds/ic_search.webp" alt="搜索" />
         </router-link>
       </div>
-
-      <!-- 一级分类（顶级分类）- 仅社区显示 -->
-      <div class="category-tabs" v-if="activeMainTab === 'community'">
-        <div class="category-scroll">
-          <span 
-            v-for="cat in topCategories" 
-            :key="cat.id"
-            :class="['category-tab', { active: selectedCategory === cat.id }]"
-            @click="selectCategory(cat)"
-          >{{ cat.name }}</span>
-        </div>
-      </div>
-
-      <!-- 图集分类 -->
-      <div class="category-tabs" v-if="activeMainTab === 'gallery'">
-        <div class="category-scroll">
-          <span 
-            v-for="cat in galleryCategories" 
-            :key="cat.id"
-            :class="['category-tab', { active: selectedGalleryCategory === cat.id }]"
-            @click="selectGalleryCategory(cat.id)"
-          >{{ cat.name }}</span>
-        </div>
-      </div>
-
-      <!-- 小说类型和分类 -->
-      <div class="novel-type-tabs" v-if="activeMainTab === 'novel'">
-        <div class="type-tabs">
-          <span 
-            :class="['type-tab', { active: selectedNovelType === 'text' }]"
-            @click="switchNovelType('text')"
-          >文字小说</span>
-          <span 
-            :class="['type-tab', { active: selectedNovelType === 'audio' }]"
-            @click="switchNovelType('audio')"
-          >有声小说</span>
-        </div>
-        <div class="category-scroll">
-          <span 
-            v-for="cat in novelCategories" 
-            :key="cat.id"
-            :class="['category-tab', { active: selectedNovelCategory === cat.id }]"
-            @click="selectNovelCategory(cat.id)"
-          >{{ cat.name }}</span>
-        </div>
-      </div>
     </header>
 
-    <!-- 头部占位 -->
-    <div class="header-placeholder" :style="{ height: fixedHeaderHeight + 'px' }"></div>
+    <!-- 头部占位 - 固定高度，只为顶部导航留空间 -->
+    <div class="header-placeholder"></div>
+
+    <!-- 一级分类（顶级分类）- 不固定，随页面滚动 -->
+    <div class="category-tabs" v-if="activeMainTab === 'community'">
+      <div class="category-scroll">
+        <span 
+          v-for="cat in topCategories" 
+          :key="cat.id"
+          :class="['category-tab', { active: selectedCategory === cat.id }]"
+          @click="selectCategory(cat)"
+        >{{ cat.name }}</span>
+      </div>
+    </div>
+
+    <!-- 图集分类 - 不固定 -->
+    <div class="category-tabs" v-if="activeMainTab === 'gallery'">
+      <div class="category-scroll">
+        <span 
+          v-for="cat in galleryCategories" 
+          :key="cat.id"
+          :class="['category-tab', { active: selectedGalleryCategory === cat.id }]"
+          @click="selectGalleryCategory(cat.id)"
+        >{{ cat.name }}</span>
+      </div>
+    </div>
+
+    <!-- 小说类型和分类 - 不固定 -->
+    <div class="novel-type-tabs" v-if="activeMainTab === 'novel'">
+      <div class="type-tabs">
+        <span 
+          :class="['type-tab', { active: selectedNovelType === 'text' }]"
+          @click="switchNovelType('text')"
+        >文字小说</span>
+        <span 
+          :class="['type-tab', { active: selectedNovelType === 'audio' }]"
+          @click="switchNovelType('audio')"
+        >有声小说</span>
+      </div>
+      <div class="category-scroll">
+        <span 
+          v-for="cat in novelCategories" 
+          :key="cat.id"
+          :class="['category-tab', { active: selectedNovelCategory === cat.id }]"
+          @click="selectNovelCategory(cat.id)"
+        >{{ cat.name }}</span>
+      </div>
+    </div>
 
     <!-- 图标广告位 -->
     <div class="promo-grid-fixed" v-if="iconAds.length">
@@ -116,11 +116,10 @@
       </div>
     </div>
 
-    <!-- 筛选标签 - 滚动到顶部时固定在头部下方 -->
+    <!-- 筛选标签 - 滚动到顶部导航下方时固定 -->
     <div 
       ref="filterTabsRef"
       :class="['filter-tabs-wrapper', { 'is-fixed': isFilterFixed }]"
-      :style="isFilterFixed ? { top: fixedHeaderHeight + 'px' } : {}"
       v-if="activeMainTab === 'community'"
     >
       <span 
@@ -130,12 +129,12 @@
         @click="activeFilter = filter.value; fetchPosts(true)"
       >{{ filter.label }}</span>
     </div>
-    <!-- 筛选栏占位符 - 始终存在，用于检测滚动位置 -->
+    <!-- 筛选栏占位符 -->
     <div 
       ref="filterPlaceholderRef"
       class="filter-tabs-placeholder" 
       v-if="activeMainTab === 'community'"
-      :style="{ height: isFilterFixed ? filterTabsHeight + 'px' : '0px', visibility: isFilterFixed ? 'visible' : 'hidden' }"
+      :style="{ height: isFilterFixed ? '44px' : '0px' }"
     ></div>
 
     <!-- 内容区域 -->
@@ -271,33 +270,17 @@ const { withLock } = useActionLock()
 // 获取VIP图标 - 使用统一的常量
 const getVipIcon = (level) => getVipLevelIcon(level)
 
-// 固定头部相关
-const fixedHeaderRef = ref(null)
-const fixedHeaderHeight = ref(120)  // 默认值增大，防止首次加载时遮盖（头部约100-120px）
-let headerResizeObserver = null  // ResizeObserver 实例
+// 顶部导航高度（固定值，只有主标签栏）
+const HEADER_HEIGHT = 54
 
 // 筛选栏固定相关
 const filterTabsRef = ref(null)
 const filterPlaceholderRef = ref(null)
 const isFilterFixed = ref(false)
-const filterTabsHeight = ref(44)  // 筛选栏默认高度
 let filterTabsOriginalTop = 0  // 筛选栏原始位置（相对于文档顶部）
-
-// 更新头部高度
-const updateHeaderHeight = (height) => {
-  if (height > 0) {
-    fixedHeaderHeight.value = height
-    document.documentElement.style.setProperty('--community-header-height', `${height}px`)
-    // 高度变化后重新计算筛选栏原始位置
-    nextTick(() => {
-      updateFilterOriginalTop()
-    })
-  }
-}
 
 // 更新筛选栏原始位置
 const updateFilterOriginalTop = () => {
-  // 优先使用筛选栏自身的位置（未固定时）
   if (filterTabsRef.value && !isFilterFixed.value) {
     const rect = filterTabsRef.value.getBoundingClientRect()
     const scrollTop = window.scrollY || document.documentElement.scrollTop
@@ -309,45 +292,15 @@ const updateFilterOriginalTop = () => {
   }
 }
 
-// 初始化头部高度
-const initHeaderHeight = () => {
-  const headerEl = fixedHeaderRef.value || document.querySelector('.top-header')
-  if (headerEl) {
-    const height = headerEl.offsetHeight
-    if (height > 0) {
-      updateHeaderHeight(height)
-    }
-  }
-}
-
-// 设置 ResizeObserver 监听头部高度变化
-const setupHeaderObserver = () => {
-  const headerEl = fixedHeaderRef.value || document.querySelector('.top-header')
-  if (!headerEl || headerResizeObserver) return
-  
-  headerResizeObserver = new ResizeObserver((entries) => {
-    for (const entry of entries) {
-      const height = entry.contentRect.height + 
-        parseFloat(getComputedStyle(entry.target).paddingTop) +
-        parseFloat(getComputedStyle(entry.target).paddingBottom)
-      updateHeaderHeight(Math.round(height))
-    }
-  })
-  headerResizeObserver.observe(headerEl)
-}
-
 // 处理滚动，控制筛选栏固定
 const handleScroll = () => {
   if (!filterTabsRef.value) return
   
-  const headerHeight = fixedHeaderHeight.value
   const scrollTop = window.scrollY || document.documentElement.scrollTop
   
-  // 使用原始位置判断是否需要固定
-  // 当滚动距离 + 头部高度 >= 筛选栏原始位置时，固定筛选栏
-  if (scrollTop + headerHeight >= filterTabsOriginalTop && filterTabsOriginalTop > 0) {
+  // 当滚动距离 + 顶部导航高度 >= 筛选栏原始位置时，固定筛选栏
+  if (scrollTop + HEADER_HEIGHT >= filterTabsOriginalTop && filterTabsOriginalTop > 0) {
     if (!isFilterFixed.value) {
-      filterTabsHeight.value = filterTabsRef.value.offsetHeight
       isFilterFixed.value = true
     }
   } else {
@@ -429,6 +382,12 @@ const fetchIconAds = async () => {
   try {
     const res = await api.get('/ads/icons')
     iconAds.value = res.data || []
+    // 广告加载完成后，更新筛选栏原始位置
+    nextTick(() => {
+      setTimeout(() => {
+        updateFilterOriginalTop()
+      }, 100)
+    })
   } catch (e) {
     console.error('获取广告失败', e)
   }
@@ -459,13 +418,11 @@ const fetchCategories = async () => {
       }
     })
     
-    // 分类加载完成后，等待 DOM 更新再重新计算高度
+    // 分类加载完成后，多次更新筛选栏原始位置（确保所有内容渲染完成）
     nextTick(() => {
-      initHeaderHeight()
-      // 延迟更新筛选栏原始位置，确保 DOM 完全渲染
-      setTimeout(() => {
-        updateFilterOriginalTop()
-      }, 100)
+      updateFilterOriginalTop()
+      setTimeout(() => updateFilterOriginalTop(), 200)
+      setTimeout(() => updateFilterOriginalTop(), 500)
     })
   } catch (e) {
     console.error('获取分类失败', e)
@@ -488,12 +445,11 @@ const fetchTopicsLegacy = async () => {
     
     data.forEach(t => { topicsMap.value[t.id] = t.name })
     
-    // 分类加载完成后，等待 DOM 更新再重新计算高度
+    // 分类加载完成后，多次更新筛选栏原始位置
     nextTick(() => {
-      initHeaderHeight()
-      setTimeout(() => {
-        updateFilterOriginalTop()
-      }, 100)
+      updateFilterOriginalTop()
+      setTimeout(() => updateFilterOriginalTop(), 200)
+      setTimeout(() => updateFilterOriginalTop(), 500)
     })
   } catch (e) {
     console.error('获取话题失败', e)
@@ -713,57 +669,34 @@ onMounted(() => {
     fetchNovels()
   }
   
-  // 初始化头部高度
-  initHeaderHeight()
-  
-  // 设置 ResizeObserver 监听头部高度变化
+  // 多次延迟初始化筛选栏原始位置，确保所有异步数据加载完成后 DOM 已渲染
   nextTick(() => {
-    setupHeaderObserver()
-    initHeaderHeight()
-    // 延迟初始化，确保所有内容都已渲染
-    setTimeout(() => {
-      initHeaderHeight()
-      updateFilterOriginalTop()
-    }, 100)
-    // 再次延迟，确保分类数据加载后的高度更新
-    setTimeout(() => {
-      initHeaderHeight()
-      updateFilterOriginalTop()
-    }, 500)
+    updateFilterOriginalTop()
+    setTimeout(() => updateFilterOriginalTop(), 300)
+    setTimeout(() => updateFilterOriginalTop(), 600)
+    setTimeout(() => updateFilterOriginalTop(), 1000)
   })
   
   // 监听滚动
   window.addEventListener('scroll', handleScroll, { passive: true })
-  // 监听窗口大小变化，重新计算头部高度
-  window.addEventListener('resize', initHeaderHeight, { passive: true })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
-  window.removeEventListener('resize', initHeaderHeight)
-  // 清理 ResizeObserver
-  if (headerResizeObserver) {
-    headerResizeObserver.disconnect()
-    headerResizeObserver = null
-  }
 })
 
 // 处理 keep-alive 缓存恢复时重新初始化
 onActivated(() => {
-  // 重新初始化头部高度
   nextTick(() => {
-    initHeaderHeight()
-    // 确保 ResizeObserver 正在运行
-    if (!headerResizeObserver) {
-      setupHeaderObserver()
-    }
     // 重置筛选栏固定状态
     isFilterFixed.value = false
-    // 延迟更新筛选栏原始位置
+    // 延迟更新筛选栏原始位置（确保数据已加载、DOM已渲染）
     setTimeout(() => {
       updateFilterOriginalTop()
       handleScroll()
     }, 100)
+    setTimeout(() => updateFilterOriginalTop(), 300)
+    setTimeout(() => updateFilterOriginalTop(), 600)
   })
 })
 </script>
@@ -776,10 +709,10 @@ onActivated(() => {
   padding-bottom: 70px;
 }
 
-/* 头部占位 */
+/* 头部占位 - 固定高度，只为顶部导航留空间 */
 .header-placeholder {
   width: 100%;
-  /* 高度通过 :style 动态绑定 */
+  height: 54px;
 }
 
 /* 顶部导航 - 固定定位 */
@@ -999,7 +932,7 @@ onActivated(() => {
   
   &.is-fixed {
     position: fixed;
-    /* top 通过 :style 动态绑定 */
+    top: 54px;
     left: 0;
     right: 0;
     z-index: 99;
