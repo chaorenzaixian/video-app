@@ -51,9 +51,15 @@ const fetchSplashAd = async () => {
   }
 }
 
-// 检查是否需要显示开屏（每次刷新都显示）
+// 检查是否需要显示开屏（已禁用）
 const checkShowSplash = async () => {
+  // 已禁用开屏广告
+  showSplash.value = false
+  return
+  
+  /* 原逻辑已禁用
   const isUserPage = window.location.pathname.startsWith('/user') || 
+                     window.location.pathname === '/' ||
                      window.location.hash.startsWith('#/user') ||
                      window.location.hash.startsWith('#/shorts')
   
@@ -63,6 +69,7 @@ const checkShowSplash = async () => {
     showSplash.value = true
     startCountdown()
   }
+  */
 }
 
 const startCountdown = () => {
@@ -117,34 +124,44 @@ const updateTheme = () => {
 
 onMounted(async () => {
   updateTheme()
-  checkShowSplash()
   
-  // 只在用户端页面自动注册游客账号
-  // 前提：当前没有token 或者 当前是游客账号
-  // 同时检查 pathname 和 hash（支持 iOS Web Clip）
+  // 判断是否是用户端页面
   const isUserPage = window.location.pathname.startsWith('/user') || 
+                     window.location.pathname === '/' ||
                      window.location.hash.startsWith('#/user') ||
-                     window.location.hash.startsWith('#/shorts')
+                     window.location.hash.startsWith('#/shorts') ||
+                     window.location.pathname.startsWith('/shorts')
+  
   if (isUserPage) {
+    // 检查URL中的邀请码参数
+    const urlParams = new URLSearchParams(window.location.search)
+    const inviteCode = urlParams.get('invite')
+    if (inviteCode) {
+      // 保存邀请码到 localStorage，注册时使用
+      localStorage.setItem('invite_code', inviteCode)
+    }
+    
+    // 并行执行：开屏广告 + 自动注册（不阻塞页面渲染）
+    checkShowSplash()
+    
     // 先检查当前用户是否是管理员
     if (userStore.token) {
       await userStore.fetchUser()
-      // 如果是管理员访问用户端，不覆盖token
       if (userStore.isAdmin) {
         return
       }
     }
-    // 非管理员或无token，执行游客注册
+    // 非管理员或无token，执行游客注册（后台执行，不阻塞）
     if (!userStore.token) {
-      await userStore.autoRegisterGuest()
+      userStore.autoRegisterGuest()
     }
     
-    // 启动会话检测（仅用户端已登录用户）
+    // 启动会话检测
     if (userStore.token) {
       sessionChecker.start()
     }
   } else {
-    // 后台页面：如果已有token则获取用户信息
+    // 后台页面
     if (userStore.token) {
       await userStore.fetchUser()
     }
