@@ -464,6 +464,7 @@ async def upload_apk(
     """上传 APK 安装包"""
     import os
     import aiofiles
+    import glob
     
     # 验证文件扩展名
     if not file.filename or not file.filename.lower().endswith('.apk'):
@@ -483,18 +484,19 @@ async def upload_apk(
             detail=f"APK 文件大小不能超过 200MB，当前文件大小: {file_size / 1024 / 1024:.1f}MB"
         )
     
-    # 生成安全的文件名（保留原始名称但添加时间戳避免冲突）
-    import re
-    from datetime import datetime
-    
-    # 清理文件名，只保留字母数字和基本符号
-    original_name = file.filename.rsplit('.', 1)[0]
-    safe_name = re.sub(r'[^\w\-]', '_', original_name)
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"{safe_name}_{timestamp}.apk"
-    
     # 确保目录存在
     os.makedirs(APK_UPLOAD_DIR, exist_ok=True)
+    
+    # 删除旧的 APK 文件
+    old_apks = glob.glob(os.path.join(APK_UPLOAD_DIR, "*.apk"))
+    for old_apk in old_apks:
+        try:
+            os.remove(old_apk)
+        except:
+            pass
+    
+    # 使用固定文件名 Soul.apk
+    filename = "Soul.apk"
     
     # 保存文件
     filepath = os.path.join(APK_UPLOAD_DIR, filename)
@@ -558,6 +560,7 @@ async def upload_ipa(
     """上传 iOS IPA 安装包"""
     import os
     import aiofiles
+    import glob
     
     # 验证文件扩展名
     if not file.filename or not file.filename.lower().endswith('.ipa'):
@@ -577,17 +580,23 @@ async def upload_ipa(
             detail=f"IPA 文件大小不能超过 500MB，当前文件大小: {file_size / 1024 / 1024:.1f}MB"
         )
     
-    # 生成安全的文件名
-    import re
-    from datetime import datetime
-    
-    original_name = file.filename.rsplit('.', 1)[0]
-    safe_name = re.sub(r'[^\w\-]', '_', original_name)
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"{safe_name}_{timestamp}.ipa"
-    
     # 确保目录存在
     os.makedirs(IPA_UPLOAD_DIR, exist_ok=True)
+    
+    # 删除旧的 IPA 文件和对应的 plist 文件
+    old_ipas = glob.glob(os.path.join(IPA_UPLOAD_DIR, "*.ipa"))
+    for old_ipa in old_ipas:
+        try:
+            os.remove(old_ipa)
+            # 同时删除对应的 plist 文件
+            plist_path = old_ipa.replace('.ipa', '.plist')
+            if os.path.exists(plist_path):
+                os.remove(plist_path)
+        except:
+            pass
+    
+    # 使用固定文件名 Soul.ipa
+    filename = "Soul.ipa"
     
     # 保存文件
     filepath = os.path.join(IPA_UPLOAD_DIR, filename)
@@ -661,6 +670,7 @@ async def upload_mobileconfig(
     """上传 iOS mobileconfig 配置文件"""
     import os
     import aiofiles
+    import glob
     
     # 验证文件扩展名
     if not file.filename or not file.filename.lower().endswith('.mobileconfig'):
@@ -680,17 +690,19 @@ async def upload_mobileconfig(
             detail=f"mobileconfig 文件大小不能超过 10MB，当前文件大小: {file_size / 1024 / 1024:.1f}MB"
         )
     
-    # 生成安全的文件名
-    import re
-    from datetime import datetime
-    
-    original_name = file.filename.rsplit('.', 1)[0]
-    safe_name = re.sub(r'[^\w\-]', '_', original_name)
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"{safe_name}_{timestamp}.mobileconfig"
-    
     # 确保目录存在
     os.makedirs(MOBILECONFIG_UPLOAD_DIR, exist_ok=True)
+    
+    # 删除旧的 mobileconfig 文件
+    old_configs = glob.glob(os.path.join(MOBILECONFIG_UPLOAD_DIR, "*.mobileconfig"))
+    for old_config in old_configs:
+        try:
+            os.remove(old_config)
+        except:
+            pass
+    
+    # 使用固定文件名 Soul.mobileconfig
+    filename = "Soul.mobileconfig"
     
     # 保存文件
     filepath = os.path.join(MOBILECONFIG_UPLOAD_DIR, filename)
