@@ -62,16 +62,6 @@
           >{{ cat.name }}</span>
         </div>
       </div>
-      
-      <!-- 筛选标签 - 放在 header 内部，使用 sticky 定位 -->
-      <div class="filter-tabs" v-if="activeMainTab === 'community'">
-        <span 
-          v-for="filter in filterTabs" 
-          :key="filter.value"
-          :class="['filter-tab', { active: activeFilter === filter.value }]"
-          @click="activeFilter = filter.value; fetchPosts(true)"
-        >{{ filter.label }}</span>
-      </div>
     </header>
 
     <!-- 头部占位 -->
@@ -124,6 +114,20 @@
           <span class="topic-count">{{ formatCount(topic.post_count) }}个帖子</span>
         </div>
       </div>
+    </div>
+
+    <!-- 筛选标签 - 使用 sticky 定位，滚动到顶部时吸附在固定头部下方 -->
+    <div 
+      class="filter-tabs-sticky" 
+      :style="{ top: fixedHeaderHeight + 'px' }"
+      v-if="activeMainTab === 'community'"
+    >
+      <span 
+        v-for="filter in filterTabs" 
+        :key="filter.value"
+        :class="['filter-tab', { active: activeFilter === filter.value }]"
+        @click="activeFilter = filter.value; fetchPosts(true)"
+      >{{ filter.label }}</span>
     </div>
 
     <!-- 内容区域 -->
@@ -857,8 +861,10 @@ onBeforeUnmount(() => {
     position: fixed;
     left: 0;
     right: 0;
-/* 筛选标签 - 在固定头部内 */
-.filter-tabs {
+/* 筛选标签 - sticky 定位，滚动时吸附在固定头部下方 */
+.filter-tabs-sticky {
+  position: sticky;
+  z-index: 99;
   display: flex;
   gap: 24px;
   padding: 10px 16px 12px;
