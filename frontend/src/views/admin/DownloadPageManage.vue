@@ -17,6 +17,43 @@
               <el-button type="primary" size="small" @click="addAndroidLink">添加链接</el-button>
             </div>
           </template>
+          
+          <!-- APK 上传区域 -->
+          <div class="apk-upload-section">
+            <el-divider content-position="left">上传 APK 安装包</el-divider>
+            <el-upload
+              ref="apkUploadRef"
+              :action="apkUploadUrl"
+              :headers="uploadHeaders"
+              :show-file-list="false"
+              :on-success="handleApkUploadSuccess"
+              :on-error="handleApkUploadError"
+              :on-progress="handleApkUploadProgress"
+              :before-upload="beforeApkUpload"
+              accept=".apk"
+            >
+              <el-button type="success" :loading="apkUploading">
+                <el-icon><Upload /></el-icon>
+                {{ apkUploading ? '上传中...' : '选择 APK 文件' }}
+              </el-button>
+            </el-upload>
+            <el-progress 
+              v-if="apkUploadProgress > 0 && apkUploadProgress < 100" 
+              :percentage="apkUploadProgress" 
+              :stroke-width="10"
+              style="margin-top: 10px"
+            />
+            <div v-if="lastUploadedApk" class="uploaded-apk-info">
+              <el-tag type="success">
+                已上传: {{ lastUploadedApk.filename }} ({{ lastUploadedApk.size_mb }}MB)
+              </el-tag>
+              <el-button size="small" type="primary" text @click="useUploadedApk">
+                使用此链接
+              </el-button>
+            </div>
+            <el-divider />
+          </div>
+          
           <el-table :data="config.android_links" style="width: 100%">
             <el-table-column prop="name" label="名称" width="100">
               <template #default="{ row }">
@@ -248,6 +285,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
+import { Upload } from '@element-plus/icons-vue'
 import api from '@/utils/api'
 
 const config = reactive({
@@ -263,8 +301,13 @@ const config = reactive({
 const saving = ref(false)
 const generatingQR = ref(false)
 const qrcodeImage = ref('')
+const apkUploading = ref(false)
+const apkUploadProgress = ref(0)
+const lastUploadedApk = ref(null)
+const apkUploadRef = ref(null)
 
 const uploadUrl = computed(() => '/api/v1/download-page/admin/upload')
+const apkUploadUrl = computed(() => '/api/v1/download-page/admin/upload-apk')
 const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`
 }))
@@ -323,6 +366,67 @@ const handleUploadSuccess = (res, category, field) => {
   if (res.url) {
     config[category][field] = res.url
     ElMessage.success('上传成功')
+  }
+}
+
+// APK 上传相关方法
+const beforeApkUpload = (file) => {
+  const isApk = file.name.toLowerCase().endsWith('.apk')
+  if (!isApk) {
+    ElMessage.error('只能上传 APK 格式文件')
+    return false
+  }
+  const isLt200M = file.size / 1024 / 1024 < 200
+  if (!isLt200M) {
+    ElMessage.error('APK 文件大小不能超过 200MB')
+    return false
+  }
+  apkUploading.value = true
+  apkUploadProgress.value = 0
+  return true
+}
+
+const handleApkUploadProgress = (event) => {
+  apkUploadProgress.value = Math.round(event.percent || 0)
+}
+
+const handleApkUploadSuccess = (res) => {
+  apkUploading.value = false
+  apkUploadProgress.value = 100
+  if (res.url) {
+    lastUploadedApk.value = res
+    ElMessage.success(`APK 上传成功: ${res.filename} (${res.size_mb}MB)`)
+  }
+}
+
+const handleApkUploadError = (error) => {
+  apkUploading.value = false
+  apkUploadProgress.value = 0
+  ElMessage.error('APK 上传失败: ' + (error.message || '未知错误'))
+}
+
+const useUploadedApk = () => {
+  if (!lastUploadedApk.value) return
+  
+  // 查找主链接或第一个链接，更新其 URL
+  const primaryLink = config.android_links.find(link => link.is_primary)
+  if (primaryLink) {
+    primaryLink.url = lastUploadedApk.value.url
+    ElMessage.success('已更新主下载链接')
+  } else if (config.android_links.length > 0) {
+    config.android_links[0].url = lastUploadedApk.value.url
+    ElMessage.success('已更新第一个下载链接')
+  } else {
+    // 没有链接，创建一个新的
+    config.android_links.push({
+      id: Date.now().toString(36),
+      name: 'APK下载',
+      url: lastUploadedApk.value.url,
+      is_primary: true,
+      is_active: true,
+      sort_order: 0
+    })
+    ElMessage.success('已创建新的下载链接')
   }
 }
 
@@ -391,5 +495,14 @@ onMounted(() => {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+.apk-upload-section {
+  margin-bottom: 15px;
+}
+.uploaded-apk-info {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 </style>

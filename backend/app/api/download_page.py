@@ -449,3 +449,97 @@ async def delete_android_link(
     await save_download_config(db, update)
     
     return {"message": "删除成功"}
+
+
+# APK 上传目录（下载页服务器目录）
+APK_UPLOAD_DIR = "/www/wwwroot/app-download"
+APK_MAX_SIZE = 200 * 1024 * 1024  # 200MB
+
+
+@router.post("/admin/upload-apk")
+async def upload_apk(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_admin_user)
+):
+    """上传 APK 安装包"""
+    import os
+    import aiofiles
+    
+    # 验证文件扩展名
+    if not file.filename or not file.filename.lower().endswith('.apk'):
+        raise HTTPException(
+            status_code=400,
+            detail="只支持 APK 格式文件"
+        )
+    
+    # 读取文件内容
+    content = await file.read()
+    file_size = len(content)
+    
+    # 验证文件大小
+    if file_size > APK_MAX_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"APK 文件大小不能超过 200MB，当前文件大小: {file_size / 1024 / 1024:.1f}MB"
+        )
+    
+    # 生成安全的文件名（保留原始名称但添加时间戳避免冲突）
+    import re
+    from datetime import datetime
+    
+    # 清理文件名，只保留字母数字和基本符号
+    original_name = file.filename.rsplit('.', 1)[0]
+    safe_name = re.sub(r'[^\w\-]', '_', original_name)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{safe_name}_{timestamp}.apk"
+    
+    # 确保目录存在
+    os.makedirs(APK_UPLOAD_DIR, exist_ok=True)
+    
+    # 保存文件
+    filepath = os.path.join(APK_UPLOAD_DIR, filename)
+    async with aiofiles.open(filepath, "wb") as f:
+        await f.write(content)
+    
+    # 设置文件权限
+    try:
+        os.chmod(filepath, 0o644)
+    except:
+        pass
+    
+    # 返回下载 URL（下载页服务器地址）
+    download_url = f"http://38.47.218.230/{filename}"
+    
+    return {
+        "url": download_url,
+        "filename": filename,
+        "size": file_size,
+        "size_mb": round(file_size / 1024 / 1024, 2)
+    }
+
+
+@router.delete("/admin/apk/{filename}")
+async def delete_apk(
+    filename: str,
+    current_user: User = Depends(get_admin_user)
+):
+    """删除 APK 文件"""
+    import os
+    
+    # 验证文件名安全性
+    if '..' in filename or '/' in filename or '\\' in filename:
+        raise HTTPException(status_code=400, detail="无效的文件名")
+    
+    if not filename.lower().endswith('.apk'):
+        raise HTTPException(status_code=400, detail="只能删除 APK 文件")
+    
+    filepath = os.path.join(APK_UPLOAD_DIR, filename)
+    
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    try:
+        os.remove(filepath)
+        return {"message": "删除成功"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除失败: {str(e)}")
