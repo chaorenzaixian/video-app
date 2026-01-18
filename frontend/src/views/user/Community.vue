@@ -1,6 +1,6 @@
 <template>
   <div class="community-page">
-    <!-- 固定顶部导航：只有主标签 -->
+    <!-- 顶部导航 -->
     <header class="top-header">
       <div class="main-tabs">
         <div 
@@ -16,78 +16,12 @@
           <img src="/images/backgrounds/ic_search.webp" alt="搜索" />
         </router-link>
       </div>
-    </header>
 
-    <!-- 头部占位 - 固定高度，只为顶部导航留空间 -->
-    <div class="header-placeholder"></div>
-
-    <!-- 一级分类（顶级分类）- 不固定，随页面滚动 -->
-    <div class="category-tabs" v-if="activeMainTab === 'community'">
-      <div class="category-scroll">
-        <span 
-          v-for="cat in topCategories" 
-          :key="cat.id"
-          :class="['category-tab', { active: selectedCategory === cat.id }]"
-          @click="selectCategory(cat)"
-        >{{ cat.name }}</span>
-      </div>
-    </div>
-
-    <!-- 图集分类 - 不固定 -->
-    <div class="category-tabs" v-if="activeMainTab === 'gallery'">
-      <div class="category-scroll">
-        <span 
-          v-for="cat in galleryCategories" 
-          :key="cat.id"
-          :class="['category-tab', { active: selectedGalleryCategory === cat.id }]"
-          @click="selectGalleryCategory(cat.id)"
-        >{{ cat.name }}</span>
-      </div>
-    </div>
-
-    <!-- 小说类型和分类 - 不固定 -->
-    <div class="novel-type-tabs" v-if="activeMainTab === 'novel'">
-      <div class="type-tabs">
-        <span 
-          :class="['type-tab', { active: selectedNovelType === 'text' }]"
-          @click="switchNovelType('text')"
-        >文字小说</span>
-        <span 
-          :class="['type-tab', { active: selectedNovelType === 'audio' }]"
-          @click="switchNovelType('audio')"
-        >有声小说</span>
-      </div>
-      <div class="category-scroll">
-        <span 
-          v-for="cat in novelCategories" 
-          :key="cat.id"
-          :class="['category-tab', { active: selectedNovelCategory === cat.id }]"
-          @click="selectNovelCategory(cat.id)"
-        >{{ cat.name }}</span>
-      </div>
-    </div>
-
-    <!-- 图标广告位 -->
-    <div class="promo-grid-fixed" v-if="iconAds.length">
-      <div 
-        v-for="ad in iconAds.slice(0, 5)" 
-        :key="ad.id" 
-        class="promo-item"
-        @click="openAdLink(ad)"
-      >
-        <div class="promo-icon-wrap">
-          <img v-if="ad.image" :src="ad.image" :alt="ad.name" class="promo-img" />
-          <span v-else class="fallback-icon">{{ ad.icon || '📦' }}</span>
-        </div>
-        <span class="promo-name">{{ ad.name }}</span>
-      </div>
-    </div>
-    <!-- 滚动广告位 -->
-    <div class="promo-scroll-container" v-if="iconAds.length > 5">
-      <div class="promo-grid-scroll">
+      <!-- 图标广告位 - 移到顶部导航下方 -->
+      <div class="promo-grid-fixed" v-if="iconAds.length">
         <div 
-          v-for="ad in [...iconAds.slice(5), ...iconAds.slice(5)]" 
-          :key="ad.id + '-' + Math.random()" 
+          v-for="ad in iconAds.slice(0, 5)" 
+          :key="ad.id" 
           class="promo-item"
           @click="openAdLink(ad)"
         >
@@ -98,44 +32,96 @@
           <span class="promo-name">{{ ad.name }}</span>
         </div>
       </div>
-    </div>
-
-    <!-- 二级分类（子话题）- 仅社区显示 -->
-    <div class="topic-cards" v-if="activeMainTab === 'community' && currentSubTopics.length">
-      <div class="topic-grid">
-        <div 
-          v-for="topic in currentSubTopics" 
-          :key="topic.id"
-          :class="['topic-card', { active: selectedTopic === topic.id }]"
-          :style="topic.cover ? { backgroundImage: `url(${topic.cover})` } : {}"
-          @click="selectTopic(topic)"
-        >
-          <span class="topic-name">{{ topic.name }}</span>
-          <span class="topic-count">{{ formatCount(topic.post_count) }}个帖子</span>
+      <!-- 滚动广告位 -->
+      <div class="promo-scroll-container" v-if="iconAds.length > 5">
+        <div class="promo-grid-scroll">
+          <div 
+            v-for="ad in [...iconAds.slice(5), ...iconAds.slice(5)]" 
+            :key="ad.id + '-' + Math.random()" 
+            class="promo-item"
+            @click="openAdLink(ad)"
+          >
+            <div class="promo-icon-wrap">
+              <img v-if="ad.image" :src="ad.image" :alt="ad.name" class="promo-img" />
+              <span v-else class="fallback-icon">{{ ad.icon || '📦' }}</span>
+            </div>
+            <span class="promo-name">{{ ad.name }}</span>
+          </div>
         </div>
       </div>
-    </div>
+      
+      <!-- 一级分类（顶级分类）- 仅社区显示 -->
+      <div class="category-tabs" v-if="activeMainTab === 'community'">
+        <div class="category-scroll">
+          <span 
+            v-for="cat in topCategories" 
+            :key="cat.id"
+            :class="['category-tab', { active: selectedCategory === cat.id }]"
+            @click="selectCategory(cat)"
+          >{{ cat.name }}</span>
+        </div>
+      </div>
 
-    <!-- 筛选标签 - 滚动到顶部导航下方时固定 -->
-    <div 
-      ref="filterTabsRef"
-      :class="['filter-tabs-wrapper', { 'is-fixed': isFilterFixed }]"
-      v-if="activeMainTab === 'community'"
-    >
-      <span 
-        v-for="filter in filterTabs" 
-        :key="filter.value"
-        :class="['filter-tab', { active: activeFilter === filter.value }]"
-        @click="activeFilter = filter.value; fetchPosts(true)"
-      >{{ filter.label }}</span>
-    </div>
-    <!-- 筛选栏占位符 -->
-    <div 
-      ref="filterPlaceholderRef"
-      class="filter-tabs-placeholder" 
-      v-if="activeMainTab === 'community'"
-      :style="{ height: isFilterFixed ? '44px' : '0px' }"
-    ></div>
+      <!-- 二级分类（子话题）- 仅社区显示 -->
+      <div class="topic-cards" v-if="activeMainTab === 'community' && currentSubTopics.length">
+        <div class="topic-grid">
+          <div 
+            v-for="topic in currentSubTopics" 
+            :key="topic.id"
+            :class="['topic-card', { active: selectedTopic === topic.id }]"
+            :style="topic.cover ? { backgroundImage: `url(${topic.cover})` } : {}"
+            @click="selectTopic(topic)"
+          >
+            <span class="topic-name">{{ topic.name }}</span>
+            <span class="topic-count">{{ formatCount(topic.post_count) }}个帖子</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 筛选标签 -->
+      <div class="filter-tabs" v-if="activeMainTab === 'community'">
+        <span 
+          v-for="filter in filterTabs" 
+          :key="filter.value"
+          :class="['filter-tab', { active: activeFilter === filter.value }]"
+          @click="activeFilter = filter.value; fetchPosts(true)"
+        >{{ filter.label }}</span>
+      </div>
+
+      <!-- 图集分类 -->
+      <div class="category-tabs" v-if="activeMainTab === 'gallery'">
+        <div class="category-scroll">
+          <span 
+            v-for="cat in galleryCategories" 
+            :key="cat.id"
+            :class="['category-tab', { active: selectedGalleryCategory === cat.id }]"
+            @click="selectGalleryCategory(cat.id)"
+          >{{ cat.name }}</span>
+        </div>
+      </div>
+
+      <!-- 小说类型和分类 -->
+      <div class="novel-type-tabs" v-if="activeMainTab === 'novel'">
+        <div class="type-tabs">
+          <span 
+            :class="['type-tab', { active: selectedNovelType === 'text' }]"
+            @click="switchNovelType('text')"
+          >文字小说</span>
+          <span 
+            :class="['type-tab', { active: selectedNovelType === 'audio' }]"
+            @click="switchNovelType('audio')"
+          >有声小说</span>
+        </div>
+        <div class="category-scroll">
+          <span 
+            v-for="cat in novelCategories" 
+            :key="cat.id"
+            :class="['category-tab', { active: selectedNovelCategory === cat.id }]"
+            @click="selectNovelCategory(cat.id)"
+          >{{ cat.name }}</span>
+        </div>
+      </div>
+    </header>
 
     <!-- 内容区域 -->
     <div class="content-area">
@@ -246,7 +232,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, onActivated, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
@@ -269,80 +255,6 @@ const { withLock } = useActionLock()
 
 // 获取VIP图标 - 使用统一的常量
 const getVipIcon = (level) => getVipLevelIcon(level)
-
-// 顶部导航高度（固定值，只有主标签栏）
-const HEADER_HEIGHT = 54
-
-// 筛选栏固定相关
-const filterTabsRef = ref(null)
-const filterPlaceholderRef = ref(null)
-const isFilterFixed = ref(false)
-let filterTabsOriginalTop = 0  // 筛选栏原始位置（相对于文档顶部）
-let contentObserver = null  // MutationObserver 用于监听内容变化
-
-// 更新筛选栏原始位置
-const updateFilterOriginalTop = () => {
-  if (filterTabsRef.value && !isFilterFixed.value) {
-    const rect = filterTabsRef.value.getBoundingClientRect()
-    const scrollTop = window.scrollY || document.documentElement.scrollTop
-    filterTabsOriginalTop = rect.top + scrollTop
-    console.log('[Community] 更新筛选栏位置:', filterTabsOriginalTop)
-  } else if (filterPlaceholderRef.value) {
-    const rect = filterPlaceholderRef.value.getBoundingClientRect()
-    const scrollTop = window.scrollY || document.documentElement.scrollTop
-    filterTabsOriginalTop = rect.top + scrollTop
-    console.log('[Community] 从占位符更新筛选栏位置:', filterTabsOriginalTop)
-  }
-}
-
-// 设置内容观察器，监听DOM变化后更新筛选栏位置
-const setupContentObserver = () => {
-  if (contentObserver) {
-    contentObserver.disconnect()
-  }
-  
-  // 获取内容区域的父元素
-  const communityPage = document.querySelector('.community-page')
-  if (!communityPage) return
-  
-  contentObserver = new MutationObserver(() => {
-    // DOM 变化后延迟更新位置
-    nextTick(() => {
-      updateFilterOriginalTop()
-    })
-  })
-  
-  contentObserver.observe(communityPage, {
-    childList: true,
-    subtree: true
-  })
-  
-  // 5秒后停止观察，避免持续消耗性能
-  setTimeout(() => {
-    if (contentObserver) {
-      contentObserver.disconnect()
-      contentObserver = null
-    }
-  }, 5000)
-}
-
-// 处理滚动，控制筛选栏固定
-const handleScroll = () => {
-  if (!filterTabsRef.value) return
-  
-  const scrollTop = window.scrollY || document.documentElement.scrollTop
-  
-  // 当滚动距离 + 顶部导航高度 >= 筛选栏原始位置时，固定筛选栏
-  if (scrollTop + HEADER_HEIGHT >= filterTabsOriginalTop && filterTabsOriginalTop > 0) {
-    if (!isFilterFixed.value) {
-      isFilterFixed.value = true
-    }
-  } else {
-    if (isFilterFixed.value) {
-      isFilterFixed.value = false
-    }
-  }
-}
 
 // 主Tab配置
 const mainTabs = [
@@ -682,45 +594,6 @@ onMounted(() => {
   } else if (activeMainTab.value === 'novel') {
     fetchNovels()
   }
-  
-  // 设置内容观察器，监听DOM变化
-  nextTick(() => {
-    setupContentObserver()
-    updateFilterOriginalTop()
-  })
-  
-  // 监听滚动
-  window.addEventListener('scroll', handleScroll, { passive: true })
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('scroll', handleScroll)
-  if (contentObserver) {
-    contentObserver.disconnect()
-    contentObserver = null
-  }
-})
-
-// 监听关键数据变化，更新筛选栏位置
-watch([topCategories, iconAds, currentSubTopics], () => {
-  nextTick(() => {
-    setTimeout(() => updateFilterOriginalTop(), 100)
-  })
-}, { deep: true })
-
-// 处理 keep-alive 缓存恢复时重新初始化
-onActivated(() => {
-  nextTick(() => {
-    // 重置筛选栏固定状态
-    isFilterFixed.value = false
-    // 重新设置观察器
-    setupContentObserver()
-    // 延迟更新筛选栏原始位置
-    setTimeout(() => {
-      updateFilterOriginalTop()
-      handleScroll()
-    }, 100)
-  })
 })
 </script>
 
@@ -732,34 +605,12 @@ onActivated(() => {
   padding-bottom: 70px;
 }
 
-/* 头部占位 - 固定高度，只为顶部导航留空间 */
-.header-placeholder {
-  width: 100%;
-  height: 54px;
-}
-
-/* 顶部导航 - 固定定位 */
+/* 顶部导航 */
 .top-header {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
   z-index: 100;
   background: #0d0d0d;
-  
-  @media (min-width: 768px) {
-    max-width: 750px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-  
-  @media (min-width: 1024px) {
-    max-width: 900px;
-  }
-  
-  @media (min-width: 1280px) {
-    max-width: 1200px;
-  }
 }
 
 .main-tabs {
@@ -945,40 +796,12 @@ onActivated(() => {
   }
 }
 
-/* 筛选标签 - 滚动时固定在头部下方 */
-.filter-tabs-wrapper {
+/* 筛选标签 */
+.filter-tabs {
   display: flex;
   gap: 24px;
   padding: 10px 16px 12px;
   border-bottom: 1px solid #1a1a1a;
-  background: #0d0d0d;
-  
-  &.is-fixed {
-    position: fixed;
-    top: 54px;
-    left: 0;
-    right: 0;
-    z-index: 99;
-    
-    @media (min-width: 768px) {
-      left: 50%;
-      transform: translateX(-50%);
-      max-width: 750px;
-    }
-    
-    @media (min-width: 1024px) {
-      max-width: 900px;
-    }
-    
-    @media (min-width: 1280px) {
-      max-width: 1200px;
-    }
-  }
-}
-
-.filter-tabs-placeholder {
-  height: 44px;  /* 筛选栏的高度 */
-  width: 100%;
 }
 
 .filter-tab {
