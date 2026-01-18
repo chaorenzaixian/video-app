@@ -703,6 +703,12 @@ const routes = [
         meta: { title: '转码监控', icon: 'Monitor' }
       },
       {
+        path: 'download-page',
+        name: 'DownloadPageManage',
+        component: () => import('@/views/admin/DownloadPageManage.vue'),
+        meta: { title: '下载页管理', icon: 'Download' }
+      },
+      {
         path: 'report-manage',
         name: 'ReportManage',
         component: () => import('@/views/admin/ReportManage.vue'),
