@@ -51,13 +51,8 @@ const fetchSplashAd = async () => {
   }
 }
 
-// 检查是否需要显示开屏（已禁用）
+// 检查是否需要显示开屏
 const checkShowSplash = async () => {
-  // 已禁用开屏广告
-  showSplash.value = false
-  return
-  
-  /* 原逻辑已禁用
   const isUserPage = window.location.pathname.startsWith('/user') || 
                      window.location.pathname === '/' ||
                      window.location.hash.startsWith('#/user') ||
@@ -69,7 +64,6 @@ const checkShowSplash = async () => {
     showSplash.value = true
     startCountdown()
   }
-  */
 }
 
 const startCountdown = () => {
