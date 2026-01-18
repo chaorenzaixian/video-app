@@ -273,7 +273,7 @@ const getVipIcon = (level) => getVipLevelIcon(level)
 
 // 固定头部相关
 const fixedHeaderRef = ref(null)
-const fixedHeaderHeight = ref(90)  // 默认值，防止首次加载时为0导致遮盖
+const fixedHeaderHeight = ref(120)  // 默认值增大，防止首次加载时遮盖（头部约100-120px）
 let headerResizeObserver = null  // ResizeObserver 实例
 
 // 筛选栏固定相关
@@ -285,29 +285,38 @@ let filterTabsOriginalTop = 0  // 筛选栏原始位置（相对于文档顶部�
 
 // 更新头部高度
 const updateHeaderHeight = (height) => {
-  if (height > 0 && height !== fixedHeaderHeight.value) {
+  if (height > 0) {
     fixedHeaderHeight.value = height
     document.documentElement.style.setProperty('--community-header-height', `${height}px`)
     // 高度变化后重新计算筛选栏原始位置
-    updateFilterOriginalTop()
+    nextTick(() => {
+      updateFilterOriginalTop()
+    })
   }
 }
 
 // 更新筛选栏原始位置
 const updateFilterOriginalTop = () => {
-  if (filterPlaceholderRef.value) {
-    // 使用占位符的位置作为筛选栏的原始位置
-    filterTabsOriginalTop = filterPlaceholderRef.value.offsetTop
-  } else if (filterTabsRef.value && !isFilterFixed.value) {
-    filterTabsOriginalTop = filterTabsRef.value.offsetTop
+  // 优先使用筛选栏自身的位置（未固定时）
+  if (filterTabsRef.value && !isFilterFixed.value) {
+    const rect = filterTabsRef.value.getBoundingClientRect()
+    const scrollTop = window.scrollY || document.documentElement.scrollTop
+    filterTabsOriginalTop = rect.top + scrollTop
+  } else if (filterPlaceholderRef.value) {
+    const rect = filterPlaceholderRef.value.getBoundingClientRect()
+    const scrollTop = window.scrollY || document.documentElement.scrollTop
+    filterTabsOriginalTop = rect.top + scrollTop
   }
 }
 
 // 初始化头部高度
 const initHeaderHeight = () => {
   const headerEl = fixedHeaderRef.value || document.querySelector('.top-header')
-  if (headerEl && headerEl.offsetHeight > 0) {
-    updateHeaderHeight(headerEl.offsetHeight)
+  if (headerEl) {
+    const height = headerEl.offsetHeight
+    if (height > 0) {
+      updateHeaderHeight(height)
+    }
   }
 }
 
@@ -711,10 +720,16 @@ onMounted(() => {
   nextTick(() => {
     setupHeaderObserver()
     initHeaderHeight()
-    // 延迟初始化筛选栏原始位置，确保所有内容都已渲染
+    // 延迟初始化，确保所有内容都已渲染
     setTimeout(() => {
+      initHeaderHeight()
       updateFilterOriginalTop()
-    }, 200)
+    }, 100)
+    // 再次延迟，确保分类数据加载后的高度更新
+    setTimeout(() => {
+      initHeaderHeight()
+      updateFilterOriginalTop()
+    }, 500)
   })
   
   // 监听滚动
