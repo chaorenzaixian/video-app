@@ -116,6 +116,9 @@
       </div>
     </div>
 
+    <!-- 筛选栏哨兵元素 - 用于检测筛选栏是否应该固定 -->
+    <div ref="filterSentinelRef" class="filter-sentinel" v-if="activeMainTab === 'community'"></div>
+
     <!-- 筛选标签 - 滚动到顶部时固定在头部下方 -->
     <div 
       ref="filterTabsRef"
@@ -276,10 +279,10 @@ const fixedHeaderHeight = ref(90)  // 默认值，防止首次加载时为0导�
 
 // 筛选栏固定相关
 const filterTabsRef = ref(null)
+const filterSentinelRef = ref(null)
 const isFilterFixed = ref(false)
 const filterTabsHeight = ref(0)
-const filterTabsOriginalTop = ref(0)
-const positionInitialized = ref(false)  // 标记位置是否已初始化
+let filterObserver = null
 
 // 计算固定头部高度
 const updateHeaderHeight = () => {
@@ -291,61 +294,40 @@ const updateHeaderHeight = () => {
   }
 }
 
-// 更新筛选栏位置信息
-const updateFilterPosition = () => {
-  if (filterTabsRef.value && !isFilterFixed.value) {
-    const rect = filterTabsRef.value.getBoundingClientRect()
-    const height = filterTabsRef.value.offsetHeight
-    if (height > 0) {
-      filterTabsHeight.value = height
-      // 计算筛选栏相对于文档顶部的原始位置
-      filterTabsOriginalTop.value = rect.top + window.scrollY
-      positionInitialized.value = true
-    }
-  }
-}
-
-// 强制重新计算所有位置（用于数据加载后）
-const recalculatePositions = () => {
+// 设置 IntersectionObserver 来检测筛选栏是否应该固定
+const setupFilterObserver = () => {
+  if (!filterSentinelRef.value || !fixedHeaderRef.value) return
+  
   // 先更新头部高度
   updateHeaderHeight()
-  // 如果筛选栏当前是固定状态，先取消固定以获取正确位置
-  if (isFilterFixed.value) {
-    isFilterFixed.value = false
-    nextTick(() => {
-      updateFilterPosition()
-      // 重新检查是否需要固定
-      handleScroll()
-    })
-  } else {
-    updateFilterPosition()
-  }
-}
-
-// 滚动处理 - 判断是否需要固定筛选栏
-const handleScroll = () => {
-  if (!filterTabsRef.value) return
   
-  // 如果位置还没初始化，先尝试初始化
-  if (!positionInitialized.value) {
-    updateHeaderHeight()
-    updateFilterPosition()
-    if (!positionInitialized.value) return
+  // 清理旧的 observer
+  if (filterObserver) {
+    filterObserver.disconnect()
   }
   
-  // 当滚动位置超过筛选栏原始位置减去固定头部高度时，固定筛选栏
-  const scrollTop = window.scrollY
-  const threshold = filterTabsOriginalTop.value - fixedHeaderHeight.value
-  
-  if (scrollTop >= threshold && !isFilterFixed.value) {
-    isFilterFixed.value = true
-  } else if (scrollTop < threshold && isFilterFixed.value) {
-    isFilterFixed.value = false
-    // 重新计算原始位置
-    nextTick(() => {
-      updateFilterPosition()
-    })
+  // 保存筛选栏高度
+  if (filterTabsRef.value) {
+    filterTabsHeight.value = filterTabsRef.value.offsetHeight
   }
+  
+  // 创建 IntersectionObserver
+  // rootMargin 设置为负的头部高度，这样当哨兵元素滚动到头部下方时触发
+  filterObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        // 当哨兵元素不在视口中（被头部遮挡）时，固定筛选栏
+        isFilterFixed.value = !entry.isIntersecting
+      })
+    },
+    {
+      // 设置 rootMargin，顶部偏移为负的头部高度
+      rootMargin: `-${fixedHeaderHeight.value}px 0px 0px 0px`,
+      threshold: 0
+    }
+  )
+  
+  filterObserver.observe(filterSentinelRef.value)
 }
 
 // 主Tab配置
@@ -450,9 +432,9 @@ const fetchCategories = async () => {
       }
     })
     
-    // 分类加载完成后重新计算头部高度和筛选栏位置
+    // 分类加载完成后重新设置 observer
     nextTick(() => {
-      recalculatePositions()
+      setupFilterObserver()
     })
   } catch (e) {
     console.error('获取分类失败', e)
@@ -475,9 +457,9 @@ const fetchTopicsLegacy = async () => {
     
     data.forEach(t => { topicsMap.value[t.id] = t.name })
     
-    // 分类加载完成后重新计算头部高度和筛选栏位置
+    // 分类加载完成后重新设置 observer
     nextTick(() => {
-      recalculatePositions()
+      setupFilterObserver()
     })
   } catch (e) {
     console.error('获取话题失败', e)
@@ -697,30 +679,26 @@ onMounted(() => {
     fetchNovels()
   }
   
-  // 初始化固定头部高度和筛选栏位置
-  // 使用多次延迟确保在各种情况下都能正确初始化
-  const initPositions = () => {
-    updateHeaderHeight()
-    updateFilterPosition()
-  }
-  
+  // 初始化 IntersectionObserver
   nextTick(() => {
-    initPositions()
-    // 多次延迟重试，确保数据加载后位置正确
-    setTimeout(initPositions, 100)
-    setTimeout(initPositions, 300)
-    setTimeout(initPositions, 500)
+    setupFilterObserver()
+    // 延迟重试，确保数据加载后 observer 正确设置
+    setTimeout(setupFilterObserver, 100)
+    setTimeout(setupFilterObserver, 300)
+    setTimeout(setupFilterObserver, 500)
   })
   
-  // 监听窗口大小变化
-  window.addEventListener('resize', recalculatePositions, { passive: true })
-  // 监听滚动事件
-  window.addEventListener('scroll', handleScroll, { passive: true })
+  // 监听窗口大小变化时重新设置 observer
+  window.addEventListener('resize', setupFilterObserver, { passive: true })
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', recalculatePositions)
-  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', setupFilterObserver)
+  // 清理 observer
+  if (filterObserver) {
+    filterObserver.disconnect()
+    filterObserver = null
+  }
 })
 </script>
 
@@ -976,6 +954,12 @@ onBeforeUnmount(() => {
 
 .filter-tabs-placeholder {
   width: 100%;
+}
+
+/* 筛选栏哨兵元素 - 高度为0，不占空间 */
+.filter-sentinel {
+  height: 1px;
+  margin-bottom: -1px;
 }
 
 .filter-tab {
