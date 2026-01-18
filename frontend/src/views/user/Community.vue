@@ -281,21 +281,32 @@ const filterTabsRef = ref(null)
 const filterPlaceholderRef = ref(null)
 const isFilterFixed = ref(false)
 const filterTabsHeight = ref(44)  // 筛选栏默认高度
+let filterTabsOriginalTop = 0  // 筛选栏原始位置（相对于文档顶部）
 
-// 更新头部高度 CSS 变量
+// 更新头部高度
 const updateHeaderHeight = (height) => {
   if (height > 0 && height !== fixedHeaderHeight.value) {
-    console.log('[Community] 更新头部高度:', height)
     fixedHeaderHeight.value = height
     document.documentElement.style.setProperty('--community-header-height', `${height}px`)
+    // 高度变化后重新计算筛选栏原始位置
+    updateFilterOriginalTop()
   }
 }
 
-// 初始化头部高度 CSS 变量
+// 更新筛选栏原始位置
+const updateFilterOriginalTop = () => {
+  if (filterPlaceholderRef.value) {
+    // 使用占位符的位置作为筛选栏的原始位置
+    filterTabsOriginalTop = filterPlaceholderRef.value.offsetTop
+  } else if (filterTabsRef.value && !isFilterFixed.value) {
+    filterTabsOriginalTop = filterTabsRef.value.offsetTop
+  }
+}
+
+// 初始化头部高度
 const initHeaderHeight = () => {
   const headerEl = fixedHeaderRef.value || document.querySelector('.top-header')
-  console.log('[Community] initHeaderHeight - headerEl:', headerEl, 'offsetHeight:', headerEl?.offsetHeight)
-  if (headerEl) {
+  if (headerEl && headerEl.offsetHeight > 0) {
     updateHeaderHeight(headerEl.offsetHeight)
   }
 }
@@ -303,7 +314,6 @@ const initHeaderHeight = () => {
 // 设置 ResizeObserver 监听头部高度变化
 const setupHeaderObserver = () => {
   const headerEl = fixedHeaderRef.value || document.querySelector('.top-header')
-  console.log('[Community] setupHeaderObserver - headerEl:', headerEl, 'existing observer:', !!headerResizeObserver)
   if (!headerEl || headerResizeObserver) return
   
   headerResizeObserver = new ResizeObserver((entries) => {
@@ -311,33 +321,28 @@ const setupHeaderObserver = () => {
       const height = entry.contentRect.height + 
         parseFloat(getComputedStyle(entry.target).paddingTop) +
         parseFloat(getComputedStyle(entry.target).paddingBottom)
-      console.log('[Community] ResizeObserver 检测到高度变化:', Math.round(height))
       updateHeaderHeight(Math.round(height))
     }
   })
   headerResizeObserver.observe(headerEl)
-  console.log('[Community] ResizeObserver 已设置')
 }
 
 // 处理滚动，控制筛选栏固定
 const handleScroll = () => {
   if (!filterTabsRef.value) return
   
-  // 获取固定头部的实际高度
   const headerHeight = fixedHeaderHeight.value
+  const scrollTop = window.scrollY || document.documentElement.scrollTop
   
-  // 获取筛选栏相对于视口的位置
-  const rect = filterTabsRef.value.getBoundingClientRect()
-  
-  // 当筛选栏顶部到达固定头部底部时，固定筛选栏
-  if (rect.top <= headerHeight && !isFilterFixed.value) {
-    // 记录筛选栏的实际高度
-    filterTabsHeight.value = filterTabsRef.value.offsetHeight
-    isFilterFixed.value = true
-  } else if (isFilterFixed.value && filterPlaceholderRef.value) {
-    // 使用占位符的位置来决定是否取消固定
-    const placeholderRect = filterPlaceholderRef.value.getBoundingClientRect()
-    if (placeholderRect.top > headerHeight) {
+  // 使用原始位置判断是否需要固定
+  // 当滚动距离 + 头部高度 >= 筛选栏原始位置时，固定筛选栏
+  if (scrollTop + headerHeight >= filterTabsOriginalTop && filterTabsOriginalTop > 0) {
+    if (!isFilterFixed.value) {
+      filterTabsHeight.value = filterTabsRef.value.offsetHeight
+      isFilterFixed.value = true
+    }
+  } else {
+    if (isFilterFixed.value) {
       isFilterFixed.value = false
     }
   }
@@ -446,10 +451,12 @@ const fetchCategories = async () => {
     })
     
     // 分类加载完成后，等待 DOM 更新再重新计算高度
-    console.log('[Community] 分类加载完成，等待 DOM 更新')
     nextTick(() => {
-      console.log('[Community] 分类加载后 nextTick，调用 initHeaderHeight')
       initHeaderHeight()
+      // 延迟更新筛选栏原始位置，确保 DOM 完全渲染
+      setTimeout(() => {
+        updateFilterOriginalTop()
+      }, 100)
     })
   } catch (e) {
     console.error('获取分类失败', e)
@@ -473,10 +480,11 @@ const fetchTopicsLegacy = async () => {
     data.forEach(t => { topicsMap.value[t.id] = t.name })
     
     // 分类加载完成后，等待 DOM 更新再重新计算高度
-    console.log('[Community] 旧话题接口加载完成，等待 DOM 更新')
     nextTick(() => {
-      console.log('[Community] 旧话题接口加载后 nextTick，调用 initHeaderHeight')
       initHeaderHeight()
+      setTimeout(() => {
+        updateFilterOriginalTop()
+      }, 100)
     })
   } catch (e) {
     console.error('获取话题失败', e)
@@ -670,8 +678,6 @@ const selectNovelCategory = (catId) => {
 }
 
 onMounted(() => {
-  console.log('[Community] onMounted 开始')
-  
   // 从URL参数读取tab
   const tabParam = route.query.tab
   if (tabParam && ['community', 'gallery', 'novel'].includes(tabParam)) {
@@ -698,24 +704,23 @@ onMounted(() => {
     fetchNovels()
   }
   
-  // 初始化头部高度 CSS 变量
-  console.log('[Community] 调用 initHeaderHeight')
+  // 初始化头部高度
   initHeaderHeight()
   
-  // 设置 ResizeObserver 监听头部高度变化（自动处理分类加载后的高度变化）
+  // 设置 ResizeObserver 监听头部高度变化
   nextTick(() => {
-    console.log('[Community] nextTick 中调用 setupHeaderObserver')
     setupHeaderObserver()
-    // 再次初始化高度，确保 DOM 已渲染
     initHeaderHeight()
+    // 延迟初始化筛选栏原始位置，确保所有内容都已渲染
+    setTimeout(() => {
+      updateFilterOriginalTop()
+    }, 200)
   })
   
   // 监听滚动
   window.addEventListener('scroll', handleScroll, { passive: true })
   // 监听窗口大小变化，重新计算头部高度
   window.addEventListener('resize', initHeaderHeight, { passive: true })
-  
-  console.log('[Community] onMounted 结束')
 })
 
 onBeforeUnmount(() => {
@@ -737,12 +742,13 @@ onActivated(() => {
     if (!headerResizeObserver) {
       setupHeaderObserver()
     }
-    // 重置筛选栏固定状态，让滚动事件重新判断
+    // 重置筛选栏固定状态
     isFilterFixed.value = false
-    // 延迟执行确保 DOM 完全渲染
+    // 延迟更新筛选栏原始位置
     setTimeout(() => {
+      updateFilterOriginalTop()
       handleScroll()
-    }, 50)
+    }, 100)
   })
 })
 </script>
