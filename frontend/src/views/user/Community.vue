@@ -271,7 +271,6 @@ const fixedHeaderRef = ref(null)
 const filterBarRef = ref(null)
 const fixedHeaderHeight = ref(0)
 const isFilterFixed = ref(false)
-const filterBarOriginalTop = ref(0)
 
 // 计算固定头部高度
 const updateHeaderHeight = () => {
@@ -280,26 +279,34 @@ const updateHeaderHeight = () => {
   }
 }
 
-// 记录筛选栏原始位置
-const updateFilterBarPosition = () => {
-  if (filterBarRef.value && !isFilterFixed.value) {
-    const rect = filterBarRef.value.getBoundingClientRect()
-    filterBarOriginalTop.value = rect.top + window.scrollY
-  }
-}
-
-// 滚动处理
+// 滚动处理 - 实时计算而不是依赖缓存的位置
 const handleScroll = () => {
-  if (!filterBarRef.value) return
+  if (!filterBarRef.value || !fixedHeaderRef.value) return
   
-  const scrollY = window.scrollY
-  // 当滚动超过筛选栏原始位置减去固定头部高度时，固定筛选栏
-  const threshold = filterBarOriginalTop.value - fixedHeaderHeight.value
+  // 实时获取固定头部高度
+  const headerHeight = fixedHeaderRef.value.offsetHeight
+  fixedHeaderHeight.value = headerHeight
   
-  if (scrollY >= threshold && !isFilterFixed.value) {
+  // 获取筛选栏当前位置
+  const filterRect = filterBarRef.value.getBoundingClientRect()
+  
+  // 当筛选栏顶部到达固定头部底部时，固定筛选栏
+  if (filterRect.top <= headerHeight && !isFilterFixed.value) {
     isFilterFixed.value = true
-  } else if (scrollY < threshold && isFilterFixed.value) {
-    isFilterFixed.value = false
+  } else if (!isFilterFixed.value) {
+    // 不固定时正常显示
+  }
+  
+  // 当滚动回顶部时，取消固定
+  if (isFilterFixed.value) {
+    // 计算原始位置：需要考虑占位元素
+    const placeholder = document.querySelector('.filter-placeholder')
+    if (placeholder) {
+      const placeholderRect = placeholder.getBoundingClientRect()
+      if (placeholderRect.top > headerHeight) {
+        isFilterFixed.value = false
+      }
+    }
   }
 }
 
@@ -645,19 +652,12 @@ onMounted(() => {
   // 初始化固定头部高度
   nextTick(() => {
     updateHeaderHeight()
-    // 延迟计算筛选栏位置，等待内容渲染
-    setTimeout(() => {
-      updateFilterBarPosition()
-    }, 100)
   })
   
   // 监听滚动
   window.addEventListener('scroll', handleScroll, { passive: true })
   // 监听窗口大小变化
-  window.addEventListener('resize', () => {
-    updateHeaderHeight()
-    updateFilterBarPosition()
-  }, { passive: true })
+  window.addEventListener('resize', updateHeaderHeight, { passive: true })
 })
 
 onBeforeUnmount(() => {
