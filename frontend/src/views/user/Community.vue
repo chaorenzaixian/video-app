@@ -272,7 +272,7 @@ const getVipIcon = (level) => getVipLevelIcon(level)
 
 // 固定头部相关
 const fixedHeaderRef = ref(null)
-const fixedHeaderHeight = ref(0)
+const fixedHeaderHeight = ref(90)  // 默认值，防止首次加载时为0导致遮盖
 
 // 筛选栏固定相关
 const filterTabsRef = ref(null)
