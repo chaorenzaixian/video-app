@@ -280,19 +280,56 @@ const isFilterFixed = ref(false)
 let filterTabsOriginalTop = 0  // 筛选栏原始位置（相对于文档顶部）
 let contentObserver = null  // MutationObserver 用于监听内容变化
 
+// 标记数据是否已加载
+const dataLoaded = ref({
+  categories: false,
+  ads: false
+})
+
 // 更新筛选栏原始位置
 const updateFilterOriginalTop = () => {
+  // 只有当关键数据都加载完成后才更新位置
+  if (!dataLoaded.value.categories || !dataLoaded.value.ads) {
+    console.log('[Community] 数据未完全加载，跳过位置更新')
+    return
+  }
+  
   if (filterTabsRef.value && !isFilterFixed.value) {
     const rect = filterTabsRef.value.getBoundingClientRect()
     const scrollTop = window.scrollY || document.documentElement.scrollTop
-    filterTabsOriginalTop = rect.top + scrollTop
-    console.log('[Community] 更新筛选栏位置:', filterTabsOriginalTop)
-  } else if (filterPlaceholderRef.value) {
+    const newTop = rect.top + scrollTop
+    // 只有当位置大于头部高度时才更新（避免错误的小值）
+    if (newTop > HEADER_HEIGHT + 50) {
+      filterTabsOriginalTop = newTop
+      console.log('[Community] 更新筛选栏位置:', filterTabsOriginalTop)
+    }
+  } else if (filterPlaceholderRef.value && isFilterFixed.value) {
     const rect = filterPlaceholderRef.value.getBoundingClientRect()
     const scrollTop = window.scrollY || document.documentElement.scrollTop
     filterTabsOriginalTop = rect.top + scrollTop
     console.log('[Community] 从占位符更新筛选栏位置:', filterTabsOriginalTop)
   }
+}
+
+// 强制重新计算位置（用于数据加载完成后）
+const forceUpdatePosition = () => {
+  nextTick(() => {
+    // 多次延迟尝试，确保DOM完全渲染
+    const delays = [50, 150, 300, 500]
+    delays.forEach(delay => {
+      setTimeout(() => {
+        if (filterTabsRef.value && !isFilterFixed.value) {
+          const rect = filterTabsRef.value.getBoundingClientRect()
+          const scrollTop = window.scrollY || document.documentElement.scrollTop
+          const newTop = rect.top + scrollTop
+          if (newTop > HEADER_HEIGHT + 50 && newTop !== filterTabsOriginalTop) {
+            filterTabsOriginalTop = newTop
+            console.log(`[Community] 延迟${delay}ms更新位置:`, filterTabsOriginalTop)
+          }
+        }
+      }, delay)
+    })
+  })
 }
 
 // 设置内容观察器，监听DOM变化后更新筛选栏位置
@@ -416,8 +453,13 @@ const fetchIconAds = async () => {
   try {
     const res = await api.get('/ads/icons')
     iconAds.value = res.data || []
+    dataLoaded.value.ads = true
+    console.log('[Community] 广告数据加载完成')
+    forceUpdatePosition()
   } catch (e) {
     console.error('获取广告失败', e)
+    dataLoaded.value.ads = true  // 即使失败也标记为完成
+    forceUpdatePosition()
   }
 }
 
@@ -445,6 +487,10 @@ const fetchCategories = async () => {
         })
       }
     })
+    
+    dataLoaded.value.categories = true
+    console.log('[Community] 分类数据加载完成')
+    forceUpdatePosition()
   } catch (e) {
     console.error('获取分类失败', e)
     // 如果API不存在，使用旧的话题接口
@@ -465,8 +511,14 @@ const fetchTopicsLegacy = async () => {
     }
     
     data.forEach(t => { topicsMap.value[t.id] = t.name })
+    
+    dataLoaded.value.categories = true
+    console.log('[Community] 分类数据(legacy)加载完成')
+    forceUpdatePosition()
   } catch (e) {
     console.error('获取话题失败', e)
+    dataLoaded.value.categories = true  // 即使失败也标记为完成
+    forceUpdatePosition()
   }
 }
 
@@ -669,6 +721,9 @@ onMounted(() => {
     selectedNovelType.value = typeParam
   }
   
+  // 重置数据加载状态
+  dataLoaded.value = { categories: false, ads: false }
+  
   fetchIconAds()
   fetchCategories()
   fetchGalleryCategories()
@@ -686,7 +741,6 @@ onMounted(() => {
   // 设置内容观察器，监听DOM变化
   nextTick(() => {
     setupContentObserver()
-    updateFilterOriginalTop()
   })
   
   // 监听滚动
@@ -703,9 +757,9 @@ onBeforeUnmount(() => {
 
 // 监听关键数据变化，更新筛选栏位置
 watch([topCategories, iconAds, currentSubTopics], () => {
-  nextTick(() => {
-    setTimeout(() => updateFilterOriginalTop(), 100)
-  })
+  if (dataLoaded.value.categories && dataLoaded.value.ads) {
+    forceUpdatePosition()
+  }
 }, { deep: true })
 
 // 处理 keep-alive 缓存恢复时重新初始化
@@ -715,11 +769,11 @@ onActivated(() => {
     isFilterFixed.value = false
     // 重新设置观察器
     setupContentObserver()
-    // 延迟更新筛选栏原始位置
-    setTimeout(() => {
-      updateFilterOriginalTop()
-      handleScroll()
-    }, 100)
+    // 如果数据已加载，强制更新位置
+    if (dataLoaded.value.categories && dataLoaded.value.ads) {
+      forceUpdatePosition()
+      setTimeout(() => handleScroll(), 200)
+    }
   })
 })
 </script>
