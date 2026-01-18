@@ -140,7 +140,6 @@
               :on-error="handleMobileconfigUploadError"
               :on-progress="handleMobileconfigUploadProgress"
               :before-upload="beforeMobileconfigUpload"
-              accept=".mobileconfig"
             >
               <el-button type="success" :loading="mobileconfigUploading">
                 <el-icon><Upload /></el-icon>
