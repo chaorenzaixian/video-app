@@ -331,20 +331,28 @@ async def update_host(
     admin: User = Depends(get_admin_user)
 ):
     """更新主播"""
-    result = await db.execute(select(DatingHost).where(DatingHost.id == host_id))
-    host = result.scalar_one_or_none()
-    
-    if not host:
-        raise HTTPException(status_code=404, detail="主播不存在")
-    
-    update_data = data.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(host, key, value)
-    
-    host.updated_at = datetime.utcnow()
-    await db.commit()
-    await db.refresh(host)
-    return HostResponse.model_validate(host)
+    try:
+        result = await db.execute(select(DatingHost).where(DatingHost.id == host_id))
+        host = result.scalar_one_or_none()
+        
+        if not host:
+            raise HTTPException(status_code=404, detail="主播不存在")
+        
+        update_data = data.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(host, key, value)
+        
+        host.updated_at = datetime.utcnow()
+        await db.commit()
+        await db.refresh(host)
+        return HostResponse.model_validate(host)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Error updating host {host_id}: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/hosts/{host_id}")
