@@ -300,4 +300,58 @@ onActivated(async () => {
     transform: rotate(360deg);
   }
 }
+
+// 响应式优化
+@media (min-width: 768px) {
+  .darkweb-entry {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .danger-icon {
+    width: 150px;
+  }
+  
+  .warning-title {
+    font-size: 28px;
+  }
+  
+  .warning-content {
+    .highlight {
+      font-size: 18px;
+    }
+    
+    .tags {
+      font-size: 16px;
+    }
+  }
+  
+  .action-btn {
+    width: 180px;
+  }
+  
+  .short-video-float {
+    right: calc(50% - 300px + 16px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .darkweb-entry {
+    max-width: 700px;
+  }
+  
+  .short-video-float {
+    right: calc(50% - 350px + 16px);
+  }
+}
+
+@media (hover: hover) {
+  .action-btn:hover {
+    transform: scale(1.05);
+  }
+  
+  .short-video-float:hover {
+    transform: scale(1.1);
+  }
+}
 </style>

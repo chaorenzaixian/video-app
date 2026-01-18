@@ -467,10 +467,26 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+$breakpoint-lg: 768px;
+$breakpoint-xl: 1024px;
+$breakpoint-xxl: 1280px;
+
 .detail-page {
   min-height: 100vh;
   background: #0d0d0d;
   padding-bottom: 70px;
+  max-width: 100%;
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 650px;
+    margin: 0 auto;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 750px;
+  }
+  @media (min-width: $breakpoint-xxl) {
+    max-width: 850px;
+  }
 }
 
 .top-bar {
@@ -482,6 +498,17 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 100;
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 650px;
+    margin: 0 auto;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 750px;
+  }
+  @media (min-width: $breakpoint-xxl) {
+    max-width: 850px;
+  }
 
   .title {
     color: #fff;
@@ -601,6 +628,18 @@ onBeforeUnmount(() => {
     border-radius: 8px;
     margin-bottom: 8px;
     cursor: pointer;
+  }
+  
+  @media (min-width: $breakpoint-lg) {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    
+    .post-image {
+      margin-bottom: 0;
+      aspect-ratio: 1;
+      object-fit: cover;
+    }
   }
 }
 
@@ -808,6 +847,18 @@ onBeforeUnmount(() => {
   background: #111;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   gap: 12px;
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 650px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 750px;
+  }
+  @media (min-width: $breakpoint-xxl) {
+    max-width: 850px;
+  }
 
   .input-wrapper {
     flex: 1;

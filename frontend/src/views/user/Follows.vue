@@ -39,9 +39,10 @@
       <template v-else-if="currentList.length > 0">
         <div class="user-item" v-for="user in currentList" :key="user.id" @click="goToUserProfile(user)">
           <img 
-            :src="user.avatar || getDefaultAvatar(user.id)" 
+            :src="getUserAvatar(user)" 
             :alt="user.nickname" 
             class="user-avatar"
+            @error="handleAvatarError"
           />
           <div class="user-info">
             <div class="user-nickname-row">
@@ -87,6 +88,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
+import { getAvatarUrl } from '@/utils/avatar'
 
 const router = useRouter()
 
@@ -117,11 +119,14 @@ const currentList = computed(() => {
   return activeTab.value === 'following' ? followingList.value : followersList.value
 })
 
-// 默认头像
-const getDefaultAvatar = (userId) => {
-  const avatarCount = 114
-  const index = (userId % avatarCount) + 1
-  return `/images/avatars/${index}.jpg`
+// 获取用户头像（使用统一的工具函数）
+const getUserAvatar = (user) => {
+  return getAvatarUrl(user.avatar, user.id)
+}
+
+// 头像加载失败时的处理
+const handleAvatarError = (e) => {
+  e.target.src = '/images/avatars/icon_avatar_1.webp'
 }
 
 // 获取关注列表
@@ -205,10 +210,21 @@ onMounted(loadData)
 </script>
 
 <style lang="scss" scoped>
+$breakpoint-lg: 768px;
+$breakpoint-xl: 1024px;
+
 .follows-page {
   min-height: 100vh;
   background: #0a0a0a;
   color: #fff;
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 650px;
+    margin: 0 auto;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 750px;
+  }
 }
 
 .page-header {
@@ -327,6 +343,12 @@ onMounted(loadData)
   cursor: pointer;
   transition: background 0.2s;
   min-height: 72px;
+  
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
   
   &:active {
     background: rgba(255, 255, 255, 0.06);

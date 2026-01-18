@@ -404,6 +404,48 @@ onMounted(fetchData)
     margin: 0;
   }
 }
+
+// 响应式优化
+@media (min-width: 768px) {
+  .earnings-detail-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .stats-card {
+    padding: 24px 30px;
+    
+    .stats-item .stats-value {
+      font-size: 28px;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .earnings-detail-page {
+    max-width: 700px;
+  }
+  
+  .page-header {
+    max-width: 700px;
+  }
+}
+
+@media (hover: hover) {
+  .filter-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .earnings-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
 </style>
 
 

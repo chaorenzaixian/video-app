@@ -1,0 +1,61 @@
+========================================
+转码服务器上传功能配置说明
+========================================
+
+请按以下步骤在转码服务器 (198.176.60.121) 上配置：
+
+步骤1：创建 SSH 密钥文件
+--------------------------
+在转码服务器上打开 PowerShell，复制粘贴以下命令：
+
+$keyContent = @"
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACBE9vQLi1nGfWBVacAymJd/B6TeSVq6KeYxZBCd57L9gAAAAJDvzGZC78xm
+QgAAAAtzc2gtZWQyNTUxOQAAACBE9vQLi1nGfWBVacAymJd/B6TeSVq6KeYxZBCd57L9gA
+AAAECtAxcJq0SjnZjz4DYebdKR/2BX09k3EOCZniP9JI0SwkT29AuLWcZ9YFVpwDKYl38H
+pN5JWrop5jFkEJ3nsv2AAAAADXJvb3RASEIxMzExMDM=
+-----END OPENSSH PRIVATE KEY-----
+"@
+
+$keyContent | Out-File -FilePath C:\server_key -Encoding ASCII -NoNewline
+
+Write-Host "SSH key created at C:\server_key" -ForegroundColor Green
+
+
+步骤2：复制脚本文件
+--------------------------
+将以下两个文件复制到转码服务器：
+
+1. upload_to_main.ps1 -> D:\VideoTranscode\scripts\upload_to_main.ps1
+2. watcher_with_upload.ps1 -> D:\VideoTranscode\scripts\watcher.ps1
+
+可以通过远程桌面的复制粘贴功能传输文件。
+
+
+步骤3：测试上传功能
+--------------------------
+在转码服务器上执行：
+
+powershell -ExecutionPolicy Bypass -File D:\VideoTranscode\scripts\upload_to_main.ps1 -VideoFile D:\VideoTranscode\completed\test_out.mp4
+
+
+步骤4：启动监控服务
+--------------------------
+powershell -ExecutionPolicy Bypass -NoExit -File D:\VideoTranscode\scripts\watcher.ps1
+
+
+完成！
+--------------------------
+现在系统会自动：
+1. 监控 D:\VideoTranscode\downloads\ 目录
+2. 自动转码新视频
+3. 自动上传到主服务器 (38.47.218.137)
+4. 记录日志到 D:\VideoTranscode\logs\
+
+查看日志：
+- 监控日志：D:\VideoTranscode\logs\watcher.log
+- 上传日志：D:\VideoTranscode\logs\upload.log
+
+主服务器视频目录：
+/www/wwwroot/video-app/backend/uploads/videos/

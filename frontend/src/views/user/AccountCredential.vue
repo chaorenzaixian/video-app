@@ -1,5 +1,10 @@
 <template>
   <div class="credential-page">
+    <!-- 全屏背景图 -->
+    <div class="page-bg">
+      <img src="/images/backgrounds/girl.webp" alt="background" />
+    </div>
+    
     <!-- 顶部导航 -->
     <div class="page-header">
       <button class="back-btn" @click="$router.back()">
@@ -9,41 +14,34 @@
       <div class="header-right"></div>
     </div>
 
-    <!-- 凭证卡片 -->
-    <div class="credential-card">
-      <div class="card-background">
-        <img src="/images/backgrounds/girl.webp" alt="background" class="bg-image" />
-        <div class="bg-overlay"></div>
+    <!-- 内容区域 -->
+    <div class="content-area">
+      <!-- 二维码 -->
+      <div class="qr-container">
+        <div class="qr-frame" v-if="!loading">
+          <img :src="qrCodeUrl" alt="QR Code" class="qr-code" />
+          <div class="corner corner-tl"></div>
+          <div class="corner corner-tr"></div>
+          <div class="corner corner-bl"></div>
+          <div class="corner corner-br"></div>
+        </div>
+        <div class="qr-loading" v-else>
+          <span>生成中...</span>
+        </div>
       </div>
-      
-      <div class="card-content">
-        <!-- 二维码 -->
-        <div class="qr-container">
-          <div class="qr-frame" v-if="!loading">
-            <img :src="qrCodeUrl" alt="QR Code" class="qr-code" />
-            <div class="corner corner-tl"></div>
-            <div class="corner corner-tr"></div>
-            <div class="corner corner-bl"></div>
-            <div class="corner corner-br"></div>
-          </div>
-          <div class="qr-loading" v-else>
-            <span>生成中...</span>
-          </div>
-        </div>
 
-        <!-- 账号信息 -->
-        <div class="account-info">
-          <h2 class="info-title">账号凭证</h2>
-          <p class="user-id">ID {{ userId }}</p>
-          <p class="website">{{ siteName }} 官网地址 {{ siteUrl }}</p>
-          <p class="tip">{{ tipText }}</p>
-        </div>
+      <!-- 账号信息 -->
+      <div class="account-info">
+        <h2 class="info-title">账号凭证</h2>
+        <p class="user-id">ID {{ userId }}</p>
+        <p class="website">{{ siteName }} 官网地址 {{ siteUrl }}</p>
+        <p class="tip">{{ tipText }}</p>
+      </div>
 
-        <!-- 令牌状态 -->
-        <div class="token-status" v-if="tokenUsed">
-          <span class="status-warning">⚠ 当前二维码已被使用</span>
-          <button class="refresh-btn" @click="regenerateToken">重新生成</button>
-        </div>
+      <!-- 令牌状态 -->
+      <div class="token-status" v-if="tokenUsed">
+        <span class="status-warning">⚠ 当前二维码已被使用</span>
+        <button class="refresh-btn" @click="regenerateToken">重新生成</button>
       </div>
     </div>
 
@@ -68,7 +66,7 @@ const userStore = useUserStore()
 
 // 配置信息（从后端获取）
 const siteName = ref('Soul成人版')
-const siteUrl = ref('https://soul9.fm')
+const siteUrl = ref('')
 const tipText = ref('提示*扫码可直接登录，仅限一台设备使用')
 
 // 获取配置
@@ -77,11 +75,12 @@ const fetchConfig = async () => {
     const res = await api.get('/config/credential')
     if (res.data) {
       siteName.value = res.data.site_name || siteName.value
-      siteUrl.value = res.data.site_url || siteUrl.value
+      siteUrl.value = res.data.site_url || window.location.origin
       tipText.value = res.data.tip || tipText.value
     }
   } catch (error) {
     console.error('获取配置失败:', error)
+    siteUrl.value = window.location.origin
   }
 }
 
@@ -113,13 +112,11 @@ const qrCodeUrl = computed(() => {
 const fetchOrGenerateToken = async () => {
   loading.value = true
   try {
-    // 先检查是否有未使用的令牌
     const statusRes = await api.get('/auth/qr-token-status')
     if (statusRes.data.has_token) {
       loginToken.value = statusRes.data.token
       tokenUsed.value = false
     } else {
-      // 生成新令牌
       const res = await api.post('/auth/generate-qr-token')
       loginToken.value = res.data.token
       tokenUsed.value = false
@@ -163,19 +160,54 @@ onMounted(() => {
 <style lang="scss" scoped>
 .credential-page {
   min-height: 100vh;
-  background: #0a0a12;
   display: flex;
   flex-direction: column;
-  padding-bottom: env(safe-area-inset-bottom, 20px);
+  position: relative;
+  color: #fff;
+}
+
+// 全屏背景图
+.page-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(10, 10, 18, 0.3) 0%,
+      rgba(10, 10, 18, 0.1) 30%,
+      rgba(10, 10, 18, 0.1) 50%,
+      rgba(10, 10, 18, 0.6) 80%,
+      rgba(10, 10, 18, 0.9) 100%
+    );
+  }
 }
 
 .page-header {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px;
   padding-top: calc(env(safe-area-inset-top, 20px) + 16px);
-  background: transparent;
   
   .back-btn {
     width: 40px;
@@ -187,11 +219,6 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    
-    svg {
-      width: 24px;
-      height: 24px;
-    }
   }
   
   .page-title {
@@ -205,63 +232,21 @@ onMounted(() => {
   }
 }
 
-.credential-card {
-  flex: 1;
-  margin: 0 16px;
-  border-radius: 20px;
-  overflow: hidden;
+// 内容区域
+.content-area {
   position: relative;
+  z-index: 1;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  
-  .card-background {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    
-    .bg-image {
-      width: 100%;
-      height: auto;
-      max-height: 100%;
-      object-fit: contain;
-      object-position: top center;
-    }
-    
-    .bg-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(
-        180deg,
-        rgba(10, 10, 18, 0) 0%,
-        rgba(10, 10, 18, 0.2) 50%,
-        rgba(10, 10, 18, 0.85) 75%,
-        rgba(10, 10, 18, 0.98) 100%
-      );
-    }
-  }
-  
-  .card-content {
-    position: relative;
-    z-index: 1;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 20px 20px 30px;
-  }
+  align-items: center;
+  justify-content: flex-end;
+  padding: 20px;
+  padding-bottom: 30px;
 }
 
 .qr-container {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .qr-frame {
@@ -272,43 +257,43 @@ onMounted(() => {
   
   .qr-code {
     display: block;
-    width: 140px;
-    height: 140px;
+    width: 160px;
+    height: 160px;
   }
   
   .corner {
     position: absolute;
-    width: 16px;
-    height: 16px;
-    border: 2px solid #9c6cff;
+    width: 18px;
+    height: 18px;
+    border: 3px solid #9c6cff;
     
     &.corner-tl {
-      top: -2px;
-      left: -2px;
+      top: -3px;
+      left: -3px;
       border-right: none;
       border-bottom: none;
       border-radius: 6px 0 0 0;
     }
     
     &.corner-tr {
-      top: -2px;
-      right: -2px;
+      top: -3px;
+      right: -3px;
       border-left: none;
       border-bottom: none;
       border-radius: 0 6px 0 0;
     }
     
     &.corner-bl {
-      bottom: -2px;
-      left: -2px;
+      bottom: -3px;
+      left: -3px;
       border-right: none;
       border-top: none;
       border-radius: 0 0 0 6px;
     }
     
     &.corner-br {
-      bottom: -2px;
-      right: -2px;
+      bottom: -3px;
+      right: -3px;
       border-left: none;
       border-top: none;
       border-radius: 0 0 6px 0;
@@ -318,7 +303,6 @@ onMounted(() => {
 
 .account-info {
   text-align: center;
-  color: #fff;
   
   .info-title {
     font-size: 18px;
@@ -330,25 +314,31 @@ onMounted(() => {
   .user-id {
     font-size: 32px;
     font-weight: 700;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
     letter-spacing: 3px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   }
   
   .website {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    background: linear-gradient(90deg, #f7d774 0%, #e6ac00 50%, #f7d774 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 14px;
   }
   
   .tip {
-    font-size: 12px;
+    font-size: 14px;
+    font-weight: 500;
     color: #9c6cff;
   }
 }
 
 .qr-loading {
-  width: 210px;
-  height: 210px;
+  width: 180px;
+  height: 180px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   display: flex;
@@ -382,7 +372,10 @@ onMounted(() => {
 }
 
 .action-buttons {
+  position: relative;
+  z-index: 1;
   padding: 20px;
+  padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 20px);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -407,12 +400,13 @@ onMounted(() => {
 
 .refresh-btn-bottom {
   padding: 14px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(156, 108, 255, 0.5);
   border-radius: 30px;
   color: #9c6cff;
   font-size: 14px;
   cursor: pointer;
+  backdrop-filter: blur(10px);
   transition: all 0.3s ease;
   
   &:disabled {
@@ -421,7 +415,24 @@ onMounted(() => {
   }
   
   &:active:not(:disabled) {
-    background: rgba(156, 108, 255, 0.1);
+    background: rgba(156, 108, 255, 0.2);
+  }
+}
+
+// 响应式优化
+@media (min-width: 768px) {
+  .credential-page {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .qr-frame .qr-code {
+    width: 180px;
+    height: 180px;
+  }
+  
+  .account-info .user-id {
+    font-size: 36px;
   }
 }
 </style>

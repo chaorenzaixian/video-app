@@ -309,6 +309,62 @@ onMounted(() => {
     }
   }
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .redeem-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .bottom-bar {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+    
+    .redeem-btn {
+      width: 60%;
+      margin: 0 auto;
+      display: block;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .redeem-page {
+    max-width: 700px;
+  }
+  
+  .page-header {
+    max-width: 700px;
+  }
+  
+  .bottom-bar {
+    max-width: 700px;
+    
+    .redeem-btn {
+      width: 50%;
+    }
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .redeem-btn:not(:disabled):hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  
+  .table-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
 </style>
 
 

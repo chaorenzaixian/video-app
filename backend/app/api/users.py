@@ -204,14 +204,25 @@ async def get_watch_history(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取用户观看历史"""
+    """获取用户观看历史（去重：同一视频只显示最新一条）"""
     offset = (page - 1) * page_size
     
-    # 获取观看记录并关联视频信息
+    # 子查询：每个视频只取最新的观看记录ID
+    latest_view_subquery = (
+        select(
+            VideoView.video_id,
+            func.max(VideoView.id).label('latest_id')
+        )
+        .where(VideoView.user_id == current_user.id)
+        .group_by(VideoView.video_id)
+        .subquery()
+    )
+    
+    # 主查询：关联获取完整记录
     query = (
         select(VideoView)
+        .join(latest_view_subquery, VideoView.id == latest_view_subquery.c.latest_id)
         .options(selectinload(VideoView.video))
-        .where(VideoView.user_id == current_user.id)
         .order_by(desc(VideoView.created_at))
         .offset(offset)
         .limit(page_size)
@@ -220,9 +231,10 @@ async def get_watch_history(
     result = await db.execute(query)
     views = result.scalars().all()
     
-    # 统计总数
+    # 统计去重后的总数
     count_result = await db.execute(
-        select(func.count(VideoView.id)).where(VideoView.user_id == current_user.id)
+        select(func.count(func.distinct(VideoView.video_id)))
+        .where(VideoView.user_id == current_user.id)
     )
     total = count_result.scalar() or 0
     
@@ -377,59 +389,67 @@ async def get_user_profile(
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    """获取用户主页信息"""
-    # 获取用户
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
-    
-    # 获取视频数量
+    """获取用户主页信息（优化版：并行查询）"""
+    import asyncio
     from app.models.video import VideoStatus
-    video_count_result = await db.execute(
-        select(func.count(Video.id)).where(
-            Video.uploader_id == user_id,
-            Video.status == VideoStatus.PUBLISHED
+    
+    # 定义所有查询任务
+    async def get_user():
+        result = await db.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
+    
+    async def get_video_count():
+        result = await db.execute(
+            select(func.count(Video.id)).where(
+                Video.uploader_id == user_id,
+                Video.status == VideoStatus.PUBLISHED
+            )
         )
-    )
-    video_count = video_count_result.scalar() or 0
+        return result.scalar() or 0
     
-    # 获取粉丝数量
-    fans_result = await db.execute(
-        select(func.count(UserFollow.id)).where(UserFollow.following_id == user_id)
-    )
-    fans_count = fans_result.scalar() or 0
+    async def get_fans_count():
+        result = await db.execute(
+            select(func.count(UserFollow.id)).where(UserFollow.following_id == user_id)
+        )
+        return result.scalar() or 0
     
-    # 获取关注数量
-    following_result = await db.execute(
-        select(func.count(UserFollow.id)).where(UserFollow.follower_id == user_id)
-    )
-    following_count = following_result.scalar() or 0
+    async def get_following_count():
+        result = await db.execute(
+            select(func.count(UserFollow.id)).where(UserFollow.follower_id == user_id)
+        )
+        return result.scalar() or 0
     
-    # 检查当前用户是否已关注
-    is_followed = False
-    if current_user:
-        follow_check = await db.execute(
+    async def get_vip_info():
+        result = await db.execute(
+            select(UserVIP).where(UserVIP.user_id == user_id, UserVIP.is_active == True)
+        )
+        return result.scalar_one_or_none()
+    
+    async def check_is_followed():
+        if not current_user:
+            return False
+        result = await db.execute(
             select(UserFollow).where(
                 UserFollow.follower_id == current_user.id,
                 UserFollow.following_id == user_id
             ).limit(1)
         )
-        is_followed = follow_check.scalar_one_or_none() is not None
+        return result.scalar_one_or_none() is not None
     
-    # 获取VIP信息
-    from datetime import datetime
-    vip_result = await db.execute(
-        select(UserVIP).where(
-            UserVIP.user_id == user_id,
-            UserVIP.is_active == True
-        )
+    # 并行执行所有查询
+    user, video_count, fans_count, following_count, user_vip, is_followed = await asyncio.gather(
+        get_user(),
+        get_video_count(),
+        get_fans_count(),
+        get_following_count(),
+        get_vip_info(),
+        check_is_followed()
     )
-    user_vip = vip_result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    
+    # 处理 VIP 信息
     is_vip = False
     vip_level = 0
     if user_vip and user_vip.expire_date and user_vip.expire_date > datetime.utcnow():
@@ -439,7 +459,7 @@ async def get_user_profile(
     return UserProfileResponse(
         id=user.id,
         username=user.username,
-        nickname=user.nickname or user.username,  # 使用用户名作为fallback
+        nickname=user.nickname or user.username,
         avatar=user.avatar,
         bio=user.bio,
         video_count=video_count,

@@ -25,7 +25,7 @@ class ScheduledTasks:
             return
         cls._running = True
         cls._task = asyncio.create_task(cls._run_scheduler())
-        print("[ScheduledTasks] 定时任务已启动")
+        print("[ScheduledTasks] Started")
     
     @classmethod
     async def stop(cls):
@@ -37,7 +37,7 @@ class ScheduledTasks:
                 await cls._task
             except asyncio.CancelledError:
                 pass
-        print("[ScheduledTasks] 定时任务已停止")
+        print("[ScheduledTasks] Stopped")
     
     @classmethod
     async def _run_scheduler(cls):

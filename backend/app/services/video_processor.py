@@ -1,6 +1,7 @@
 """
 视频处理服务
 负责视频转码、生成缩略图、AI分析等
+支持 GPU 服务器转码（可选）
 """
 import os
 import subprocess
@@ -35,13 +36,29 @@ class VideoProcessor:
     async def process_video(video_id: int, file_path: str, skip_thumbnail: bool = False):
         """
         处理视频：
-        1. 获取视频信息
-        2. 生成缩略图（若无自定义封面）
-        3. 转码为HLS
-        4. AI分析内容
+        1. 检查是否启用 GPU 转码
+        2. 如果启用 GPU，推送到 GPU 服务器处理
+        3. 否则本地处理（获取视频信息、生成缩略图、转码为HLS、AI分析）
         
         使用信号量控制并发，防止服务器过载
         """
+        # 检查是否启用 GPU 转码
+        try:
+            from app.services.gpu_transcode_service import GPUTranscodeService
+            if GPUTranscodeService.is_enabled():
+                # 推送到 GPU 服务器处理
+                success = await GPUTranscodeService.push_to_gpu(video_id, file_path)
+                if success:
+                    print(f"[GPU] 视频已推送到GPU服务器: video_id={video_id}")
+                    return
+                else:
+                    print(f"[GPU] GPU推送失败，回退到本地处理: video_id={video_id}")
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"[GPU] GPU服务异常，回退到本地处理: {e}")
+        
+        # 本地处理
         async with _processing_semaphore:
             await VideoProcessor._do_process_video(video_id, file_path, skip_thumbnail)
     

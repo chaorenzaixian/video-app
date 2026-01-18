@@ -1,37 +1,43 @@
 <template>
   <div class="category-page">
-    <!-- 头部导航 -->
-    <header class="page-header">
-      <div class="header-left" @click="goBack">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <div class="header-title">{{ categoryInfo.name || '分类' }}</div>
-      <div class="header-right"></div>
-    </header>
-    
-    <!-- 筛选栏 -->
-    <div class="filter-bar">
-      <div class="filter-tabs">
-        <span 
-          v-for="(filter, index) in sortOptions" 
-          :key="filter.key"
-          :class="['filter-item', { active: activeSort === index }]"
-          @click="changeSort(index)"
-        >
-          {{ filter.label }}
-        </span>
-      </div>
-      <div class="view-toggle" @click="gridMode = gridMode === 1 ? 2 : 1">
-        <span class="toggle-icon" v-if="gridMode === 1">
-          <i></i><i></i><i></i>
-        </span>
-        <span class="toggle-icon grid" v-else>
-          <i></i><i></i><i></i><i></i>
-        </span>
+    <!-- 固定头部区域 -->
+    <div class="fixed-top">
+      <!-- 头部导航 -->
+      <header class="page-header">
+        <div class="header-left" @click="goBack">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="header-title">{{ categoryInfo.name || '分类' }}</div>
+        <div class="header-right"></div>
+      </header>
+      
+      <!-- 筛选栏 -->
+      <div class="filter-bar">
+        <div class="filter-tabs">
+          <span 
+            v-for="(filter, index) in sortOptions" 
+            :key="filter.key"
+            :class="['filter-item', { active: activeSort === index }]"
+            @click="changeSort(index)"
+          >
+            {{ filter.label }}
+          </span>
+        </div>
+        <div class="view-toggle" @click="gridMode = gridMode === 1 ? 2 : 1">
+          <span class="toggle-icon" v-if="gridMode === 1">
+            <i></i><i></i><i></i>
+          </span>
+          <span class="toggle-icon grid" v-else>
+            <i></i><i></i><i></i><i></i>
+          </span>
+        </div>
       </div>
     </div>
+    
+    <!-- 头部占位 -->
+    <div class="fixed-top-placeholder"></div>
     
     <!-- 视频列表 -->
     <div class="video-list-wrapper">
@@ -358,15 +364,27 @@ onMounted(() => {
   margin: 0 auto;
 }
 
+// 固定头部区域
+.fixed-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #0a0a0a;
+}
+
+// 头部占位
+.fixed-top-placeholder {
+  height: 116px; // 头部 + 筛选栏的高度
+}
+
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
   background: #0a0a0a;
-  position: sticky;
-  top: 0;
-  z-index: 100;
   
   .header-left, .header-right {
     width: 40px;
@@ -389,6 +407,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
+  background: #0a0a0a;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   
   .filter-tabs {

@@ -121,7 +121,7 @@ class RedisCache:
                 'value': value,
                 'expire_at': expire_at
             }
-            print(f"[MemoryCache] 存储: {key} = {value}, 过期时间: {expire}秒")
+            logger.debug(f"[MemoryCache] set: {key}, expire: {expire}s")
         return True
     
     @staticmethod

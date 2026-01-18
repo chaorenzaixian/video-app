@@ -260,114 +260,115 @@ async def guest_register(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """自动注册
+    """自动注册（优化版）
     
     根据设备指纹自动注册账号，如果设备已注册则直接登录
-    包含IP速率限制和设备并发控制
+    优化：并行化Redis检查，优化用户名生成
     """
     from app.core.redis import RedisCache
+    import asyncio
     
     client_ip = get_client_ip(request)
     device_id = guest_in.device_id
     
-    # ========== 1. IP速率限制 ==========
-    # 同一IP每分钟最多10次注册请求
+    # ========== 1. 并行检查：IP速率限制 + 设备锁 + 设备是否已注册 ==========
     rate_key = f"guest_register_rate:{client_ip}"
-    try:
-        rate_count = await RedisCache.get(rate_key)
-        rate_count = int(rate_count) if rate_count else 0
-        
-        if rate_count >= 10:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="请求过于频繁，请稍后再试"
-            )
-        
-        # 增加计数
-        await RedisCache.incr(rate_key)
-        if rate_count == 0:
-            await RedisCache.expire(rate_key, 60)  # 60秒窗口
-    except HTTPException:
-        raise
-    except Exception as e:
-        # Redis故障不阻止注册
-        pass
-    
-    # ========== 2. 设备并发锁 ==========
-    # 防止同一设备并发注册导致重复账号
     lock_key = f"guest_register_lock:{device_id}"
-    lock_acquired = False
     
-    try:
-        # 尝试获取锁（5秒超时）
-        existing_lock = await RedisCache.get(lock_key)
-        if existing_lock:
-            # 已有请求在处理，等待后重试
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="注册处理中，请稍后"
-            )
-        
-        # 设置锁
-        await RedisCache.set(lock_key, "1", expire=5)
-        lock_acquired = True
-    except HTTPException:
-        raise
-    except Exception as e:
-        # Redis故障不阻止注册
-        pass
+    async def check_rate_limit():
+        """检查IP速率限制"""
+        try:
+            rate_count = await RedisCache.get(rate_key)
+            return int(rate_count) if rate_count else 0
+        except:
+            return 0
     
-    try:
-        # ========== 3. 检查设备是否已注册 ==========
+    async def check_device_lock():
+        """检查设备锁"""
+        try:
+            return await RedisCache.get(lock_key)
+        except:
+            return None
+    
+    async def check_existing_user():
+        """检查设备是否已注册"""
         result = await db.execute(
             select(User).where(User.device_id == device_id)
         )
-        user = result.scalar_one_or_none()
+        return result.scalar_one_or_none()
+    
+    # 并行执行三个检查
+    rate_count, existing_lock, user = await asyncio.gather(
+        check_rate_limit(),
+        check_device_lock(),
+        check_existing_user()
+    )
+    
+    # 检查速率限制
+    if rate_count >= 10:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="请求过于频繁，请稍后再试"
+        )
+    
+    # 检查设备锁
+    if existing_lock:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="注册处理中，请稍后"
+        )
+    
+    # ========== 2. 设备已注册，直接登录 ==========
+    if user:
+        user.last_login = datetime.utcnow()
+        user.last_login_ip = client_ip
+        await db.commit()
         
-        if user:
-            # 设备已注册，更新登录信息
-            user.last_login = datetime.utcnow()
-            user.last_login_ip = client_ip
-            await db.commit()
-            
-            access_token = create_access_token(data={"sub": str(user.id)})
-            refresh_token = create_refresh_token(data={"sub": str(user.id)})
-            
-            return Token(
-                access_token=access_token,
-                refresh_token=refresh_token
-            )
+        access_token = create_access_token(data={"sub": str(user.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
         
-        # ========== 4. 新设备，创建用户账号 ==========
-        guest_username = generate_guest_username()  # 8位数字
-        guest_nickname = generate_random_nickname()  # 随机中文名
+        return Token(
+            access_token=access_token,
+            refresh_token=refresh_token
+        )
+    
+    # ========== 3. 新设备，设置锁并创建账号 ==========
+    lock_acquired = False
+    try:
+        await RedisCache.set(lock_key, "1", expire=5)
+        lock_acquired = True
+        
+        # 增加速率计数
+        await RedisCache.incr(rate_key)
+        if rate_count == 0:
+            await RedisCache.expire(rate_key, 60)
+    except:
+        pass
+    
+    try:
+        # 使用时间戳+随机数生成用户名，几乎不可能重复
+        import time
+        timestamp = int(time.time() * 1000) % 100000000  # 8位时间戳
+        guest_username = str(timestamp)
+        guest_nickname = generate_random_nickname()
         guest_password = generate_guest_password()
-        
-        # 确保用户名唯一
-        while True:
-            result = await db.execute(
-                select(User).where(User.username == guest_username)
-            )
-            if not result.scalar_one_or_none():
-                break
-            guest_username = generate_guest_username()
         
         user = User(
             username=guest_username,
-            email=None,  # 可后续绑定邮箱
+            email=None,
             hashed_password=get_password_hash(guest_password),
-            nickname=guest_nickname,  # 随机中文昵称
-            register_ip=client_ip,  # 注册IP
-            last_login_ip=client_ip,  # 最近登录IP
+            nickname=guest_nickname,
+            register_ip=client_ip,
+            last_login_ip=client_ip,
             device_id=device_id,
-            is_guest=False,  # 自动注册的是正式用户
+            is_guest=False,
             invite_code=generate_invite_code(),
             last_login=datetime.utcnow()
         )
         db.add(user)
         await db.flush()
         
-        # 分配默认头像（基于用户ID）
+        # 分配默认头像
         user.avatar = generate_default_avatar(user.id)
         
         # 创建VIP记录
@@ -377,7 +378,6 @@ async def guest_register(
         await db.commit()
         await db.refresh(user)
         
-        # 生成令牌
         access_token = create_access_token(data={"sub": str(user.id)})
         refresh_token = create_refresh_token(data={"sub": str(user.id)})
         
@@ -386,7 +386,6 @@ async def guest_register(
             refresh_token=refresh_token
         )
     finally:
-        # ========== 5. 释放锁 ==========
         if lock_acquired:
             try:
                 await RedisCache.delete(lock_key)
@@ -1339,351 +1338,5 @@ async def get_qr_token_status(
         "has_token": False,
         "token": None
     }
-
-
-@router.post("/qr-login")
-async def qr_login(
-    token: str,
-    device_id: str = None,
-    device_info: str = None,
-    request: Request = None,
-    db: AsyncSession = Depends(get_db)
-):
-    """扫码登录 - 使用二维码令牌登录"""
-    from app.models.user import LoginQRToken, TrustedDevice, DeviceSwitchLog
-    from datetime import timedelta
-    import secrets
-    
-    # 配置
-    MAX_TRUSTED_DEVICES = 2  # 最多可信设备数
-    SWITCH_COOLDOWN_HOURS = 24  # 设备切换冷却期（小时）
-    
-    # 获取客户端IP
-    client_ip = "unknown"
-    if request:
-        client_ip = request.client.host if request.client else "unknown"
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            client_ip = forwarded.split(",")[0].strip()
-    
-    # 生成设备ID（如果未提供）
-    if not device_id:
-        device_id = hashlib.md5(f"{client_ip}-{device_info or 'unknown'}".encode()).hexdigest()
-    
-    # 查找令牌
-    result = await db.execute(
-        select(LoginQRToken).where(LoginQRToken.token == token)
-    )
-    token_record = result.scalar_one_or_none()
-    
-    if not token_record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="无效的登录令牌"
-        )
-    
-    if token_record.is_used:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="该令牌已被使用，请重新生成"
-        )
-    
-    # 获取用户
-    result = await db.execute(
-        select(User).where(User.id == token_record.user_id)
-    )
-    user = result.scalar_one_or_none()
-    
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="用户不存在或已被禁用"
-        )
-    
-    # === 检查可信设备 ===
-    result = await db.execute(
-        select(TrustedDevice)
-        .where(TrustedDevice.user_id == user.id)
-        .where(TrustedDevice.device_id == device_id)
-        .where(TrustedDevice.is_active == True)
-    )
-    current_device = result.scalar_one_or_none()
-    
-    if not current_device:
-        # 新设备，检查是否超过最大设备数
-        result = await db.execute(
-            select(TrustedDevice)
-            .where(TrustedDevice.user_id == user.id)
-            .where(TrustedDevice.is_active == True)
-        )
-        active_devices = result.scalars().all()
-        
-        if len(active_devices) >= MAX_TRUSTED_DEVICES:
-            # 检查设备切换冷却期
-            cooldown_time = datetime.utcnow() - timedelta(hours=SWITCH_COOLDOWN_HOURS)
-            result = await db.execute(
-                select(DeviceSwitchLog)
-                .where(DeviceSwitchLog.user_id == user.id)
-                .where(DeviceSwitchLog.switched_at > cooldown_time)
-                .order_by(DeviceSwitchLog.switched_at.desc())
-            )
-            recent_switches = result.scalars().all()
-            
-            if recent_switches:
-                # 计算剩余冷却时间
-                last_switch = recent_switches[0]
-                next_available = last_switch.switched_at + timedelta(hours=SWITCH_COOLDOWN_HOURS)
-                remaining = next_available - datetime.utcnow()
-                hours = int(remaining.total_seconds() // 3600)
-                minutes = int((remaining.total_seconds() % 3600) // 60)
-                
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"您的账号24小时内已切换设备，下次切换需等待 {hours}小时{minutes}分钟"
-                )
-            
-            # 移除最旧的设备
-            oldest_device = sorted(active_devices, key=lambda d: d.last_login_at or d.created_at)[0]
-            oldest_device.is_active = False
-            
-            # 记录设备切换
-            switch_log = DeviceSwitchLog(
-                user_id=user.id,
-                from_device_id=oldest_device.device_id,
-                to_device_id=device_id,
-                to_device_name=device_info,
-                to_device_ip=client_ip
-            )
-            db.add(switch_log)
-        
-        # 添加新的可信设备
-        new_device = TrustedDevice(
-            user_id=user.id,
-            device_id=device_id,
-            device_name=device_info or "Unknown Device",
-            device_info=device_info,
-            is_active=True,
-            last_login_at=datetime.utcnow(),
-            last_login_ip=client_ip
-        )
-        db.add(new_device)
-    else:
-        # 已有可信设备，更新登录时间
-        current_device.last_login_at = datetime.utcnow()
-        current_device.last_login_ip = client_ip
-    
-    # 生成新的会话ID
-    new_session_id = secrets.token_hex(32)
-    
-    # 更新用户的当前会话（使旧设备失效）
-    user.current_session_id = new_session_id
-    user.current_device_info = device_info or "Unknown Device"
-    user.last_login = datetime.utcnow()
-    user.last_login_ip = client_ip
-    
-    # 标记令牌为已使用
-    token_record.is_used = True
-    token_record.used_at = datetime.utcnow()
-    token_record.used_device_info = device_info
-    token_record.used_ip = client_ip
-    
-    await db.commit()
-    
-    # 生成访问令牌（包含session_id和device_id）
-    access_token = create_access_token(
-        data={"sub": str(user.id), "session_id": new_session_id, "device_id": device_id}
-    )
-    refresh_token = create_refresh_token(
-        data={"sub": str(user.id), "session_id": new_session_id, "device_id": device_id}
-    )
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "user_id": user.id,
-        "username": user.username,
-        "message": "登录成功，其他设备已自动登出"
-    }
-
-
-@router.get("/check-session")
-async def check_session(
-    current_user: User = Depends(get_current_user),
-    request: Request = None,
-    db: AsyncSession = Depends(get_db)
-):
-    """检查当前会话是否有效"""
-    # 从请求头获取当前token
-    auth_header = request.headers.get("Authorization", "") if request else ""
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-        payload = decode_token(token)
-        
-        if payload:
-            token_session_id = payload.get("session_id")
-            
-            # 如果token中有session_id，检查是否与用户当前session匹配
-            if token_session_id and current_user.current_session_id:
-                if token_session_id != current_user.current_session_id:
-                    return {
-                        "valid": False,
-                        "reason": "session_expired",
-                        "message": "您的账号已在其他设备登录"
-                    }
-    
-    return {
-        "valid": True,
-        "user_id": current_user.id,
-        "current_device": current_user.current_device_info
-    }
-
-
-@router.post("/regenerate-qr-token")
-async def regenerate_qr_token(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """重新生成二维码令牌（使旧令牌失效）"""
-    from app.models.user import LoginQRToken
-    from sqlalchemy import update
-    import secrets
-    
-    # 将该用户所有未使用的旧令牌标记为已使用
-    await db.execute(
-        update(LoginQRToken)
-        .where(LoginQRToken.user_id == current_user.id)
-        .where(LoginQRToken.is_used == False)
-        .values(is_used=True, used_at=datetime.utcnow())
-    )
-    
-    # 生成新令牌
-    token = secrets.token_hex(32)
-    qr_token = LoginQRToken(
-        user_id=current_user.id,
-        token=token,
-        is_used=False
-    )
-    db.add(qr_token)
-    await db.commit()
-    
-    return {
-        "token": token,
-        "user_id": current_user.id,
-        "message": "新的二维码令牌已生成，旧令牌已失效"
-    }
-
-
-# ========== 设备管理相关 ==========
-
-@router.get("/devices")
-async def get_trusted_devices(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """获取用户的可信设备列表"""
-    from app.models.user import TrustedDevice
-    
-    result = await db.execute(
-        select(TrustedDevice)
-        .where(TrustedDevice.user_id == current_user.id)
-        .where(TrustedDevice.is_active == True)
-        .order_by(TrustedDevice.last_login_at.desc())
-    )
-    devices = result.scalars().all()
-    
-    return {
-        "devices": [
-            {
-                "id": d.id,
-                "device_id": d.device_id[:8] + "****",  # 部分隐藏
-                "device_name": d.device_name,
-                "last_login_at": d.last_login_at.isoformat() if d.last_login_at else None,
-                "last_login_ip": d.last_login_ip,
-                "created_at": d.created_at.isoformat() if d.created_at else None,
-                "is_current": d.device_id == current_user.current_session_id[:32] if current_user.current_session_id else False
-            }
-            for d in devices
-        ],
-        "max_devices": 2
-    }
-
-
-@router.delete("/devices/{device_id}")
-async def remove_trusted_device(
-    device_id: int,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """移除可信设备"""
-    from app.models.user import TrustedDevice
-    
-    result = await db.execute(
-        select(TrustedDevice)
-        .where(TrustedDevice.id == device_id)
-        .where(TrustedDevice.user_id == current_user.id)
-    )
-    device = result.scalar_one_or_none()
-    
-    if not device:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="设备不存在"
-        )
-    
-    device.is_active = False
-    await db.commit()
-    
-    return {"message": "设备已移除"}
-
-
-@router.get("/device-switch-status")
-async def get_device_switch_status(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """获取设备切换状态（冷却时间）"""
-    from app.models.user import DeviceSwitchLog, TrustedDevice
-    from datetime import timedelta
-    
-    SWITCH_COOLDOWN_HOURS = 24
-    
-    # 获取当前设备数
-    result = await db.execute(
-        select(TrustedDevice)
-        .where(TrustedDevice.user_id == current_user.id)
-        .where(TrustedDevice.is_active == True)
-    )
-    active_devices = result.scalars().all()
-    
-    # 检查最近的切换记录
-    cooldown_time = datetime.utcnow() - timedelta(hours=SWITCH_COOLDOWN_HOURS)
-    result = await db.execute(
-        select(DeviceSwitchLog)
-        .where(DeviceSwitchLog.user_id == current_user.id)
-        .where(DeviceSwitchLog.switched_at > cooldown_time)
-        .order_by(DeviceSwitchLog.switched_at.desc())
-        .limit(1)
-    )
-    last_switch = result.scalar_one_or_none()
-    
-    can_switch = True
-    remaining_seconds = 0
-    
-    if last_switch and len(active_devices) >= 2:
-        next_available = last_switch.switched_at + timedelta(hours=SWITCH_COOLDOWN_HOURS)
-        if datetime.utcnow() < next_available:
-            can_switch = False
-            remaining_seconds = int((next_available - datetime.utcnow()).total_seconds())
-    
-    return {
-        "active_devices": len(active_devices),
-        "max_devices": 2,
-        "can_switch": can_switch,
-        "remaining_seconds": remaining_seconds,
-        "remaining_text": f"{remaining_seconds // 3600}小时{(remaining_seconds % 3600) // 60}分钟" if remaining_seconds > 0 else None,
-        "last_switch_at": last_switch.switched_at.isoformat() if last_switch else None
-    }
-
 
 

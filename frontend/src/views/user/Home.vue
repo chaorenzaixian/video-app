@@ -44,33 +44,8 @@
     <!-- 头部占位 -->
     <div class="header-placeholder"></div>
 
-    <!-- 轮播广告 -->
-    <div class="banner-carousel" v-if="banners.length > 0">
-      <div class="banner-wrapper" ref="bannerWrapper">
-        <div 
-          class="banner-track" 
-          :style="{ transform: `translateX(-${currentBannerIndex * 100}%)` }"
-        >
-          <div 
-            v-for="banner in banners" 
-            :key="banner.id" 
-            class="banner-slide"
-            @click="handleBannerClick(banner)"
-          >
-            <img :src="banner.image_url" :alt="banner.title" class="banner-image" />
-          </div>
-        </div>
-        <!-- 指示点 -->
-        <div class="banner-dots" v-if="banners.length > 1">
-          <span 
-            v-for="(_, index) in banners" 
-            :key="index"
-            :class="['dot', { active: currentBannerIndex === index }]"
-            @click="currentBannerIndex = index"
-          ></span>
-        </div>
-      </div>
-    </div>
+    <!-- 轮播广告 - 使用组件 -->
+    <HomeBanner :banners="banners" />
 
     <!-- 页面内容区域（带左右滑动效果） -->
     <transition :name="slideDirection" mode="out-in">
@@ -109,29 +84,8 @@
           </div>
         </div>
 
-        <!-- 功能入口 - 横向滚动 -->
-        <div class="func-scroll-wrapper">
-          <div class="func-scroll">
-            <div 
-              v-for="func in funcItems" 
-              :key="func.id" 
-              class="func-item"
-              @click="handleFuncClick(func)"
-            >
-              <div class="func-icon-box" :class="{ 'has-image': func.image && !func.imageError }">
-                <img 
-                  v-if="func.image && !func.imageError" 
-                  :src="func.image" 
-                  :alt="func.name" 
-                  class="func-icon-img"
-                  @error="func.imageError = true"
-                />
-                <span v-else class="func-icon-text">{{ getFuncShortName(func.name) }}</span>
-              </div>
-              <span class="func-name">{{ func.name }}</span>
-            </div>
-          </div>
-        </div>
+        <!-- 功能入口 - 使用组件 -->
+        <FuncEntries :items="funcItems" />
 
         <!-- 二级分类（原热门标签区域） -->
         <div class="hot-section" v-if="currentSubCategories.length > 0">
@@ -295,6 +249,7 @@ import { useAbortController } from '@/composables/useAbortController'
 import { useTimers, useVideoCleanup } from '@/composables/useCleanup'
 import { formatCount, formatDuration } from '@/utils/format'
 import BottomNav from '@/components/common/BottomNav.vue'
+import { HomeBanner, FuncEntries } from '@/components/home'
 
 const router = useRouter()
 

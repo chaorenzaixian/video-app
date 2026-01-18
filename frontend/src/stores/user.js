@@ -23,20 +23,34 @@ export const useUserStore = defineStore('user', () => {
     
     // 如果已登录，直接返回
     if (token.value) {
-      isInitialized.value = true
       await fetchUser()
+      isInitialized.value = true
       return
     }
     
     try {
       const deviceId = generateDeviceId()
-      const res = await api.post('/auth/guest/register', { device_id: deviceId })
+      // 获取邀请码（如果有）
+      const inviteCode = localStorage.getItem('invite_code')
+      
+      const payload = { device_id: deviceId }
+      if (inviteCode) {
+        payload.invite_code = inviteCode
+      }
+      
+      const res = await api.post('/auth/guest/register', payload)
       
       token.value = res.data.access_token
       localStorage.setItem('token', res.data.access_token)
       localStorage.setItem('refreshToken', res.data.refresh_token)
       
+      // 注册成功后清除邀请码
+      if (inviteCode) {
+        localStorage.removeItem('invite_code')
+      }
+      
       await fetchUser()
+      isInitialized.value = true
       console.log('自动注册成功')
     } catch (error) {
       console.error(`注册失败 (尝试 ${retryCount + 1}/${MAX_RETRIES + 1}):`, error)
@@ -51,7 +65,8 @@ export const useUserStore = defineStore('user', () => {
         await new Promise(resolve => setTimeout(resolve, delay))
         return autoRegisterGuest(retryCount + 1)
       }
-    } finally {
+      
+      // 重试失败后也要设置初始化完成，避免页面一直加载
       isInitialized.value = true
     }
   }

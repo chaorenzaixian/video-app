@@ -260,6 +260,18 @@ $breakpoint-xxl: 1280px;
   
   &.double-column {
     grid-template-columns: repeat(2, 1fr);
+    
+    @media (min-width: $breakpoint-lg) {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    @media (min-width: $breakpoint-xl) {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    @media (min-width: $breakpoint-xxl) {
+      grid-template-columns: repeat(5, 1fr);
+      gap: 20px;
+    }
   }
 }
 
@@ -269,6 +281,13 @@ $breakpoint-xxl: 1280px;
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
+  transition: transform 0.2s;
+  
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-3px);
+    }
+  }
   
   &:active {
     transform: scale(0.98);

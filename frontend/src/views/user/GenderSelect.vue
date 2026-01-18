@@ -190,6 +190,37 @@ onMounted(() => {
     }
   }
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .gender-select-page {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 500px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 1024px) {
+  .gender-select-page {
+    max-width: 600px;
+  }
+  
+  .page-header {
+    max-width: 600px;
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .option-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
 </style>
 
 

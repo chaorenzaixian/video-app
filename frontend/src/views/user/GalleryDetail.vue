@@ -1196,4 +1196,79 @@ onMounted(() => fetchGallery())
   border: none;
   color: #fff;
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .gallery-detail-page {
+    max-width: 768px;
+    margin: 0 auto;
+  }
+  
+  .top-header {
+    max-width: 768px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .action-bar {
+    max-width: 768px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .comments-panel,
+  .input-panel {
+    max-width: 768px;
+    margin: 0 auto;
+  }
+  
+  .images-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gallery-detail-page {
+    max-width: 900px;
+  }
+  
+  .top-header {
+    max-width: 900px;
+  }
+  
+  .action-bar {
+    max-width: 900px;
+  }
+  
+  .comments-panel,
+  .input-panel {
+    max-width: 700px;
+  }
+  
+  .images-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  
+  .content-area {
+    padding: 0 16px;
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .image-item:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+  
+  .action-btn:hover {
+    opacity: 0.8;
+  }
+  
+  .comment-item:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
 </style>

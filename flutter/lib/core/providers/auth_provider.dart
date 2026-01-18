@@ -9,20 +9,31 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
   String? _error;
+  bool _initialized = false;
   
   User? get user => _user;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get isLoggedIn => StorageService.getToken() != null;
+  bool get isLoggedIn {
+    try {
+      return StorageService.getToken() != null;
+    } catch (e) {
+      return false;
+    }
+  }
   bool get isVip => _user?.isVip ?? false;
   
-  AuthProvider() {
-    _loadUser();
+  // 延迟初始化，避免构造函数中调用异步方法
+  Future<void> init() async {
+    if (_initialized) return;
+    _initialized = true;
+    
+    if (isLoggedIn) {
+      await _loadUser();
+    }
   }
   
   Future<void> _loadUser() async {
-    if (!isLoggedIn) return;
-    
     try {
       final response = await _api.getCurrentUser();
       if (response.statusCode == 200) {
@@ -30,7 +41,7 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      // Token 可能已过期
+      debugPrint('加载用户信息失败: $e');
     }
   }
   
@@ -46,9 +57,7 @@ class AuthProvider extends ChangeNotifier {
         final data = response.data;
         await StorageService.saveToken(data['access_token']);
         await StorageService.saveRefreshToken(data['refresh_token']);
-        
         await _loadUser();
-        
         _isLoading = false;
         notifyListeners();
         return true;
@@ -69,9 +78,7 @@ class AuthProvider extends ChangeNotifier {
     
     try {
       final response = await _api.register(username, email, password, inviteCode: inviteCode);
-      
       if (response.statusCode == 200) {
-        // 注册成功后自动登录
         return await login(username, password);
       }
     } catch (e) {
@@ -103,9 +110,7 @@ class AuthProvider extends ChangeNotifier {
         final data = response.data;
         await StorageService.saveToken(data['access_token']);
         await StorageService.saveRefreshToken(data['refresh_token']);
-        
         await _loadUser();
-        
         _isLoading = false;
         notifyListeners();
         return true;

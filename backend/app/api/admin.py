@@ -179,7 +179,7 @@ async def list_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
-    role: Optional[UserRole] = None,
+    role: Optional[str] = None,  # 改为字符串，支持guest等非枚举值
     current_user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -193,7 +193,13 @@ async def list_users(
         )
     
     if role:
-        query = query.where(User.role == role)
+        # 处理特殊的guest筛选
+        if role.lower() == 'guest':
+            query = query.where(User.is_guest == True)
+        else:
+            # 数据库role字段是varchar，使用cast转换为字符串比较
+            from sqlalchemy import cast, String
+            query = query.where(cast(User.role, String) == role.upper())
     
     # 总数
     count_query = select(func.count()).select_from(query.subquery())

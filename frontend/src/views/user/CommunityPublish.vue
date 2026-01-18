@@ -325,4 +325,55 @@ onMounted(fetchTopics)
 .visibility-options input[type="radio"] {
   accent-color: #ff4757;
 }
+
+/* 响应式优化 */
+@media (min-width: 768px) {
+  .publish-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .top-bar {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .images-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .publish-page {
+    max-width: 700px;
+  }
+  
+  .top-bar {
+    max-width: 700px;
+  }
+  
+  .images-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (hover: hover) {
+  .publish-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+  
+  .topic-item:hover {
+    background: #333;
+  }
+  
+  .topic-item.selected:hover {
+    background: linear-gradient(135deg, #ff4757, #ff6b81);
+  }
+  
+  .add-image:hover {
+    background: #222;
+    border-color: #444;
+  }
+}
 </style>

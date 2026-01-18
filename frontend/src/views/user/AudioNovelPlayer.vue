@@ -236,6 +236,13 @@ const fetchNovel = async () => {
   try {
     const id = route.params.id
     const res = await api.get(`/gallery-novel/novel/${id}`)
+    
+    // 如果是文字小说，自动跳转到文字小说详情页
+    if (res.data.novel_type === 'text') {
+      router.replace(`/user/novel/${id}`)
+      return
+    }
+    
     novel.value = res.data
     chapters.value = res.data.chapters || []
     
@@ -245,13 +252,12 @@ const fetchNovel = async () => {
       if (idx >= 0) currentChapterIndex.value = idx
     }
     
-    // 加载第一章
+    // 并行加载第一章和推荐
+    const tasks = [fetchRecommend()]
     if (chapters.value.length > 0) {
-      await loadChapter(currentChapterIndex.value)
+      tasks.push(loadChapter(currentChapterIndex.value))
     }
-    
-    // 获取推荐
-    fetchRecommend()
+    await Promise.all(tasks)
   } catch (e) {
     console.error('获取小说失败', e)
     ElMessage.error('获取小说失败')
@@ -428,7 +434,8 @@ const formatTime = (seconds) => {
 
 // 保存进度
 const saveProgress = async () => {
-  if (!currentChapter.value || !novel.value) return
+  // 检查必要数据是否存在
+  if (!currentChapter.value || !novel.value || !novel.value.id) return
   try {
     await api.post(`/gallery-novel/novel/${novel.value.id}/progress`, {
       chapter_id: currentChapter.value.id,
@@ -436,7 +443,10 @@ const saveProgress = async () => {
       audio_position: currentTime.value
     })
   } catch (e) {
-    console.error('保存进度失败', e)
+    // 忽略取消的请求错误
+    if (e.name !== 'CanceledError' && e.code !== 'ERR_CANCELED') {
+      console.error('保存进度失败', e)
+    }
   }
 }
 
@@ -469,7 +479,7 @@ let saveTimer = null
 
 onMounted(() => {
   fetchNovel()
-  saveTimer = setInterval(saveProgress, 30000) // 每30秒保存一次
+  saveTimer = setInterval(saveProgress, 60000) // 每60秒保存一次
 })
 
 onUnmounted(() => {
@@ -916,5 +926,79 @@ onUnmounted(() => {
   color: #445566;
   font-size: 13px;
   padding: 30px 0;
+}
+
+// 响应式断点
+@media (min-width: 768px) {
+  .audio-novel-player {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .top-header {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .playlist-panel {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .cover-wrapper {
+    width: 240px;
+    height: 310px;
+  }
+  
+  .recommend-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .audio-novel-player {
+    max-width: 700px;
+  }
+  
+  .top-header {
+    max-width: 700px;
+  }
+  
+  .playlist-panel {
+    max-width: 600px;
+  }
+  
+  .cover-wrapper {
+    width: 280px;
+    height: 360px;
+  }
+  
+  .controls-section {
+    padding: 0 40px;
+  }
+  
+  .recommend-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .playlist-item:hover {
+    background: rgba(139, 92, 246, 0.1);
+  }
+  
+  .recommend-item:hover {
+    transform: translateY(-2px);
+  }
+  
+  .control-btn:hover:not(:disabled) {
+    opacity: 0.8;
+  }
 }
 </style>

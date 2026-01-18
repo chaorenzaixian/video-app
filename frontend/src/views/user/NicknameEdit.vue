@@ -294,6 +294,30 @@ onMounted(async () => {
     box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
   }
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .nickname-edit-page {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 500px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 1024px) {
+  .nickname-edit-page {
+    max-width: 600px;
+  }
+  
+  .page-header {
+    max-width: 600px;
+  }
+}
 </style>
 
 

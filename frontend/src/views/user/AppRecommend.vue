@@ -446,5 +446,67 @@ const openApp = (app) => {
 .bottom-safe {
   height: 20px;
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .app-recommend-page {
+    max-width: 768px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 768px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .app-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 20px 16px;
+  }
+  
+  .chess-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    
+    .chess-item {
+      margin-bottom: 0;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-recommend-page {
+    max-width: 900px;
+  }
+  
+  .page-header {
+    max-width: 900px;
+  }
+  
+  .app-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .app-item:hover {
+    transform: scale(1.05);
+  }
+  
+  .app-list-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  
+  .chess-item:hover {
+    transform: scale(1.02);
+  }
+  
+  .download-btn:hover {
+    opacity: 0.9;
+  }
+}
 </style>
 

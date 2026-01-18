@@ -7,7 +7,7 @@
         current-page="search"
         :show-search-box="true"
         v-model:keyword="keyword"
-        :placeholder="hotSearches[0] || '搜索'"
+        placeholder="请输入关键字搜索......"
         @search="handleSearch"
       />
     </div>

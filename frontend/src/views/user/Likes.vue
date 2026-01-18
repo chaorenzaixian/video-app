@@ -739,4 +739,63 @@ onMounted(() => {
     cursor: pointer;
   }
 }
+
+// 响应式优化
+@media (min-width: 768px) {
+  .likes-page {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 700px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .likes-grid:not(.post-list):not(.novel-list) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .bottom-bar {
+    max-width: 700px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 1024px) {
+  .likes-page {
+    max-width: 900px;
+  }
+  
+  .page-header {
+    max-width: 900px;
+  }
+  
+  .likes-grid:not(.post-list):not(.novel-list) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .bottom-bar {
+    max-width: 900px;
+  }
+}
+
+@media (hover: hover) {
+  .tab-item:hover {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  
+  .like-item:hover,
+  .gallery-item:hover,
+  .novel-item:hover,
+  .post-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  
+  .header-right:hover {
+    color: #fff;
+  }
+}
 </style>

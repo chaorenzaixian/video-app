@@ -1,5 +1,10 @@
 <template>
   <div class="invite-share-page">
+    <!-- 全屏背景图 -->
+    <div class="page-bg">
+      <img src="/images/backgrounds/girl2.webp" alt="背景" />
+    </div>
+    
     <!-- 顶部导航 -->
     <header class="page-header">
       <div class="back-btn" @click="$router.back()">
@@ -11,28 +16,24 @@
       </div>
     </header>
 
-    <!-- 分享卡片 -->
-    <div class="share-card-container">
-      <div class="share-card" ref="shareCardRef">
-        <!-- 背景图 -->
-        <div class="card-bg">
-          <img src="/images/backgrounds/girl2.webp" alt="背景" />
+    <!-- 内容区域 -->
+    <div class="content-area" ref="shareCardRef">
+      <!-- 二维码区域 -->
+      <div class="qr-section">
+        <div class="qr-frame">
+          <div class="qr-code" ref="qrCodeRef"></div>
         </div>
-        
-        <!-- 二维码区域 -->
-        <div class="qr-section">
-          <div class="qr-frame">
-            <div class="qr-code" ref="qrCodeRef"></div>
-          </div>
-        </div>
-        
-        <!-- 邀请码信息 -->
-        <div class="invite-info">
-          <span class="invite-label">邀请码</span>
-          <span class="invite-code">{{ inviteCode }}</span>
-          <span class="site-url">SOUL 官网地址 {{ siteUrl }}</span>
-          <span class="scan-tip">提示*苹果手机请用相机扫码/安卓手机推荐UC浏览器扫码</span>
-        </div>
+      </div>
+      
+      <!-- 邀请码信息 -->
+      <div class="invite-info">
+        <span class="invite-label">邀请码</span>
+        <span class="invite-code">{{ inviteCode }}</span>
+        <span class="site-url" @click="copySiteUrl">
+          SOUL 官网地址 {{ siteUrl }}
+          <span class="copy-hint">（点击复制）</span>
+        </span>
+        <span class="scan-tip">提示*苹果手机请用相机扫码/安卓手机推荐UC浏览器扫码</span>
       </div>
     </div>
 
@@ -53,19 +54,41 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import QRCode from 'qrcode'
+import api from '@/utils/api'
 
 const userStore = useUserStore()
 
 const inviteCode = ref('')
-const siteUrl = ref('https://soul9.fm')
+const inviteUrl = ref('')
+const siteUrl = ref('')
 const shareCardRef = ref(null)
 const qrCodeRef = ref(null)
 
+// 获取邀请信息
+const fetchInviteInfo = async () => {
+  try {
+    const res = await api.get('/promotion/invite-code')
+    inviteCode.value = res.data?.invite_code || userStore.user?.invite_code || ''
+    inviteUrl.value = res.data?.invite_url || ''
+    // 从 invite_url 提取域名
+    if (inviteUrl.value) {
+      const url = new URL(inviteUrl.value)
+      siteUrl.value = url.origin
+    } else {
+      siteUrl.value = window.location.origin
+    }
+  } catch (error) {
+    console.error('获取邀请信息失败:', error)
+    // 降级使用本地数据
+    inviteCode.value = userStore.user?.invite_code || ''
+    siteUrl.value = window.location.origin
+    inviteUrl.value = `${siteUrl.value}/user?invite=${inviteCode.value}`
+  }
+}
+
 // 生成二维码
 const generateQRCode = async () => {
-  if (!qrCodeRef.value) return
-  
-  const inviteLink = `${siteUrl.value}?code=${inviteCode.value}`
+  if (!qrCodeRef.value || !inviteUrl.value) return
   
   try {
     // 清空之前的二维码
@@ -73,7 +96,7 @@ const generateQRCode = async () => {
     
     // 创建canvas
     const canvas = document.createElement('canvas')
-    await QRCode.toCanvas(canvas, inviteLink, {
+    await QRCode.toCanvas(canvas, inviteUrl.value, {
       width: 140,
       margin: 1,
       color: {
@@ -89,7 +112,7 @@ const generateQRCode = async () => {
 
 // 复制链接
 const copyLink = () => {
-  const link = `${siteUrl.value}?code=${inviteCode.value}`
+  const link = inviteUrl.value || `${siteUrl.value}/user?invite=${inviteCode.value}`
   if (navigator.clipboard) {
     navigator.clipboard.writeText(link)
     ElMessage.success('链接已复制')
@@ -102,6 +125,22 @@ const copyLink = () => {
     document.execCommand('copy')
     document.body.removeChild(textarea)
     ElMessage.success('链接已复制')
+  }
+}
+
+// 复制官网地址
+const copySiteUrl = () => {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(siteUrl.value)
+    ElMessage.success('官网地址已复制')
+  } else {
+    const textarea = document.createElement('textarea')
+    textarea.value = siteUrl.value
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    ElMessage.success('官网地址已复制')
   }
 }
 
@@ -134,31 +173,73 @@ const saveImage = async () => {
 }
 
 onMounted(async () => {
-  inviteCode.value = userStore.user?.invite_code || 'T5884L'
-  
+  await fetchInviteInfo()
   await nextTick()
   generateQRCode()
 })
 </script>
 
 <style lang="scss" scoped>
+$breakpoint-lg: 768px;
+$breakpoint-xl: 1024px;
+
 .invite-share-page {
   height: 100vh;
-  background: #0a0a0a;
   color: #fff;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+}
+
+// 全屏背景图
+.page-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.3) 0%,
+      rgba(0, 0, 0, 0.1) 30%,
+      rgba(0, 0, 0, 0.1) 50%,
+      rgba(0, 0, 0, 0.6) 80%,
+      rgba(0, 0, 0, 0.85) 100%
+    );
+  }
 }
 
 // 顶部导航
 .page-header {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
   padding-top: calc(12px + env(safe-area-inset-top, 0px));
-  background: rgba(0, 0, 0, 0.3);
   flex-shrink: 0;
   
   .back-btn {
@@ -187,128 +268,153 @@ onMounted(async () => {
   }
 }
 
-// 分享卡片容器
-.share-card-container {
+// 内容区域
+.content-area {
+  position: relative;
+  z-index: 1;
   flex: 1;
-  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 20px;
+  padding-bottom: 40px;
+}
+
+// 二维码区域
+.qr-section {
+  margin-bottom: 24px;
+}
+
+.qr-frame {
+  padding: 8px;
+  background: #fff;
+  border-radius: 8px;
+  position: relative;
+  
+  // 四角装饰
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 3px solid #e74c3c;
+  }
+  
+  &::before {
+    top: -4px;
+    left: -4px;
+    border-right: none;
+    border-bottom: none;
+  }
+  
+  &::after {
+    top: -4px;
+    right: -4px;
+    border-left: none;
+    border-bottom: none;
+  }
+}
+
+.qr-code {
+  width: 160px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
+  position: relative;
+  
+  canvas {
+    max-width: 100%;
+    max-height: 100%;
+  }
+  
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 3px solid #e74c3c;
+  }
+  
+  &::before {
+    bottom: -12px;
+    left: -12px;
+    border-right: none;
+    border-top: none;
+  }
+  
+  &::after {
+    bottom: -12px;
+    right: -12px;
+    border-left: none;
+    border-top: none;
+  }
 }
 
-// 分享卡片
-.share-card {
-  position: relative;
-  width: 100%;
-  max-width: 320px;
-  max-height: 100%;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #1a1a2e;
+// 邀请码信息
+.invite-info {
+  text-align: center;
   
-  .card-bg {
-    position: relative;
-    width: 100%;
-    
-    img {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
+  .invite-label {
+    display: block;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 6px;
   }
   
-  // 二维码区域
-  .qr-section {
-    position: absolute;
-    top: 45%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+  .invite-code {
+    display: block;
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 4px;
+    margin-bottom: 16px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   }
   
-  .qr-frame {
-    padding: 6px;
-    background: #fff;
-    border-radius: 6px;
-    position: relative;
-    
-    // 四角装饰
-    &::before,
-    &::after {
-      content: '';
-      position: absolute;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #e74c3c;
-    }
-    
-    &::before {
-      top: -3px;
-      left: -3px;
-      border-right: none;
-      border-bottom: none;
-    }
-    
-    &::after {
-      top: -3px;
-      right: -3px;
-      border-left: none;
-      border-bottom: none;
-    }
-  }
-  
-  .qr-code {
-    width: 140px;
-    height: 140px;
+  .site-url {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    background: linear-gradient(90deg, #f7d774 0%, #e6ac00 50%, #f7d774 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+    cursor: pointer;
     
-    canvas {
-      max-width: 100%;
-      max-height: 100%;
+    .copy-hint {
+      font-size: 12px;
+      font-weight: 400;
+    }
+    
+    &:active {
+      opacity: 0.7;
     }
   }
   
-  // 邀请码信息
-  .invite-info {
-    padding: 16px 12px 20px;
-    text-align: center;
-    background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.8) 30%);
-    
-    .invite-label {
-      display: block;
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.7);
-      margin-bottom: 4px;
-    }
-    
-    .invite-code {
-      display: block;
-      font-size: 28px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: 3px;
-      margin-bottom: 10px;
-    }
-    
-    .site-url {
-      display: block;
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.8);
-      margin-bottom: 8px;
-    }
-    
-    .scan-tip {
-      display: block;
-      font-size: 11px;
-      color: #5b8def;
-    }
+  .scan-tip {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    background: linear-gradient(90deg, #f7d774 0%, #e6ac00 50%, #f7d774 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-top: 8px;
   }
 }
 
 // 底部按钮
 .bottom-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 12px;
   padding: 12px 16px;
@@ -331,47 +437,16 @@ onMounted(async () => {
   }
   
   .copy-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     color: #fff;
+    backdrop-filter: blur(10px);
   }
   
   .save-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: none;
     color: #fff;
-  }
-}
-
-// 添加二维码角落装饰的伪元素
-.qr-frame {
-  &::before,
-  &::after,
-  > .qr-code::before,
-  > .qr-code::after {
-    content: '';
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    border: 2px solid #e74c3c;
-  }
-}
-
-.qr-code {
-  position: relative;
-  
-  &::before {
-    bottom: -9px;
-    left: -9px;
-    border-right: none;
-    border-top: none;
-  }
-  
-  &::after {
-    bottom: -9px;
-    right: -9px;
-    border-left: none;
-    border-top: none;
   }
 }
 </style>

@@ -88,12 +88,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onActivated, nextTick, onBeforeMount } from 'vue'
+import { ref, onMounted, onActivated, nextTick, onBeforeMount, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
 // 二维码使用在线API生成，最稳定可靠
 
 const router = useRouter()
+const userStore = useUserStore()
 
 // 页面引用
 const pageRef = ref(null)
@@ -204,6 +206,24 @@ const goToAgent = () => {
   router.push('/user/agent')
 }
 
+// 加载数据（需要登录）
+const loadData = async () => {
+  if (!userStore.isLoggedIn) return
+  
+  await Promise.all([
+    fetchInviteCode(),
+    fetchStats(),
+    fetchConfig()
+  ])
+}
+
+// 监听用户登录状态
+watch(() => userStore.isInitialized, (initialized) => {
+  if (initialized && userStore.isLoggedIn) {
+    loadData()
+  }
+}, { immediate: true })
+
 // 组件挂载前就开始滚动
 onBeforeMount(() => {
   forceScrollToTop()
@@ -224,9 +244,10 @@ onMounted(() => {
   setTimeout(forceScrollToTop, 100)
   setTimeout(forceScrollToTop, 200)
   
-  fetchInviteCode()
-  fetchStats()
-  fetchConfig()
+  // 如果已登录，直接加载数据
+  if (userStore.isInitialized && userStore.isLoggedIn) {
+    loadData()
+  }
 })
 
 // 页面激活时也滚动到顶部（处理keep-alive缓存情况）
@@ -541,8 +562,14 @@ onActivated(() => {
 
 @media (min-width: 768px) {
   .promotion-page {
-    max-width: 450px;
+    max-width: 500px;
     margin: 0 auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .promotion-page {
+    max-width: 550px;
   }
 }
 </style>

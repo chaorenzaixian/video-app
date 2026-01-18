@@ -405,6 +405,46 @@ onMounted(async () => {
     box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
   }
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .avatar-select-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .avatar-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .avatar-select-page {
+    max-width: 700px;
+  }
+  
+  .page-header {
+    max-width: 700px;
+  }
+  
+  .avatar-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .avatar-item:hover {
+    transform: scale(1.05);
+  }
+}
 </style>
 
 

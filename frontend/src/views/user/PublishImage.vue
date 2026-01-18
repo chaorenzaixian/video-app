@@ -486,4 +486,60 @@ onMounted(() => {
     }
   }
 }
+
+// 响应式优化
+@media (min-width: 768px) {
+  .publish-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .top-bar {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .bottom-bar {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .upload-grid {
+    .upload-item {
+      width: 110px;
+      height: 110px;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .publish-page {
+    max-width: 700px;
+  }
+  
+  .top-bar {
+    max-width: 700px;
+  }
+  
+  .bottom-bar {
+    max-width: 700px;
+  }
+}
+
+@media (hover: hover) {
+  .upload-item.add-btn:hover {
+    border-color: #666;
+    background: rgba(255, 255, 255, 0.03);
+  }
+  
+  .topic-item:hover {
+    background: #303050;
+  }
+  
+  .submit-btn:not(:disabled):hover {
+    opacity: 0.9;
+  }
+}
 </style>

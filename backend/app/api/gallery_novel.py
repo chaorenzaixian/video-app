@@ -1,6 +1,7 @@
 """
 图集和小说API
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, Form, File, UploadFile, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
@@ -105,9 +106,6 @@ async def get_gallery_detail(
         vip = vip_result.scalar_one_or_none()
         if vip and vip.is_active and vip.expire_date and vip.expire_date > datetime.utcnow():
             is_vip = True
-        print(f"[DEBUG] user_id={current_user.id}, vip={vip}, is_vip={is_vip}")
-    else:
-        print(f"[DEBUG] No current_user, is_vip=False")
     
     # 非VIP只返回前5张图片
     all_images = gallery.images or []
@@ -244,38 +242,68 @@ async def get_novel_detail(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取小说详情"""
-    result = await db.execute(select(Novel).where(Novel.id == novel_id))
+    """获取小说详情（优化版）"""
+    from sqlalchemy.orm import selectinload
+    
+    # 一次性查询小说和章节
+    result = await db.execute(
+        select(Novel)
+        .options(selectinload(Novel.category))
+        .where(Novel.id == novel_id)
+    )
     novel = result.scalar_one_or_none()
     
     if not novel or not novel.is_active:
         raise HTTPException(status_code=404, detail="小说不存在")
     
-    # 增加浏览量
+    # 增加浏览量（异步更新，不阻塞响应）
     novel.view_count += 1
-    await db.commit()
     
-    # 检查用户是否是VIP
+    # 并行查询用户相关数据
     is_vip = False
+    is_liked = False
+    is_collected = False
+    read_progress = None
+    
     if current_user:
         from app.models.user import UserVIP
-        vip_result = await db.execute(
+        from app.models.community import NovelLike, NovelCollect, NovelReadProgress
+        
+        # 并行执行多个查询
+        vip_task = db.execute(
             select(UserVIP).where(UserVIP.user_id == current_user.id)
         )
-        vip = vip_result.scalar_one_or_none()
-        if vip and vip.is_active and vip.expire_date and vip.expire_date > datetime.utcnow():
-            is_vip = True
-    
-    # 获取阅读进度
-    read_progress = None
-    if current_user:
-        from app.models.community import NovelReadProgress
-        progress_result = await db.execute(
+        like_task = db.execute(
+            select(NovelLike).where(
+                NovelLike.novel_id == novel_id,
+                NovelLike.user_id == current_user.id
+            )
+        )
+        collect_task = db.execute(
+            select(NovelCollect).where(
+                NovelCollect.novel_id == novel_id,
+                NovelCollect.user_id == current_user.id
+            )
+        )
+        progress_task = db.execute(
             select(NovelReadProgress).where(
                 NovelReadProgress.user_id == current_user.id,
                 NovelReadProgress.novel_id == novel_id
             )
         )
+        
+        # 等待所有查询完成
+        vip_result, like_result, collect_result, progress_result = await asyncio.gather(
+            vip_task, like_task, collect_task, progress_task
+        )
+        
+        vip = vip_result.scalar_one_or_none()
+        if vip and vip.is_active and vip.expire_date and vip.expire_date > datetime.utcnow():
+            is_vip = True
+        
+        is_liked = like_result.scalar_one_or_none() is not None
+        is_collected = collect_result.scalar_one_or_none() is not None
+        
         progress = progress_result.scalar_one_or_none()
         if progress:
             read_progress = {
@@ -285,44 +313,24 @@ async def get_novel_detail(
                 "audio_position": progress.audio_position
             }
     
-    # 检查点赞和收藏状态
-    is_liked = False
-    is_collected = False
-    if current_user:
-        from app.models.community import NovelLike, NovelCollect
-        like_result = await db.execute(
-            select(NovelLike).where(
-                NovelLike.novel_id == novel_id,
-                NovelLike.user_id == current_user.id
-            )
-        )
-        is_liked = like_result.scalar_one_or_none() is not None
-        
-        collect_result = await db.execute(
-            select(NovelCollect).where(
-                NovelCollect.novel_id == novel_id,
-                NovelCollect.user_id == current_user.id
-            )
-        )
-        is_collected = collect_result.scalar_one_or_none() is not None
-    
-    # 获取章节列表
+    # 查询章节列表（只查询需要的字段，不包含content）
     chapters_result = await db.execute(
-        select(NovelChapter)
+        select(
+            NovelChapter.id,
+            NovelChapter.chapter_num,
+            NovelChapter.title,
+            NovelChapter.is_free,
+            NovelChapter.audio_url
+        )
         .where(NovelChapter.novel_id == novel_id)
         .order_by(NovelChapter.chapter_num)
     )
-    chapters = chapters_result.scalars().all()
+    chapters = chapters_result.all()
+    
+    await db.commit()
     
     # 获取分类名称
-    category_name = None
-    if novel.category_id:
-        cat_result = await db.execute(
-            select(NovelCategory).where(NovelCategory.id == novel.category_id)
-        )
-        cat = cat_result.scalar_one_or_none()
-        if cat:
-            category_name = cat.name
+    category_name = novel.category.name if novel.category else None
     
     return {
         "id": novel.id,
@@ -360,7 +368,8 @@ async def get_novel_chapter(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取小说章节内容"""
+    """获取小说章节内容（优化版）"""
+    # 一次性查询章节和相邻章节
     result = await db.execute(
         select(NovelChapter).where(
             NovelChapter.id == chapter_id,
@@ -387,27 +396,30 @@ async def get_novel_chapter(
         if not is_vip:
             raise HTTPException(status_code=403, detail="此章节需要VIP才能阅读")
     
-    # 获取上一章和下一章信息
-    prev_chapter = None
-    next_chapter = None
-    
-    prev_result = await db.execute(
-        select(NovelChapter).where(
+    # 并行获取上一章和下一章信息
+    prev_task = db.execute(
+        select(NovelChapter.id, NovelChapter.title).where(
             NovelChapter.novel_id == novel_id,
             NovelChapter.chapter_num < chapter.chapter_num
         ).order_by(desc(NovelChapter.chapter_num)).limit(1)
     )
-    prev = prev_result.scalar_one_or_none()
-    if prev:
-        prev_chapter = {"id": prev.id, "title": prev.title}
-    
-    next_result = await db.execute(
-        select(NovelChapter).where(
+    next_task = db.execute(
+        select(NovelChapter.id, NovelChapter.title, NovelChapter.is_free).where(
             NovelChapter.novel_id == novel_id,
             NovelChapter.chapter_num > chapter.chapter_num
         ).order_by(NovelChapter.chapter_num).limit(1)
     )
-    nxt = next_result.scalar_one_or_none()
+    
+    prev_result, next_result = await asyncio.gather(prev_task, next_task)
+    
+    prev_chapter = None
+    next_chapter = None
+    
+    prev = prev_result.first()
+    if prev:
+        prev_chapter = {"id": prev.id, "title": prev.title}
+    
+    nxt = next_result.first()
     if nxt:
         next_chapter = {"id": nxt.id, "title": nxt.title, "is_free": nxt.is_free}
     
@@ -441,33 +453,39 @@ async def save_read_progress(
     current_user: User = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """保存阅读进度"""
+    """保存阅读进度（兼容SQLite和PostgreSQL）"""
     if not current_user:
         raise HTTPException(status_code=401, detail="请先登录")
     
     from app.models.community import NovelReadProgress
-    from sqlalchemy.dialects.postgresql import insert as pg_insert
     
-    # 使用 upsert 避免并发冲突
-    stmt = pg_insert(NovelReadProgress).values(
-        user_id=current_user.id,
-        novel_id=novel_id,
-        chapter_id=data.chapter_id,
-        chapter_num=data.chapter_num,
-        scroll_position=data.scroll_position,
-        audio_position=data.audio_position
-    ).on_conflict_do_update(
-        index_elements=['user_id', 'novel_id'],
-        set_={
-            'chapter_id': data.chapter_id,
-            'chapter_num': data.chapter_num,
-            'scroll_position': data.scroll_position,
-            'audio_position': data.audio_position,
-            'updated_at': func.now()
-        }
+    # 先查询是否存在
+    result = await db.execute(
+        select(NovelReadProgress).where(
+            NovelReadProgress.user_id == current_user.id,
+            NovelReadProgress.novel_id == novel_id
+        )
     )
+    progress = result.scalar_one_or_none()
     
-    await db.execute(stmt)
+    if progress:
+        # 更新
+        progress.chapter_id = data.chapter_id
+        progress.chapter_num = data.chapter_num
+        progress.scroll_position = data.scroll_position
+        progress.audio_position = data.audio_position
+    else:
+        # 新建
+        progress = NovelReadProgress(
+            user_id=current_user.id,
+            novel_id=novel_id,
+            chapter_id=data.chapter_id,
+            chapter_num=data.chapter_num,
+            scroll_position=data.scroll_position,
+            audio_position=data.audio_position
+        )
+        db.add(progress)
+    
     await db.commit()
     return {"success": True}
 
@@ -518,7 +536,7 @@ async def get_gallery_comments(
     current_user: User = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取图集评论"""
+    """获取图集评论（优化版 - 批量查询避免N+1）"""
     from app.models.community import GalleryComment, GalleryCommentLike
     from sqlalchemy.orm import selectinload
     
@@ -531,28 +549,32 @@ async def get_gallery_comments(
     )
     comments = result.scalars().all()
     
-    # 获取用户信息
+    if not comments:
+        return []
+    
+    # 批量获取所有用户信息
+    user_ids = list(set(c.user_id for c in comments))
+    users_result = await db.execute(
+        select(User).options(selectinload(User.vip)).where(User.id.in_(user_ids))
+    )
+    user_map = {u.id: u for u in users_result.scalars().all()}
+    
+    # 批量获取当前用户的点赞状态
+    liked_ids = set()
+    if current_user:
+        comment_ids = [c.id for c in comments]
+        likes_result = await db.execute(
+            select(GalleryCommentLike.comment_id).where(
+                GalleryCommentLike.comment_id.in_(comment_ids),
+                GalleryCommentLike.user_id == current_user.id
+            )
+        )
+        liked_ids = set(r[0] for r in likes_result.all())
+    
+    # 构建返回数据
     comment_list = []
     for c in comments:
-        user_result = await db.execute(
-            select(User).options(selectinload(User.vip)).where(User.id == c.user_id)
-        )
-        user = user_result.scalar_one_or_none()
-        
-        # 检查当前用户是否点赞
-        is_liked = False
-        if current_user:
-            try:
-                like_result = await db.execute(
-                    select(GalleryCommentLike).where(
-                        GalleryCommentLike.comment_id == c.id,
-                        GalleryCommentLike.user_id == current_user.id
-                    )
-                )
-                is_liked = like_result.scalar_one_or_none() is not None
-            except:
-                pass
-        
+        user = user_map.get(c.user_id)
         comment_list.append({
             "id": c.id,
             "content": c.content,
@@ -565,7 +587,7 @@ async def get_gallery_comments(
             "reply_count": c.reply_count or 0,
             "is_pinned": c.is_pinned or False,
             "is_official": c.is_official or False,
-            "is_liked": is_liked,
+            "is_liked": c.id in liked_ids,
             "created_at": c.created_at.isoformat() if c.created_at else None
         })
     
@@ -591,14 +613,12 @@ async def create_gallery_comment(
     
     # 检查 Content-Type
     content_type = request.headers.get("content-type", "")
-    print(f"[DEBUG] Content-Type: {content_type}")
     
     if "multipart/form-data" in content_type:
         # FormData 方式
         form = await request.form()
         content = form.get("content", "") or ""
         image = form.get("image")
-        print(f"[DEBUG] FormData content: '{content}', image: {image}")
         
         if image and hasattr(image, 'filename') and image.filename:
             ext = os.path.splitext(image.filename)[1] or '.jpg'
@@ -617,11 +637,8 @@ async def create_gallery_comment(
         try:
             data = await request.json()
             content = data.get("content", "") or ""
-            print(f"[DEBUG] JSON content: '{content}'")
-        except Exception as e:
-            print(f"[DEBUG] JSON parse error: {e}")
-    
-    print(f"[DEBUG] Final - content: '{content}', image_url: {image_url}")
+        except Exception:
+            pass
     
     if not str(content).strip() and not image_url:
         raise HTTPException(status_code=400, detail="评论内容不能为空")
@@ -1099,7 +1116,7 @@ async def get_novel_comments(
     current_user: User = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取小说评论"""
+    """获取小说评论（优化版 - 批量查询避免N+1）"""
     from app.models.community import NovelComment, NovelCommentLike
     from sqlalchemy.orm import selectinload
     
@@ -1112,28 +1129,32 @@ async def get_novel_comments(
     )
     comments = result.scalars().all()
     
-    # 获取用户信息
+    if not comments:
+        return []
+    
+    # 批量获取所有用户信息
+    user_ids = list(set(c.user_id for c in comments))
+    users_result = await db.execute(
+        select(User).options(selectinload(User.vip)).where(User.id.in_(user_ids))
+    )
+    user_map = {u.id: u for u in users_result.scalars().all()}
+    
+    # 批量获取当前用户的点赞状态
+    liked_ids = set()
+    if current_user:
+        comment_ids = [c.id for c in comments]
+        likes_result = await db.execute(
+            select(NovelCommentLike.comment_id).where(
+                NovelCommentLike.comment_id.in_(comment_ids),
+                NovelCommentLike.user_id == current_user.id
+            )
+        )
+        liked_ids = set(r[0] for r in likes_result.all())
+    
+    # 构建返回数据
     comment_list = []
     for c in comments:
-        user_result = await db.execute(
-            select(User).options(selectinload(User.vip)).where(User.id == c.user_id)
-        )
-        user = user_result.scalar_one_or_none()
-        
-        # 检查当前用户是否点赞
-        is_liked = False
-        if current_user:
-            try:
-                like_result = await db.execute(
-                    select(NovelCommentLike).where(
-                        NovelCommentLike.comment_id == c.id,
-                        NovelCommentLike.user_id == current_user.id
-                    )
-                )
-                is_liked = like_result.scalar_one_or_none() is not None
-            except:
-                pass
-        
+        user = user_map.get(c.user_id)
         comment_list.append({
             "id": c.id,
             "content": c.content,
@@ -1146,7 +1167,7 @@ async def get_novel_comments(
             "reply_count": c.reply_count or 0,
             "is_pinned": c.is_pinned or False,
             "is_official": c.is_official or False,
-            "is_liked": is_liked,
+            "is_liked": c.id in liked_ids,
             "created_at": c.created_at.isoformat() if c.created_at else None
         })
     

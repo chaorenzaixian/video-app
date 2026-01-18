@@ -573,6 +573,55 @@ const getDeviceInfo = () => {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+// 响应式优化
+@media (min-width: 768px) {
+  .scan-page {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 500px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .scan-frame {
+    width: 320px;
+    height: 320px;
+  }
+  
+  .input-modal .modal-content {
+    max-width: 400px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .scan-page {
+    max-width: 550px;
+  }
+  
+  .page-header {
+    max-width: 550px;
+  }
+}
+
+@media (hover: hover) {
+  .action-item:hover {
+    .action-icon {
+      background: rgba(255, 255, 255, 0.15);
+    }
+  }
+  
+  .cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+  
+  .confirm-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+}
 </style>
 
 

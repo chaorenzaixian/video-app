@@ -949,4 +949,83 @@ onMounted(() => {
     }
   }
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .agent-page {
+    max-width: 768px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 768px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .fixed-bottom {
+    max-width: 768px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .card-buttons {
+    gap: 60px;
+    
+    button {
+      width: 150px;
+    }
+  }
+  
+  .hierarchy-diagram .hierarchy-img,
+  .commission-diagram .commission-img {
+    max-width: 500px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .agent-page {
+    max-width: 900px;
+  }
+  
+  .page-header {
+    max-width: 900px;
+  }
+  
+  .fixed-bottom {
+    max-width: 900px;
+  }
+  
+  .section-block {
+    padding: 24px 20px;
+  }
+  
+  .level-table {
+    .table-header,
+    .table-row {
+      grid-template-columns: 100px 100px 1fr;
+    }
+    
+    .table-header span,
+    .table-row span {
+      padding: 14px 12px;
+      font-size: 13px;
+    }
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .header-tabs .tab-item:hover {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  
+  .promo-banner:hover {
+    opacity: 0.9;
+  }
+  
+  .level-table .table-row:hover {
+    background: rgba(138, 92, 246, 0.1);
+  }
+}
 </style>

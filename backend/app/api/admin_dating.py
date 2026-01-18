@@ -235,6 +235,18 @@ async def delete_group(
     return {"message": "删除成功"}
 
 
+@router.delete("/groups/batch")
+async def batch_delete_groups(
+    ids: List[int],
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user)
+):
+    """批量删除群聊"""
+    await db.execute(delete(DatingGroup).where(DatingGroup.id.in_(ids)))
+    await db.commit()
+    return {"message": f"成功删除 {len(ids)} 个群聊"}
+
+
 # ========== 主播管理 ==========
 @router.get("/hosts", response_model=dict)
 async def get_hosts(
@@ -351,6 +363,18 @@ async def delete_host(
     await db.delete(host)
     await db.commit()
     return {"message": "删除成功"}
+
+
+@router.delete("/hosts/batch")
+async def batch_delete_hosts(
+    ids: List[int],
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user)
+):
+    """批量删除主播"""
+    await db.execute(delete(DatingHost).where(DatingHost.id.in_(ids)))
+    await db.commit()
+    return {"message": f"成功删除 {len(ids)} 个主播"}
 
 
 # ========== 图片上传 ==========

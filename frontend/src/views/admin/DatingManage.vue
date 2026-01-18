@@ -13,14 +13,19 @@
           <el-button type="primary" @click="showGroupDialog()">
             <el-icon><Plus /></el-icon> 添加群聊
           </el-button>
+          <el-button type="danger" @click="batchDeleteGroups" :disabled="!selectedGroups.length">
+            <el-icon><Delete /></el-icon> 批量删除 ({{ selectedGroups.length }})
+          </el-button>
+          <el-button @click="showBatchLinkDialog('group')">
+            <el-icon><Link /></el-icon> 批量设置链接
+          </el-button>
           <el-select v-model="groupCategory" placeholder="分类筛选" clearable style="width: 120px; margin-left: 10px">
             <el-option label="SOUL群" value="soul" />
-            <el-option label="裸聊" value="chat" />
-            <el-option label="直播" value="live" />
           </el-select>
         </div>
 
-        <el-table :data="groups" v-loading="loadingGroups" stripe>
+        <el-table :data="groups" v-loading="loadingGroups" stripe @selection-change="handleGroupSelectionChange">
+          <el-table-column type="selection" width="50" />
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column label="头像" width="80">
             <template #default="{ row }">
@@ -73,13 +78,20 @@
           <el-button type="primary" @click="showHostDialog()">
             <el-icon><Plus /></el-icon> 添加主播
           </el-button>
+          <el-button type="danger" @click="batchDeleteHosts" :disabled="!selectedHosts.length">
+            <el-icon><Delete /></el-icon> 批量删除 ({{ selectedHosts.length }})
+          </el-button>
+          <el-button @click="showBatchLinkDialog('host')">
+            <el-icon><Link /></el-icon> 批量设置链接
+          </el-button>
           <el-select v-model="hostCategory" placeholder="分类筛选" clearable style="width: 120px; margin-left: 10px">
             <el-option label="裸聊" value="chat" />
             <el-option label="直播" value="live" />
           </el-select>
         </div>
 
-        <el-table :data="hosts" v-loading="loadingHosts" stripe>
+        <el-table :data="hosts" v-loading="loadingHosts" stripe @selection-change="handleHostSelectionChange">
+          <el-table-column type="selection" width="50" />
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column label="头像" width="80">
             <template #default="{ row }">
@@ -263,13 +275,32 @@
         <el-button type="primary" @click="saveHost" :loading="savingHost">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 批量设置链接弹窗 -->
+    <el-dialog v-model="batchLinkDialogVisible" title="批量设置跳转链接" width="500px">
+      <el-form label-width="100px">
+        <el-form-item label="应用范围">
+          <el-radio-group v-model="batchLinkScope">
+            <el-radio label="selected">仅选中项 ({{ batchLinkType === 'group' ? selectedGroups.length : selectedHosts.length }})</el-radio>
+            <el-radio label="all">全部{{ batchLinkType === 'group' ? '群聊' : '主播' }}</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="跳转链接">
+          <el-input v-model="batchLinkUrl" placeholder="请输入跳转链接" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchLinkDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveBatchLink" :loading="savingBatchLink">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Upload } from '@element-plus/icons-vue'
+import { Plus, Upload, Delete, Link } from '@element-plus/icons-vue'
 import api from '@/utils/api'
 
 const activeTab = ref('groups')
@@ -284,6 +315,7 @@ const groupCategory = ref('')
 const groupDialogVisible = ref(false)
 const editingGroup = ref(null)
 const savingGroup = ref(false)
+const selectedGroups = ref([])
 const groupForm = ref({
   name: '',
   description: '',
@@ -306,6 +338,7 @@ const hostCategory = ref('')
 const hostDialogVisible = ref(false)
 const editingHost = ref(null)
 const savingHost = ref(false)
+const selectedHosts = ref([])
 const hostForm = ref({
   nickname: '',
   avatar: '',
@@ -321,6 +354,13 @@ const hostForm = ref({
   sub_category: '',
   sort_order: 0
 })
+
+// 批量设置链接
+const batchLinkDialogVisible = ref(false)
+const batchLinkType = ref('group')
+const batchLinkScope = ref('selected')
+const batchLinkUrl = ref('')
+const savingBatchLink = ref(false)
 
 const getCategoryLabel = (cat) => {
   const labels = { soul: 'SOUL群', chat: '裸聊', live: '直播' }
@@ -496,6 +536,86 @@ const deleteHost = async (host) => {
     fetchHosts()
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
+// 选择变化
+const handleGroupSelectionChange = (selection) => {
+  selectedGroups.value = selection
+}
+
+const handleHostSelectionChange = (selection) => {
+  selectedHosts.value = selection
+}
+
+// 批量删除群聊
+const batchDeleteGroups = async () => {
+  if (!selectedGroups.value.length) return
+  try {
+    await ElMessageBox.confirm(`确定删除选中的 ${selectedGroups.value.length} 个群聊？`, '提示', { type: 'warning' })
+    for (const group of selectedGroups.value) {
+      await api.delete(`/admin/dating/groups/${group.id}`)
+    }
+    ElMessage.success('批量删除成功')
+    selectedGroups.value = []
+    fetchGroups()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('批量删除失败')
+  }
+}
+
+// 批量删除主播
+const batchDeleteHosts = async () => {
+  if (!selectedHosts.value.length) return
+  try {
+    await ElMessageBox.confirm(`确定删除选中的 ${selectedHosts.value.length} 个主播？`, '提示', { type: 'warning' })
+    for (const host of selectedHosts.value) {
+      await api.delete(`/admin/dating/hosts/${host.id}`)
+    }
+    ElMessage.success('批量删除成功')
+    selectedHosts.value = []
+    fetchHosts()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('批量删除失败')
+  }
+}
+
+// 显示批量设置链接弹窗
+const showBatchLinkDialog = (type) => {
+  batchLinkType.value = type
+  batchLinkScope.value = 'selected'
+  batchLinkUrl.value = ''
+  batchLinkDialogVisible.value = true
+}
+
+// 保存批量链接
+const saveBatchLink = async () => {
+  if (!batchLinkUrl.value) {
+    ElMessage.warning('请输入跳转链接')
+    return
+  }
+  
+  savingBatchLink.value = true
+  try {
+    if (batchLinkType.value === 'group') {
+      const items = batchLinkScope.value === 'selected' ? selectedGroups.value : groups.value
+      for (const item of items) {
+        await api.put(`/admin/dating/groups/${item.id}`, { join_url: batchLinkUrl.value })
+      }
+      fetchGroups()
+    } else {
+      const items = batchLinkScope.value === 'selected' ? selectedHosts.value : hosts.value
+      for (const item of items) {
+        await api.put(`/admin/dating/hosts/${item.id}`, { profile_url: batchLinkUrl.value })
+      }
+      fetchHosts()
+    }
+    ElMessage.success('批量设置成功')
+    batchLinkDialogVisible.value = false
+  } catch (e) {
+    ElMessage.error('批量设置失败')
+  } finally {
+    savingBatchLink.value = false
   }
 }
 

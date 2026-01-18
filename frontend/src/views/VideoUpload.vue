@@ -457,47 +457,100 @@ const handleUpload = async () => {
     uploadProgress.value = 0
     progressText.value = '准备上传...'
     
-    const formData = new FormData()
-    formData.append('file', form.file)
-    formData.append('title', form.title)
-    formData.append('description', form.description || '')
-    if (form.category_id) formData.append('category_id', form.category_id)
-    formData.append('is_vip_only', form.is_vip_only)
-    if (form.tags && form.tags.length > 0) {
-      formData.append('tags', form.tags.join(','))
-    }
-    
-    // 付费设置
-    formData.append('pay_type', form.pay_type)
-    if (form.pay_type !== 'free') {
-      formData.append('coin_price', form.coin_price)
-    }
-    
-    // 如果选择了手动封面或上传封面，传递封面URL
-    if (coverMode.value !== 'auto' && selectedCover.value) {
-      formData.append('custom_cover_url', selectedCover.value)
-    }
-    
     try {
-      const res = await api.post('/videos/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (e) => {
+      // 通过主服务器代理上传到转码服务器（解决HTTPS混合内容问题）
+      const TRANSCODE_UPLOAD_URL = '/transcode-upload'
+      const TRANSCODE_API_KEY = 'vYTWoms4FKOqySca1jCLtNHRVz3BAI6U'
+      
+      // 生成临时视频ID（用于文件命名）
+      const tempVideoId = Date.now().toString()
+      
+      // 第一步：通过代理上传视频到转码服务器
+      progressText.value = '正在上传视频到转码服务器...'
+      
+      const videoFormData = new FormData()
+      videoFormData.append('file', form.file)
+      videoFormData.append('video_id', tempVideoId)
+      
+      // 使用XMLHttpRequest以便显示上传进度
+      const uploadResult = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        
+        xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
-            uploadProgress.value = Math.round((e.loaded / e.total) * 100)
+            const percent = Math.round((e.loaded / e.total) * 70)
+            uploadProgress.value = percent
             progressText.value = `上传中 ${formatFileSize(e.loaded)} / ${formatFileSize(e.total)}`
           }
         }
+        
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            try {
+              resolve(JSON.parse(xhr.responseText))
+            } catch (e) {
+              reject(new Error('解析响应失败'))
+            }
+          } else {
+            try {
+              const error = JSON.parse(xhr.responseText)
+              reject(new Error(error.error || `上传失败: ${xhr.status}`))
+            } catch (e) {
+              reject(new Error(`上传失败: ${xhr.status}`))
+            }
+          }
+        }
+        
+        xhr.onerror = () => reject(new Error('网络错误'))
+        xhr.ontimeout = () => reject(new Error('上传超时'))
+        
+        xhr.open('POST', TRANSCODE_UPLOAD_URL)
+        xhr.setRequestHeader('X-API-Key', TRANSCODE_API_KEY)
+        xhr.timeout = 3600000 // 1小时超时
+        xhr.send(videoFormData)
       })
       
-      progressText.value = '上传完成，正在处理视频...'
-      ElMessage.success('上传成功，视频正在后台处理中')
+      console.log('视频上传成功:', uploadResult)
+      
+      uploadProgress.value = 80
+      progressText.value = '视频已上传，正在创建记录...'
+      
+      // 第二步：在主服务器创建视频记录
+      const metaFormData = new FormData()
+      metaFormData.append('title', form.title)
+      metaFormData.append('description', form.description || '')
+      if (form.category_id) metaFormData.append('category_id', form.category_id)
+      metaFormData.append('is_vip_only', form.is_vip_only)
+      if (form.tags && form.tags.length > 0) {
+        metaFormData.append('tags', form.tags.join(','))
+      }
+      metaFormData.append('pay_type', form.pay_type)
+      if (form.pay_type !== 'free') {
+        metaFormData.append('coin_price', form.coin_price)
+      }
+      if (coverMode.value !== 'auto' && selectedCover.value) {
+        metaFormData.append('custom_cover_url', selectedCover.value)
+      }
+      // 传递转码服务器上的文件信息
+      metaFormData.append('transcode_filename', uploadResult.filename)
+      metaFormData.append('transcode_video_id', tempVideoId)
+      
+      const res = await api.post('/videos/create-from-transcode', metaFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      
+      uploadProgress.value = 100
+      progressText.value = '上传完成，视频正在转码处理中...'
+      ElMessage.success('上传成功！视频正在转码服务器处理中，完成后会自动发布')
       
       setTimeout(() => {
         router.push('/videos')
       }, 1500)
       
     } catch (error) {
-      progressText.value = '上传失败'
+      console.error('上传失败:', error)
+      progressText.value = '上传失败: ' + (error.message || '未知错误')
+      ElMessage.error('上传失败: ' + (error.message || '请检查网络连接'))
     } finally {
       uploading.value = false
     }

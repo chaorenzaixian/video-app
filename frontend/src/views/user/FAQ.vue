@@ -174,6 +174,41 @@ const toggleFaq = (index) => {
     transform: translateY(0);
   }
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .faq-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .faq-question {
+    padding: 20px 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .faq-page {
+    max-width: 700px;
+  }
+  
+  .page-header {
+    max-width: 700px;
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .faq-question:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
 </style>
 
 

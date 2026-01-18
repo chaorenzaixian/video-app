@@ -116,6 +116,42 @@ const user = computed(() => userStore.user || {})
     cursor: pointer;
   }
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .account-bind-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 600px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .bind-item {
+    padding: 18px 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .account-bind-page {
+    max-width: 700px;
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .bind-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  
+  .bind-btn:hover {
+    opacity: 0.9;
+  }
+}
 </style>
 
 

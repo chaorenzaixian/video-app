@@ -140,24 +140,32 @@ async def check_access(
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    """检查用户是否有权访问暗网专区"""
-    min_level = await get_darkweb_min_vip_level(db)
+    """检查用户是否有权访问暗网专区（优化版：并行查询）"""
+    import asyncio
     
     if not current_user:
+        # 未登录用户只需查询最低等级
+        min_level = await get_darkweb_min_vip_level(db)
         return {
-            "has_access": False,
+            "has_access": min_level == 0,
             "min_vip_level": min_level,
             "user_vip_level": 0
         }
     
-    has_access = await check_darkweb_access(db, current_user)
+    # 并行查询：最低VIP等级 + 用户VIP信息
+    async def get_user_vip():
+        result = await db.execute(
+            select(UserVIP).where(UserVIP.user_id == current_user.id, UserVIP.is_active == True)
+        )
+        return result.scalar_one_or_none()
     
-    # 获取用户当前VIP等级
-    result = await db.execute(
-        select(UserVIP).where(UserVIP.user_id == current_user.id, UserVIP.is_active == True)
+    min_level, user_vip = await asyncio.gather(
+        get_darkweb_min_vip_level(db),
+        get_user_vip()
     )
-    user_vip = result.scalar_one_or_none()
+    
     user_level = user_vip.vip_level if user_vip else 0
+    has_access = min_level == 0 or user_level >= min_level
     
     return {
         "has_access": has_access,

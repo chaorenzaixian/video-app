@@ -511,11 +511,17 @@ const fetchNovel = async () => {
   try {
     const id = route.params.id
     const res = await api.get(`/gallery-novel/novel/${id}`)
+    
+    // 如果是有声小说，自动跳转到专用播放器页面
+    if (res.data.novel_type === 'audio') {
+      router.replace(`/user/audio-novel/${id}`)
+      return
+    }
+    
     novel.value = res.data
     chapters.value = res.data.chapters || []
-    // 获取推荐和评论
-    fetchRecommend()
-    fetchComments()
+    // 并行获取推荐和评论
+    await Promise.all([fetchRecommend(), fetchComments()])
   } catch (e) {
     console.error('获取小说详情失败', e)
     ElMessage.error('获取小说详情失败')
@@ -839,7 +845,8 @@ const closeAudioPlayer = () => {
 
 // 保存阅读进度
 const saveProgress = async () => {
-  if (!currentChapter.value) return
+  // 检查必要数据是否存在
+  if (!currentChapter.value || !novel.value || !novel.value.id) return
   try {
     await api.post(`/gallery-novel/novel/${novel.value.id}/progress`, {
       chapter_id: currentChapter.value.id,
@@ -848,7 +855,10 @@ const saveProgress = async () => {
       audio_position: audioCurrentTime.value
     })
   } catch (e) {
-    console.error('保存进度失败', e)
+    // 忽略取消的请求错误
+    if (e.name !== 'CanceledError' && e.code !== 'ERR_CANCELED') {
+      console.error('保存进度失败', e)
+    }
   }
 }
 
@@ -2178,5 +2188,100 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+// 响应式断点
+@media (min-width: 768px) {
+  .novel-detail-page {
+    max-width: 768px;
+    margin: 0 auto;
+  }
+  
+  .top-header {
+    max-width: 768px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .action-bar {
+    max-width: 768px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .catalog-modal .catalog-panel,
+  .comments-modal .comments-panel,
+  .input-panel-modal .input-panel {
+    max-width: 768px;
+    margin: 0 auto;
+  }
+  
+  .recommend-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  
+  .recommend-item {
+    width: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .novel-detail-page {
+    max-width: 900px;
+  }
+  
+  .top-header {
+    max-width: 900px;
+  }
+  
+  .action-bar {
+    max-width: 900px;
+  }
+  
+  .catalog-modal .catalog-panel,
+  .comments-modal .comments-panel,
+  .input-panel-modal .input-panel {
+    max-width: 700px;
+  }
+  
+  .recommend-list {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  
+  .novel-header .header-content {
+    padding: 24px;
+  }
+  
+  .novel-cover {
+    width: 140px;
+    height: 190px;
+  }
+  
+  .chapters-section,
+  .tabs-section,
+  .desc-section {
+    padding: 20px;
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .chapter-item:hover {
+    background: rgba(139, 92, 246, 0.1);
+  }
+  
+  .recommend-item:hover {
+    transform: translateY(-2px);
+  }
+  
+  .catalog-item:hover {
+    background: rgba(139, 92, 246, 0.1);
+  }
+  
+  .comment-item:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
 }
 </style>

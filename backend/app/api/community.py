@@ -231,8 +231,18 @@ async def get_posts(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取动态列表 - 优化版本，批量查询减少N+1问题"""
+    """获取动态列表 - 优化版本，批量查询+热门缓存"""
     import json as json_lib
+    from app.services.cache_service import CacheService, CacheTTL
+    
+    # 热门帖子使用缓存（仅第一页且无筛选条件时）
+    use_cache = feed_type == "hot" and page == 1 and not topic_id and not user_id
+    if use_cache:
+        cache_key = f"community:hot_posts:{page_size}"
+        cached = await CacheService.get(cache_key)
+        if cached and not current_user:
+            # 未登录用户直接返回缓存
+            return cached
     
     query = select(Post).where(Post.status == "published")
     
@@ -380,6 +390,17 @@ async def get_posts(
             "is_liked": post.id in liked_post_ids,
             "is_followed": post.user_id in followed_user_ids
         })
+    
+    # 缓存热门帖子（仅未登录用户的结果）
+    if use_cache and not current_user and response:
+        # 序列化 datetime 对象
+        cache_response = []
+        for item in response:
+            cache_item = item.copy()
+            if cache_item.get("created_at"):
+                cache_item["created_at"] = cache_item["created_at"].isoformat() if hasattr(cache_item["created_at"], 'isoformat') else str(cache_item["created_at"])
+            cache_response.append(cache_item)
+        await CacheService.set(cache_key, cache_response, CacheTTL.MEDIUM)
     
     return response
 
@@ -569,7 +590,7 @@ async def get_user_collected_posts(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取用户收藏的帖子列表"""
+    """获取用户收藏的帖子列表 - 优化版本，批量查询用户信息"""
     from app.models.community import PostCollect
     
     # 构建查询
@@ -596,6 +617,14 @@ async def get_user_collected_posts(
     result = await db.execute(query)
     posts = result.scalars().all()
     
+    if not posts:
+        return {"items": [], "total": total, "has_more": False}
+    
+    # ========== 批量查询用户信息（解决N+1问题）==========
+    user_ids = list(set(p.user_id for p in posts))
+    users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+    users_map = {u.id: u for u in users_result.scalars().all()}
+    
     # 收集所有话题ID
     all_topic_ids = set()
     for post in posts:
@@ -618,11 +647,10 @@ async def get_user_collected_posts(
         for t in topic_result.scalars().all():
             topics_map[t.id] = {"id": t.id, "name": t.name}
     
-    # 获取用户信息
+    # 构建响应
     items = []
     for post in posts:
-        user_result = await db.execute(select(User).where(User.id == post.user_id))
-        user = user_result.scalar_one_or_none()
+        user = users_map.get(post.user_id)
         
         # 获取帖子话题
         topics = []
@@ -666,7 +694,7 @@ async def get_user_liked_posts(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取用户点赞的帖子列表"""
+    """获取用户点赞的帖子列表 - 优化版本，批量查询用户信息"""
     # 构建查询
     query = (
         select(Post)
@@ -691,11 +719,18 @@ async def get_user_liked_posts(
     result = await db.execute(query)
     posts = result.scalars().all()
     
-    # 获取用户信息
+    if not posts:
+        return {"items": [], "total": total, "has_more": False}
+    
+    # ========== 批量查询用户信息（解决N+1问题）==========
+    user_ids = list(set(p.user_id for p in posts))
+    users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+    users_map = {u.id: u for u in users_result.scalars().all()}
+    
+    # 构建响应
     items = []
     for post in posts:
-        user_result = await db.execute(select(User).where(User.id == post.user_id))
-        user = user_result.scalar_one_or_none()
+        user = users_map.get(post.user_id)
         
         items.append({
             "id": post.id,
@@ -1111,7 +1146,7 @@ async def get_recommended_topics(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取推荐话题列表（用于热门推荐二级分类）"""
+    """获取推荐话题列表（用于热门推荐二级分类）- 优化版本，批量查询关注状态"""
     result = await db.execute(
         select(Topic).where(
             Topic.is_active == True,
@@ -1120,18 +1155,24 @@ async def get_recommended_topics(
     )
     topics = result.scalars().all()
     
+    if not topics:
+        return []
+    
+    # ========== 批量查询关注状态（解决N+1问题）==========
+    followed_topic_ids = set()
+    if current_user:
+        topic_ids = [t.id for t in topics]
+        follow_result = await db.execute(
+            select(TopicFollow.topic_id).where(
+                TopicFollow.topic_id.in_(topic_ids),
+                TopicFollow.user_id == current_user.id
+            )
+        )
+        followed_topic_ids = set(r[0] for r in follow_result.fetchall())
+    
+    # 构建响应
     response = []
     for topic in topics:
-        is_followed = False
-        if current_user:
-            follow_result = await db.execute(
-                select(TopicFollow).where(
-                    TopicFollow.topic_id == topic.id,
-                    TopicFollow.user_id == current_user.id
-                )
-            )
-            is_followed = follow_result.scalar_one_or_none() is not None
-        
         response.append({
             "id": topic.id,
             "name": topic.name,
@@ -1140,7 +1181,7 @@ async def get_recommended_topics(
             "post_count": topic.post_count,
             "follow_count": topic.follow_count,
             "is_hot": topic.is_hot,
-            "is_followed": is_followed
+            "is_followed": topic.id in followed_topic_ids
         })
     
     return response
@@ -1151,27 +1192,33 @@ async def get_topic_categories(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取顶级分类列表（带子话题）"""
-    # 获取顶级分类
+    """获取顶级分类列表（带子话题）- 优化版本，单次查询所有话题"""
+    # 一次性查询所有活跃话题（解决N+1问题）
     result = await db.execute(
-        select(Topic).where(
-            Topic.is_active == True,
-            Topic.level == 1
-        ).order_by(desc(Topic.sort_order), Topic.id)
+        select(Topic).where(Topic.is_active == True)
+        .order_by(desc(Topic.sort_order), Topic.id)
     )
-    categories = result.scalars().all()
+    all_topics = result.scalars().all()
     
+    if not all_topics:
+        return []
+    
+    # 在内存中分组
+    categories = []
+    children_map = {}  # parent_id -> [children]
+    
+    for topic in all_topics:
+        if topic.level == 1 or topic.parent_id is None:
+            categories.append(topic)
+        else:
+            if topic.parent_id not in children_map:
+                children_map[topic.parent_id] = []
+            children_map[topic.parent_id].append(topic)
+    
+    # 构建响应
     response = []
     for cat in categories:
-        # 获取子话题
-        children_result = await db.execute(
-            select(Topic).where(
-                Topic.is_active == True,
-                Topic.parent_id == cat.id
-            ).order_by(desc(Topic.sort_order), Topic.id)
-        )
-        children = children_result.scalars().all()
-        
+        children = children_map.get(cat.id, [])
         response.append({
             "id": cat.id,
             "name": cat.name,

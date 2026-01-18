@@ -9,8 +9,11 @@ import '../features/shorts/screens/shorts_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/vip/screens/vip_screen.dart';
 import '../features/search/screens/search_screen.dart';
+import '../screens/common/main_layout.dart';
+import '../screens/splash/splash_screen.dart';
 
 class AppRoutes {
+  static const String splash = '/';
   static const String login = '/login';
   static const String register = '/register';
   static const String home = '/home';
@@ -23,6 +26,9 @@ class AppRoutes {
   
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case splash:
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
+      
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       
@@ -30,7 +36,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const RegisterScreen());
       
       case home:
-        return MaterialPageRoute(builder: (_) => const HomeScreen());
+        // 使用 MainLayout 作为主页面，包含底部导航和 WebView 页面
+        return MaterialPageRoute(builder: (_) => const MainLayout());
       
       case videoPlayer:
         final args = settings.arguments as Map<String, dynamic>;

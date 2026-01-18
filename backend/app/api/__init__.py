@@ -18,6 +18,8 @@ from app.api import (
     admin_dating,  # 交友后台管理
     ranking,  # 排行榜
     admin_unified_comments,  # 统一评论管理
+    transcode_callback,  # GPU转码回调
+    transcode_monitor,  # 转码监控
     # 新增的后台管理模块
     admin_finance, admin_logs, admin_content, admin_video_ops, admin_creator_mgmt
 )
@@ -71,3 +73,5 @@ api_router.include_router(admin_unified_comments.router, tags=["后台-统一评
 api_router.include_router(admin_darkweb.router, tags=["后台-暗网视频管理"])
 api_router.include_router(admin_dating.router, tags=["后台-交友管理"])
 api_router.include_router(watermark.router, tags=["水印管理"])
+api_router.include_router(transcode_callback.router, prefix="/admin", tags=["GPU转码回调"])
+api_router.include_router(transcode_monitor.router, tags=["后台-转码监控"])

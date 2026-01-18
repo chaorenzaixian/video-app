@@ -393,6 +393,37 @@ onMounted(() => {
     }
   }
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .email-bind-page {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 500px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .bind-btn {
+    width: 60%;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+  }
+}
+
+@media (min-width: 1024px) {
+  .email-bind-page {
+    max-width: 600px;
+  }
+  
+  .page-header {
+    max-width: 600px;
+  }
+}
 </style>
 
 

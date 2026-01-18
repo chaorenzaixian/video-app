@@ -691,6 +691,18 @@ const routes = [
         meta: { title: '视频批量操作', icon: 'Files' }
       },
       {
+        path: 'pending-videos',
+        name: 'PendingVideoManage',
+        component: () => import('@/views/admin/PendingVideoManage.vue'),
+        meta: { title: '待处理视频', icon: 'Clock' }
+      },
+      {
+        path: 'transcode-monitor',
+        name: 'TranscodeMonitor',
+        component: () => import('@/views/admin/TranscodeMonitor.vue'),
+        meta: { title: '转码监控', icon: 'Monitor' }
+      },
+      {
         path: 'report-manage',
         name: 'ReportManage',
         component: () => import('@/views/admin/ReportManage.vue'),

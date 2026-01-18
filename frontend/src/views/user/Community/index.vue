@@ -1,7 +1,8 @@
 <template>
   <div class="community-page" ref="scrollContainer">
-    <!-- 顶部导航 -->
-    <header class="top-header">
+    <!-- 固定顶部区域：导航 + 分类 -->
+    <div class="fixed-top" ref="fixedTopRef">
+      <!-- 顶部导航 -->
       <div class="main-tabs">
         <div v-for="tab in mainTabs" :key="tab.value" :class="['tab-item', { active: activeMainTab === tab.value }]" @click="switchMainTab(tab.value)">
           <img v-if="activeMainTab === tab.value && tab.activeIcon" :src="tab.activeIcon" :alt="tab.label" class="tab-icon" />
@@ -38,26 +39,30 @@
           <span v-for="cat in novelCategories" :key="cat.id" :class="['category-tab', { active: selectedNovelCategory === cat.id }]" @click="selectNovelCategory(cat.id)">{{ cat.name }}</span>
         </div>
       </div>
+    </div>
+    
+    <!-- 占位元素 -->
+    <div :class="['header-placeholder', { 'novel-mode': activeMainTab === 'novel' }]"></div>
 
-      <!-- 图标广告位 -->
-      <IconAdsGrid :ads="iconAds" />
-      
-      <!-- 社区话题卡片和筛选 -->
-      <template v-if="activeMainTab === 'community'">
-        <div class="topic-cards" v-if="currentSubTopics.length">
-          <div class="topic-grid">
-            <div v-for="topic in currentSubTopics" :key="topic.id" :class="['topic-card', { active: selectedTopic === topic.id }]" :style="topic.cover ? { backgroundImage: `url(${topic.cover})` } : {}" @click="selectTopic(topic)">
-              <span class="topic-name">{{ topic.name }}</span>
-              <span class="topic-count">{{ formatCount(topic.post_count) }}个帖子</span>
-            </div>
+    <!-- 图标广告位 -->
+    <IconAdsGrid :ads="iconAds" />
+    
+    <!-- 社区话题卡片 -->
+    <template v-if="activeMainTab === 'community'">
+      <div class="topic-cards" v-if="currentSubTopics.length">
+        <div class="topic-grid">
+          <div v-for="topic in currentSubTopics" :key="topic.id" :class="['topic-card', { active: selectedTopic === topic.id }]" :style="topic.cover ? { backgroundImage: `url(${topic.cover})` } : {}" @click="selectTopic(topic)">
+            <span class="topic-name">{{ topic.name }}</span>
+            <span class="topic-count">{{ formatCount(topic.post_count) }}个帖子</span>
           </div>
         </div>
-        
-        <div class="filter-tabs">
-          <span v-for="filter in filterTabs" :key="filter.value" :class="['filter-tab', { active: activeFilter === filter.value }]" @click="setFilter(filter.value)">{{ filter.label }}</span>
-        </div>
-      </template>
-    </header>
+      </div>
+    </template>
+    
+    <!-- 筛选栏 - sticky 固定 -->
+    <div class="filter-tabs" v-if="activeMainTab === 'community'">
+      <span v-for="filter in filterTabs" :key="filter.value" :class="['filter-tab', { active: activeFilter === filter.value }]" @click="setFilter(filter.value)">{{ filter.label }}</span>
+    </div>
 
     <!-- 内容区域 -->
     <div class="content-area">
@@ -81,7 +86,7 @@
 <script setup>
 defineOptions({ name: 'Community' })
 
-import { ref, onMounted, onActivated, nextTick } from 'vue'
+import { ref, onMounted, onActivated, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '@/utils/api'
 import { formatCount } from '@/utils/format'
@@ -102,6 +107,8 @@ const route = useRoute()
 const { signal } = useAbortController()
 const { withLock } = useActionLock()
 const scrollContainer = ref(null)
+const fixedTopRef = ref(null)
+const headerHeight = ref(90)
 
 // Tab配置
 const mainTabs = [
@@ -173,6 +180,16 @@ const handlePublish = (type) => {
   router.push(routes[type])
 }
 
+// 设置固定头部高度
+const updateHeaderHeight = () => {
+  if (fixedTopRef.value) {
+    const rect = fixedTopRef.value.getBoundingClientRect()
+    const height = Math.ceil(rect.height)
+    headerHeight.value = height
+    document.documentElement.style.setProperty('--community-header-height', `${height}px`)
+  }
+}
+
 onMounted(() => {
   const tabParam = route.query.tab
   if (tabParam && ['community', 'gallery', 'novel'].includes(tabParam)) activeMainTab.value = tabParam
@@ -187,6 +204,13 @@ onMounted(() => {
   if (activeMainTab.value === 'community') fetchPosts(true)
   else if (activeMainTab.value === 'gallery') fetchGalleries()
   else if (activeMainTab.value === 'novel') fetchNovels()
+  
+  // 初始化头部高度
+  updateHeaderHeight()
+  // DOM 渲染完成后再次更新
+  setTimeout(updateHeaderHeight, 100)
+  // 监听窗口大小变化
+  window.addEventListener('resize', updateHeaderHeight)
 })
 
 // keep-alive 激活时滚动到顶部
@@ -196,6 +220,12 @@ onActivated(async () => {
   if (scrollContainer.value) {
     scrollContainer.value.scrollTop = 0
   }
+  // 重新计算头部高度
+  updateHeaderHeight()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateHeaderHeight)
 })
 </script>
 
@@ -207,13 +237,44 @@ onActivated(async () => {
   padding-bottom: 70px;
   overflow-x: hidden;
   overflow-y: auto;
+  
+  @media (min-width: 768px) {
+    max-width: 750px;
+    margin: 0 auto;
+  }
+  @media (min-width: 1024px) { max-width: 900px; }
+  @media (min-width: 1280px) { max-width: 1100px; }
 }
 
-.top-header {
-  position: sticky;
+// 固定顶部区域
+.fixed-top {
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
   background: #0d0d0d;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  
+  @media (min-width: 768px) {
+    max-width: 750px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  @media (min-width: 1024px) { max-width: 900px; }
+  @media (min-width: 1280px) { max-width: 1100px; }
+}
+
+// 占位元素 - 使用固定高度
+.header-placeholder {
+  height: 105px;
+  
+  // 小说tab时占位更高（有两行分类）
+  &.novel-mode {
+    height: 140px;
+  }
 }
 
 .main-tabs {
@@ -317,6 +378,11 @@ onActivated(async () => {
   gap: 24px;
   padding: 10px 16px 12px;
   border-bottom: 1px solid #1a1a1a;
+  background: #0d0d0d;
+  position: sticky;
+  top: var(--community-header-height, 105px);
+  z-index: 90;
+  box-shadow: 0 -10px 0 0 #0d0d0d;
 }
 
 .filter-tab {
@@ -390,17 +456,24 @@ onActivated(async () => {
 }
 
 @media (min-width: 768px) {
-  .community-page { max-width: 750px; margin: 0 auto; }
   .topic-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
   .topic-card { min-height: 70px; padding: 12px 10px; }
+  .main-tabs { padding: 14px 20px; }
+  .filter-tabs { gap: 30px; }
 }
 
 @media (min-width: 1024px) {
-  .community-page { max-width: 900px; }
   .topic-grid { grid-template-columns: repeat(5, 1fr); }
+  .main-tabs { padding: 16px 24px; gap: 28px; }
 }
 
 @media (min-width: 1280px) {
-  .community-page { max-width: 1200px; }
+  .topic-grid { grid-template-columns: repeat(6, 1fr); gap: 14px; }
+}
+
+// 触摸设备优化
+@media (hover: none) {
+  .topic-card:hover { background-color: #1a1a1a; }
+  .topic-card:active { background-color: #222; }
 }
 </style>

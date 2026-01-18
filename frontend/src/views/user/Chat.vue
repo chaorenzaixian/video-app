@@ -499,12 +499,23 @@ watch(targetUserId, async (newId) => {
 </script>
 
 <style lang="scss" scoped>
+$breakpoint-lg: 768px;
+$breakpoint-xl: 1024px;
+
 .chat-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
   display: flex;
   flex-direction: column;
   padding-bottom: env(safe-area-inset-bottom);
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 650px;
+    margin: 0 auto;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 750px;
+  }
 }
 
 // 顶部导航
@@ -701,6 +712,15 @@ watch(targetUserId, async (newId) => {
   padding: 12px 16px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
   background: #1e1e32;
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 650px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 750px;
+  }
   
   .input-wrapper {
     flex: 1;

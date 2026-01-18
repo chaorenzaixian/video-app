@@ -5,10 +5,10 @@
         <div class="card-header">
           <span>视频列表</span>
           <div class="header-actions">
-            <el-button @click="$router.push('/videos/batch-upload')">
+            <el-button @click="$router.push('/admin/videos/batch-upload')">
               <el-icon><FolderAdd /></el-icon>批量上传
             </el-button>
-          <el-button type="primary" @click="$router.push('/videos/upload')">
+          <el-button type="primary" @click="$router.push('/admin/videos/upload')">
             <el-icon><Upload /></el-icon>上传视频
           </el-button>
           </div>

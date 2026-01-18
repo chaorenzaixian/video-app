@@ -109,8 +109,15 @@ class PurchaseRequest(BaseModel):
 
 @router.get("/cards", response_model=List[VipCardResponse])
 async def get_vip_cards(db: AsyncSession = Depends(get_db)):
-    """获取VIP卡片列表"""
+    """获取VIP卡片列表（带缓存）"""
     import json
+    from app.services.cache_service import CacheService, CacheTTL
+    
+    # 尝试从缓存获取
+    cache_key = "vip:cards:active"
+    cached = await CacheService.get(cache_key)
+    if cached:
+        return cached
     
     def parse_privilege_ids(val):
         if val is None:
@@ -131,24 +138,54 @@ async def get_vip_cards(db: AsyncSession = Depends(get_db)):
     )
     cards = result.scalars().all()
     # 处理旧数据中privilege_ids可能为None或字符串的情况
-    return [
+    response = [
         {
             **{k: v for k, v in card.__dict__.items() if not k.startswith('_')},
             "privilege_ids": parse_privilege_ids(card.privilege_ids)
         }
         for card in cards
     ]
+    
+    # 缓存30分钟（VIP卡片很少变化）
+    await CacheService.set(cache_key, response, CacheTTL.LONG)
+    
+    return response
 
 
 @router.get("/privileges", response_model=List[VipPrivilegeResponse])
 async def get_vip_privileges(db: AsyncSession = Depends(get_db)):
-    """获取VIP特权列表"""
+    """获取VIP特权列表（带缓存）"""
+    from app.services.cache_service import CacheService, CacheTTL
+    
+    # 尝试从缓存获取
+    cache_key = "vip:privileges:active"
+    cached = await CacheService.get(cache_key)
+    if cached:
+        return cached
+    
     result = await db.execute(
         select(VipPrivilege)
         .where(VipPrivilege.is_active == True)
         .order_by(VipPrivilege.sort_order)
     )
-    return result.scalars().all()
+    privileges = result.scalars().all()
+    
+    response = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "description": p.description,
+            "icon": p.icon,
+            "min_level": p.min_level,
+            "sort_order": p.sort_order
+        }
+        for p in privileges
+    ]
+    
+    # 缓存30分钟
+    await CacheService.set(cache_key, response, CacheTTL.LONG)
+    
+    return response
 
 
 @router.get("/records")

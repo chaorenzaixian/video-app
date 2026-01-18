@@ -19,6 +19,19 @@ class AppTheme {
   // VIP 金色
   static const Color vipGold = Color(0xFFFFD700);
   
+  // 渐变
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [primaryColor, secondaryColor],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static const LinearGradient vipGradient = LinearGradient(
+    colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
@@ -45,7 +58,7 @@ class AppTheme {
         iconTheme: IconThemeData(color: textPrimary),
       ),
       
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardColor,
         elevation: 0,
         shape: RoundedRectangleBorder(

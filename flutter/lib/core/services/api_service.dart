@@ -7,8 +7,32 @@ class ApiService {
   
   late Dio _dio;
   
-  // API 基础地址（根据环境配置）
-  static const String baseUrl = 'http://your-server-ip:8001/api/v1';
+  // API 基础地址
+  static const String baseUrl = 'http://38.47.218.137:8000/api/v1';
+  
+  // 获取完整图片URL
+  static String getFullImageUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.startsWith('http')) return url;
+    return 'http://38.47.218.137:8000$url';
+  }
+  
+  // 获取完整视频URL
+  static String getFullVideoUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.startsWith('http')) return url;
+    return 'http://38.47.218.137:8000$url';
+  }
+  
+  // 静态GET方法（供旧代码兼容）
+  static Future<dynamic> get(String path, {Map<String, dynamic>? params}) async {
+    return ApiService()._dio.get(path, queryParameters: params);
+  }
+  
+  // 静态POST方法
+  static Future<dynamic> post(String path, {dynamic data}) async {
+    return ApiService()._dio.post(path, data: data);
+  }
   
   ApiService._internal() {
     _dio = Dio(BaseOptions(

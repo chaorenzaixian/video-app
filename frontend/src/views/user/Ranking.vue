@@ -380,6 +380,10 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+$breakpoint-lg: 768px;
+$breakpoint-xl: 1024px;
+$breakpoint-xxl: 1280px;
+
 .ranking-page {
   min-height: 100vh;
   min-height: 100dvh;
@@ -387,6 +391,17 @@ onMounted(() => {
   color: #fff;
   display: flex;
   flex-direction: column;
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 750px;
+    margin: 0 auto;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 900px;
+  }
+  @media (min-width: $breakpoint-xxl) {
+    max-width: 1000px;
+  }
 }
 
 .ranking-header-bg {
@@ -579,6 +594,12 @@ onMounted(() => {
   cursor: pointer;
   transition: background 0.2s;
   
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+  }
+  
   &:active {
     background: rgba(255, 255, 255, 0.08);
   }
@@ -758,7 +779,13 @@ onMounted(() => {
   border-radius: 12px;
   padding: 16px;
   margin: 0 12px 12px;
-  transition: transform 0.2s;
+  transition: transform 0.2s, background 0.2s;
+  
+  @media (hover: hover) {
+    &:hover {
+      background: #1a1a1a;
+    }
+  }
   
   &:active {
     transform: scale(0.98);

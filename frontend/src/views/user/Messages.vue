@@ -399,11 +399,22 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
+$breakpoint-lg: 768px;
+$breakpoint-xl: 1024px;
+
 .messages-page {
   min-height: 100vh;
   background: #0a0a0a;
   color: #fff;
   padding-bottom: 20px;
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 650px;
+    margin: 0 auto;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 750px;
+  }
 }
 
 // 顶部导航
@@ -502,7 +513,13 @@ onMounted(async () => {
   cursor: pointer;
   transition: background 0.2s;
   
-  &:hover {
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(40, 45, 60, 0.8);
+    }
+  }
+  
+  &:active {
     background: rgba(40, 45, 60, 0.8);
   }
   

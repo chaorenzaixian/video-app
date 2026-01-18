@@ -175,6 +175,10 @@ onMounted(() => {
   justify-content: space-between;
   padding: 16px;
   padding-top: calc(env(safe-area-inset-top, 16px) + 16px);
+  background: #0a0a0a;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   
   .back-btn {
     font-size: 28px;
@@ -419,6 +423,58 @@ onMounted(() => {
         font-weight: 600;
       }
     }
+  }
+}
+
+// 响应式优化
+@media (min-width: 768px) {
+  .promotion-data-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .wallet-card {
+    .wallet-item .wallet-value {
+      font-size: 36px;
+    }
+  }
+  
+  .stats-card .stat-item .stat-value {
+    font-size: 28px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .promotion-data-page {
+    max-width: 700px;
+  }
+  
+  .page-header {
+    max-width: 700px;
+  }
+}
+
+@media (hover: hover) {
+  .withdraw-btn:hover {
+    opacity: 0.9;
+  }
+  
+  .header-right:hover {
+    color: #fff;
+  }
+  
+  .btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .btn-confirm:hover {
+    opacity: 0.9;
   }
 }
 </style>

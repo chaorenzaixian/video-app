@@ -36,6 +36,7 @@
           <el-menu-item index="/admin/videos/upload">上传视频</el-menu-item>
           <el-menu-item index="/admin/videos/batch-upload">批量上传</el-menu-item>
           <el-menu-item index="/admin/video-review">视频审核</el-menu-item>
+          <el-menu-item index="/admin/pending-videos">待处理视频</el-menu-item>
           <el-menu-item index="/admin/batch-video-ops">批量操作</el-menu-item>
           <el-menu-item index="/admin/featured">推荐管理</el-menu-item>
           <el-menu-item index="/admin/watermark-manage">水印配置</el-menu-item>
@@ -146,6 +147,7 @@
           </template>
           <el-menu-item index="/admin/statistics">数据统计</el-menu-item>
           <el-menu-item index="/admin/monitor">系统监控</el-menu-item>
+          <el-menu-item index="/admin/transcode-monitor">转码监控</el-menu-item>
           <el-menu-item index="/admin/admin-logs">操作日志</el-menu-item>
         </el-sub-menu>
         

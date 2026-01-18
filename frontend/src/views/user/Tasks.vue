@@ -1291,11 +1291,17 @@ onMounted(() => {
       font-size: 12px;
     }
   }
+  
+  .exchange-grid {
+    gap: 12px;
+  }
 }
 
+// 平板 (768px+)
 @media (min-width: 768px) {
   .tasks-page {
-    padding: 0 24px;
+    max-width: 750px;
+    margin: 0 auto;
   }
   
   .task-item {
@@ -1319,58 +1325,40 @@ onMounted(() => {
       }
     }
   }
-}
-
-@media (min-width: 1024px) {
-  .tasks-page {
-    padding: 0 32px;
-  }
   
-  .task-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (min-width: 1280px) {
-  .tasks-page {
-    padding: 0 48px;
-  }
-}
-
-@media (min-width: 1920px) {
-  .tasks-page {
-    padding: 0 64px;
-    font-size: 18px;
-  }
-  
-  .task-grid {
-    grid-template-columns: repeat(5, 1fr);
+  .exchange-grid {
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
   }
 }
 
-@media (min-width: 2560px) {
+// 桌面 (1024px+)
+@media (min-width: 1024px) {
   .tasks-page {
-    padding: 0 80px;
-    font-size: 20px;
+    max-width: 900px;
   }
   
-  .task-grid {
-    grid-template-columns: repeat(6, 1fr);
-    gap: 24px;
+  .exchange-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+// 大桌面 (1280px+)
+@media (min-width: 1280px) {
+  .tasks-page {
+    max-width: 1100px;
   }
 }
 
 // 触摸设备优化
 @media (hover: none) and (pointer: coarse) {
   .task-item:hover,
-  .exchange-item:hover {
+  .exchange-card:hover {
     transform: none !important;
-    background: inherit !important;
   }
   
   .task-item:active,
-  .exchange-item:active {
+  .exchange-card:active {
     transform: scale(0.98);
     opacity: 0.9;
   }

@@ -202,6 +202,10 @@ onMounted(() => {
   justify-content: space-between;
   padding: 16px;
   padding-top: calc(env(safe-area-inset-top, 20px) + 16px);
+  background: #0a0a0a;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   
   .back-btn {
     width: 40px;
@@ -350,6 +354,55 @@ onMounted(() => {
     background: transparent;
     border: 1px solid rgba(156, 108, 255, 0.5);
     color: #9c6cff;
+  }
+}
+
+// 响应式优化
+@media (min-width: 768px) {
+  .qr-login-page {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 500px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .status-card {
+    padding: 50px 40px;
+    
+    .status-icon {
+      width: 90px;
+      height: 90px;
+      font-size: 45px;
+    }
+    
+    .status-title {
+      font-size: 24px;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .qr-login-page {
+    max-width: 550px;
+  }
+  
+  .page-header {
+    max-width: 550px;
+  }
+}
+
+@media (hover: hover) {
+  .action-btn:not(:disabled):hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  
+  .action-btn.secondary:hover {
+    background: rgba(156, 108, 255, 0.1);
   }
 }
 </style>

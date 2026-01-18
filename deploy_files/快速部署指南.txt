@@ -1,0 +1,55 @@
+========================================
+快速部署指南 - 3个文件，3个命令
+========================================
+
+在转码服务器 (198.176.60.121) 上操作：
+
+步骤1：复制文件
+--------------
+将以下3个文件从本地复制到转码服务器：
+
+1. upload_simple.py -> D:\VideoTranscode\scripts\upload_simple.py
+2. upload_to_main.ps1 -> D:\VideoTranscode\scripts\upload_to_main.ps1  
+3. watcher.ps1 -> D:\VideoTranscode\scripts\watcher.ps1
+
+（通过远程桌面的复制粘贴功能）
+
+步骤2：安装 Python 库
+--------------------
+在转码服务器打开 CMD 或 PowerShell，执行：
+
+python -m pip install paramiko
+
+步骤3：测试上传
+--------------
+python D:\VideoTranscode\scripts\upload_simple.py D:\VideoTranscode\completed\test2_transcoded.mp4
+
+如果看到 "Upload successful!" 就成功了！
+
+步骤4：启动监控服务
+------------------
+powershell -ExecutionPolicy Bypass -NoExit -File D:\VideoTranscode\scripts\watcher.ps1
+
+完成！
+------
+现在系统会自动：
+1. 监控 D:\VideoTranscode\downloads\ 目录
+2. 自动转码新视频
+3. 自动上传到主服务器
+4. 记录日志
+
+查看日志：
+- D:\VideoTranscode\logs\watcher.log
+- D:\VideoTranscode\logs\upload.log
+
+主服务器视频目录：
+/www/wwwroot/video-app/backend/uploads/videos/
+
+========================================
+技术信息
+========================================
+主服务器: 38.47.218.137
+用户: root
+密码: APnoPrlVoa1abrFJ (已加密在脚本中)
+上传方式: Python paramiko (SFTP)
+预期速度: 50+ MB/s

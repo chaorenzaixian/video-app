@@ -596,9 +596,9 @@ const fetchUserVipInfo = async () => {
 const adRowScroll = ref(null)
 let scrollInterval = null
 
-onMounted(async () => {
+// 加载用户数据
+const loadUserData = () => {
   if (userStore.isLoggedIn && userStore.user) {
-    // 先从本地store加载基础数据
     user.value = {
       id: userStore.user.id || '',
       username: userStore.user.username || '',
@@ -612,9 +612,35 @@ onMounted(async () => {
       ai_count: 0
     }
     isLoading.value = false
-    
-    // 后台静默获取最新VIP信息（不影响显示）
+    // 后台静默获取最新VIP信息
     fetchUserVipInfo()
+    return true
+  }
+  return false
+}
+
+onMounted(async () => {
+  // 如果已经有用户数据，直接加载
+  if (loadUserData()) {
+    // 用户数据已加载
+  } else if (!userStore.isInitialized) {
+    // 等待初始化完成（游客注册）
+    const unwatch = watch(() => userStore.isInitialized, (initialized) => {
+      if (initialized) {
+        loadUserData()
+        if (!userStore.isLoggedIn) {
+          isLoading.value = false
+        }
+        unwatch()
+      }
+    }, { immediate: true })
+    
+    // 设置超时，避免无限等待
+    setTimeout(() => {
+      if (isLoading.value) {
+        isLoading.value = false
+      }
+    }, 5000)
   } else {
     isLoading.value = false
   }
@@ -670,44 +696,6 @@ $breakpoint-sm: 414px;
 $breakpoint-md: 600px;
 $breakpoint-lg: 768px;
 $breakpoint-xl: 1024px;
-$breakpoint-2k: 1920px;
-$breakpoint-4k: 2560px;
-  
-  .header-icon-img {
-    width: clamp(22px, 6vw, 28px);
-    height: clamp(22px, 6vw, 28px);
-    object-fit: contain;
-    cursor: pointer;
-    transition: transform 0.2s;
-    
-    &:hover {
-      transform: scale(1.1);
-    }
-  }
-  
-  .notification-wrapper {
-    position: relative;
-    display: inline-flex;
-    cursor: pointer;
-    
-    .notification-badge {
-      position: absolute;
-      top: -6px;
-      right: -8px;
-      min-width: 18px;
-      height: 18px;
-      padding: 0 5px;
-      background: #ff4757;
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      border-radius: 9px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
-    }
-  }
 $breakpoint-xxl: 1280px;
 $breakpoint-2k: 1920px;
 $breakpoint-4k: 2560px;

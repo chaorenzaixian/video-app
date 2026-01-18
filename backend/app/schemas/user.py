@@ -19,6 +19,7 @@ class UserCreate(BaseModel):
 # 游客注册
 class GuestRegister(BaseModel):
     device_id: str = Field(..., min_length=10, max_length=100)  # 设备指纹
+    invite_code: Optional[str] = Field(None, max_length=20)  # 邀请码（可选）
 
 
 # 游客登录（根据设备ID）

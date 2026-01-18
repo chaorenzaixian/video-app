@@ -21,6 +21,7 @@ from app.schemas.video import (
     VideoListResponse, CategoryResponse, VideoProcessStatus
 )
 from app.services.video_processor import VideoProcessor
+from app.services.windows_transcode_service import WindowsTranscodeService
 
 router = APIRouter()
 
@@ -60,11 +61,11 @@ async def upload_video_file(
     # 保存视频文件
     content = await file.read()
     
-    # 检查文件大小 (800MB)
-    if len(content) > 800 * 1024 * 1024:
+    # 检查文件大小 (使用配置中的最大值)
+    if len(content) > settings.MAX_VIDEO_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="视频文件不能超过800MB"
+            detail=f"视频文件不能超过{settings.MAX_VIDEO_SIZE // (1024*1024*1024)}GB"
         )
     
     with open(file_path, "wb") as f:
@@ -168,7 +169,7 @@ async def upload_video(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """上传视频（支持自定义封面和价格设置）"""
+    """上传视频（支持直接上传到转码服务器）"""
     # 检查文件类型
     allowed_types = ["video/mp4", "video/webm", "video/avi", "video/mov", "video/mkv"]
     if file.content_type not in allowed_types:
@@ -177,26 +178,23 @@ async def upload_video(
             detail="不支持的视频格式"
         )
     
+    # 读取文件内容
+    content = await file.read()
+    if len(content) > settings.MAX_VIDEO_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="视频文件过大"
+        )
+    
     # 生成唯一文件名
     file_ext = os.path.splitext(file.filename)[1]
     unique_filename = f"{uuid.uuid4()}{file_ext}"
-    file_path = os.path.join(settings.VIDEO_DIR, unique_filename)
     
-    # 保存视频文件
-    with open(file_path, "wb") as f:
-        content = await file.read()
-        if len(content) > settings.MAX_VIDEO_SIZE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="视频文件过大"
-            )
-        f.write(content)
-    
-    # 创建视频记录
+    # 创建视频记录（先创建以获取ID）
     video = Video(
         title=title,
         description=description,
-        original_url=file_path,
+        original_url="",  # 稍后更新
         category_id=category_id,
         uploader_id=current_user.id,
         is_vip_only=is_vip_only,
@@ -209,28 +207,62 @@ async def upload_video(
     await db.commit()
     await db.refresh(video)
     
+    # 尝试直接上传到转码服务器
+    use_transcode_server = WindowsTranscodeService.is_enabled()
+    upload_success = False
+    
+    if use_transcode_server:
+        # 检查转码服务器是否在线
+        server_online = await WindowsTranscodeService.health_check()
+        if server_online:
+            # 直接上传到转码服务器
+            result = await WindowsTranscodeService.upload_to_transcode_server(
+                video_id=video.id,
+                file_content=content,
+                filename=f"{video.id}{file_ext}"
+            )
+            upload_success = result.get("success", False)
+            if upload_success:
+                print(f"[Upload] 视频已直接上传到转码服务器: video_id={video.id}")
+                video.original_url = f"transcode://{video.id}{file_ext}"  # 标记为转码服务器文件
+                await db.commit()
+        else:
+            print(f"[Upload] 转码服务器离线，回退到本地处理")
+    
+    # 如果转码服务器上传失败，回退到本地保存
+    if not upload_success:
+        file_path = os.path.join(settings.VIDEO_DIR, unique_filename)
+        with open(file_path, "wb") as f:
+            f.write(content)
+        video.original_url = file_path
+        await db.commit()
+        
+        # 本地处理视频
+        background_tasks.add_task(
+            VideoProcessor.process_video,
+            video.id,
+            file_path,
+            skip_thumbnail=bool(custom_cover_url)
+        )
+    
     # 处理标签
     tag_names = []
     if tags:
         from sqlalchemy import text
         tag_list = [t.strip() for t in tags.split(',') if t.strip()]
         for tag_name in tag_list:
-            # 查找或创建标签
             tag_result = await db.execute(select(VideoTag).where(VideoTag.name == tag_name))
             tag = tag_result.scalar_one_or_none()
             
             if not tag:
-                # 创建新标签
                 tag = VideoTag(name=tag_name, use_count=0)
                 db.add(tag)
                 await db.flush()
             
-            # 使用原生SQL插入关联，避免懒加载问题
             await db.execute(text(
                 "INSERT INTO video_tags_association (video_id, tag_id) VALUES (:video_id, :tag_id) ON CONFLICT DO NOTHING"
             ), {"video_id": video.id, "tag_id": tag.id})
             
-            # 更新标签使用次数
             tag.use_count += 1
             tag_names.append(tag_name)
         
@@ -238,7 +270,6 @@ async def upload_video(
     
     # 处理自定义封面
     if custom_cover_url:
-        # 将临时封面复制到正式目录
         import shutil
         temp_cover_path = custom_cover_url.replace("/uploads/", settings.UPLOAD_DIR + "/")
         if os.path.exists(temp_cover_path):
@@ -248,13 +279,100 @@ async def upload_video(
             video.cover_url = f"/uploads/thumbnails/{video.id}.jpg"
             await db.commit()
     
-    # 后台处理视频（转码、生成缩略图（若无自定义）、AI分析）
-    background_tasks.add_task(
-        VideoProcessor.process_video,
-        video.id,
-        file_path,
-        skip_thumbnail=bool(custom_cover_url)  # 有自定义封面则跳过自动生成
+    return VideoResponse(
+        id=video.id,
+        title=video.title,
+        description=video.description,
+        cover_url=video.cover_url,
+        hls_url=video.hls_url,
+        duration=video.duration,
+        status=video.status,
+        quality=video.quality,
+        is_vip_only=video.is_vip_only,
+        is_featured=video.is_featured,
+        view_count=video.view_count,
+        like_count=video.like_count,
+        comment_count=video.comment_count,
+        uploader_name=current_user.nickname or current_user.username,
+        uploader_avatar=current_user.avatar,
+        created_at=video.created_at,
+        tags=tag_names
     )
+
+
+# ========== 从转码服务器创建视频记录 ==========
+
+@router.post("/create-from-transcode", response_model=VideoResponse)
+async def create_video_from_transcode(
+    title: str = Form(...),
+    description: Optional[str] = Form(None),
+    category_id: Optional[int] = Form(None),
+    is_vip_only: bool = Form(False),
+    coin_price: int = Form(0),
+    pay_type: str = Form("free"),
+    tags: Optional[str] = Form(None),
+    custom_cover_url: Optional[str] = Form(None),
+    transcode_filename: str = Form(...),  # 转码服务器上的文件名
+    transcode_video_id: str = Form(...),  # 临时视频ID
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    从转码服务器创建视频记录
+    视频文件已直接上传到转码服务器，这里只创建数据库记录
+    """
+    # 创建视频记录
+    video = Video(
+        title=title,
+        description=description,
+        original_url=f"transcode://{transcode_filename}",  # 标记为转码服务器文件
+        category_id=category_id,
+        uploader_id=current_user.id,
+        is_vip_only=is_vip_only,
+        coin_price=coin_price,
+        pay_type=pay_type if coin_price > 0 else "free",
+        status=VideoStatus.PROCESSING,
+        file_size=0  # 文件在转码服务器，大小未知
+    )
+    db.add(video)
+    await db.commit()
+    await db.refresh(video)
+    
+    print(f"[Transcode] 创建视频记录: id={video.id}, filename={transcode_filename}")
+    
+    # 处理标签
+    tag_names = []
+    if tags:
+        from sqlalchemy import text
+        tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+        for tag_name in tag_list:
+            tag_result = await db.execute(select(VideoTag).where(VideoTag.name == tag_name))
+            tag = tag_result.scalar_one_or_none()
+            
+            if not tag:
+                tag = VideoTag(name=tag_name, use_count=0)
+                db.add(tag)
+                await db.flush()
+            
+            await db.execute(text(
+                "INSERT INTO video_tags_association (video_id, tag_id) VALUES (:video_id, :tag_id) ON CONFLICT DO NOTHING"
+            ), {"video_id": video.id, "tag_id": tag.id})
+            
+            tag.use_count += 1
+            tag_names.append(tag_name)
+        
+        await db.commit()
+    
+    # 处理自定义封面
+    if custom_cover_url:
+        import shutil
+        temp_cover_path = custom_cover_url.replace("/uploads/", settings.UPLOAD_DIR + "/")
+        if os.path.exists(temp_cover_path):
+            final_cover_path = os.path.join(settings.THUMBNAIL_DIR, f"{video.id}.jpg")
+            os.makedirs(settings.THUMBNAIL_DIR, exist_ok=True)
+            shutil.copy(temp_cover_path, final_cover_path)
+            video.cover_url = f"/uploads/thumbnails/{video.id}.jpg"
+            await db.commit()
     
     return VideoResponse(
         id=video.id,
@@ -762,7 +880,7 @@ async def list_videos(
 async def list_categories(
     db: AsyncSession = Depends(get_db)
 ):
-    """获取视频分类列表（树形结构）"""
+    """获取视频分类列表（树形结构）- 优化版本，批量查询视频数量"""
     result = await db.execute(
         select(VideoCategory)
         .where(VideoCategory.is_active == True)
@@ -770,17 +888,26 @@ async def list_categories(
     )
     categories = result.scalars().all()
     
-    # 构建分类字典和统计视频数量
+    if not categories:
+        return []
+    
+    # ========== 批量查询视频数量（解决N+1问题）==========
+    category_ids = [cat.id for cat in categories]
+    
+    # 一次性查询所有分类的视频数量
+    count_result = await db.execute(
+        select(Video.category_id, func.count(Video.id))
+        .where(
+            Video.category_id.in_(category_ids),
+            Video.status == VideoStatus.PUBLISHED
+        )
+        .group_by(Video.category_id)
+    )
+    video_counts = {row[0]: row[1] for row in count_result.fetchall()}
+    
+    # 构建分类字典
     cat_dict = {}
     for cat in categories:
-        count_result = await db.execute(
-            select(func.count()).where(
-                Video.category_id == cat.id,
-                Video.status == VideoStatus.PUBLISHED
-            )
-        )
-        video_count = count_result.scalar()
-        
         # 兼容旧数据库没有level和parent_id字段
         parent_id = getattr(cat, 'parent_id', None)
         level = getattr(cat, 'level', None) or 1
@@ -793,7 +920,7 @@ async def list_categories(
             name=cat.name,
             description=cat.description,
             icon=cat.icon,
-            video_count=video_count,
+            video_count=video_counts.get(cat.id, 0),  # 从批量查询结果获取
             parent_id=parent_id,
             level=level,
             is_featured=is_featured,
@@ -984,7 +1111,9 @@ async def get_video(
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取视频详情"""
+    """获取视频详情 - 优化版本，并行查询"""
+    import asyncio
+    
     # 使用 selectinload 预加载 tags 关系
     result = await db.execute(
         select(Video)
@@ -999,50 +1128,74 @@ async def get_video(
             detail="视频不存在"
         )
     
-    # 检查VIP权限 - 设置标记而不是直接拒绝，让用户能看到视频信息
-    needs_vip = False
-    if video.is_vip_only:
-        if not current_user:
-            needs_vip = True
-        else:
-            from app.models.user import UserVIP, UserRole
-            if current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
-                result = await db.execute(
-                    select(UserVIP).where(
-                        UserVIP.user_id == current_user.id,
-                        UserVIP.is_active == True,
-                        UserVIP.expire_date > datetime.utcnow()
-                    )
+    # 并行查询所有相关数据
+    from app.models.user import UserVIP, UserRole
+    from app.models.coins import VideoPurchase
+    
+    async def get_uploader_info():
+        """获取上传者信息和VIP等级"""
+        uploader_result = await db.execute(select(User).where(User.id == video.uploader_id))
+        uploader = uploader_result.scalar_one_or_none()
+        uploader_vip_level = 0
+        if uploader:
+            vip_result = await db.execute(
+                select(UserVIP).where(
+                    UserVIP.user_id == uploader.id,
+                    UserVIP.is_active == True,
+                    UserVIP.expire_date > datetime.utcnow()
                 )
-                if not result.scalar_one_or_none():
-                    needs_vip = True
+            )
+            vip = vip_result.scalar_one_or_none()
+            if vip:
+                uploader_vip_level = getattr(vip, 'vip_level', 0) or 0
+        return uploader, uploader_vip_level
     
-    # 获取上传者信息
-    uploader_result = await db.execute(select(User).where(User.id == video.uploader_id))
-    uploader = uploader_result.scalar_one_or_none()
+    async def get_category_name():
+        """获取分类名称"""
+        if not video.category_id:
+            return None
+        cat_result = await db.execute(select(VideoCategory).where(VideoCategory.id == video.category_id))
+        cat = cat_result.scalar_one_or_none()
+        return cat.name if cat else None
     
-    # 获取上传者VIP等级
-    uploader_vip_level = 0
-    if uploader:
-        from app.models.user import UserVIP
-        vip_result = await db.execute(
+    async def check_user_vip():
+        """检查用户VIP状态"""
+        if not video.is_vip_only:
+            return False
+        if not current_user:
+            return True
+        if current_user.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+            return False
+        result = await db.execute(
             select(UserVIP).where(
-                UserVIP.user_id == uploader.id,
+                UserVIP.user_id == current_user.id,
                 UserVIP.is_active == True,
                 UserVIP.expire_date > datetime.utcnow()
             )
         )
-        vip = vip_result.scalar_one_or_none()
-        if vip:
-            uploader_vip_level = getattr(vip, 'vip_level', 0) or 0
+        return result.scalar_one_or_none() is None
     
-    # 获取分类名称
-    category_name = None
-    if video.category_id:
-        cat_result = await db.execute(select(VideoCategory).where(VideoCategory.id == video.category_id))
-        cat = cat_result.scalar_one_or_none()
-        if cat:
-            category_name = cat.name
+    async def check_purchase():
+        """检查用户是否已购买"""
+        pay_type = getattr(video, 'pay_type', 'free') or 'free'
+        coin_price = getattr(video, 'coin_price', 0) or 0
+        if not current_user or pay_type == 'free' or coin_price <= 0:
+            return False
+        purchase_result = await db.execute(
+            select(VideoPurchase).where(
+                VideoPurchase.user_id == current_user.id,
+                VideoPurchase.video_id == video_id
+            )
+        )
+        return purchase_result.scalar_one_or_none() is not None
+    
+    # 并行执行所有查询
+    (uploader, uploader_vip_level), category_name, needs_vip, is_purchased = await asyncio.gather(
+        get_uploader_info(),
+        get_category_name(),
+        check_user_vip(),
+        check_purchase()
+    )
     
     # 获取标签
     tags = [tag.name for tag in video.tags] if video.tags else []
@@ -1051,18 +1204,6 @@ async def get_video(
     pay_type = getattr(video, 'pay_type', 'free') or 'free'
     coin_price = getattr(video, 'coin_price', 0) or 0
     free_preview_seconds = getattr(video, 'free_preview_seconds', 30) or 30
-    
-    # 检查用户是否已购买（仅付费视频需要检查）
-    is_purchased = False
-    if current_user and pay_type != 'free' and coin_price > 0:
-        from app.models.coins import VideoPurchase
-        purchase_result = await db.execute(
-            select(VideoPurchase).where(
-                VideoPurchase.user_id == current_user.id,
-                VideoPurchase.video_id == video_id
-            )
-        )
-        is_purchased = purchase_result.scalar_one_or_none() is not None
     
     # 判断是否需要限制播放（未购买的付费视频）
     needs_purchase = pay_type != 'free' and coin_price > 0 and not is_purchased and not needs_vip
@@ -1073,7 +1214,6 @@ async def get_video(
         description=video.description,
         cover_url=video.cover_url,
         preview_url=video.preview_url,
-        # 如果需要VIP/购买但用户没有权限，仍返回播放地址（前端实现试看控制）
         hls_url=video.hls_url,
         duration=video.duration,
         status=video.status,
@@ -1093,7 +1233,6 @@ async def get_video(
         published_at=video.published_at,
         tags=tags,
         needs_vip=needs_vip,
-        # 付费/试看相关
         pay_type=pay_type,
         coin_price=coin_price,
         free_preview_seconds=free_preview_seconds if (needs_vip or needs_purchase) else 0,
@@ -1459,4 +1598,261 @@ async def get_download_info(
         "file_size": file_size,
         "file_size_mb": round(file_size / (1024 * 1024), 2) if file_size else 0,
         "message": "可以下载" if (is_vip and file_exists) else ("请开通VIP" if not is_vip else "文件不存在")
+    }
+
+
+# ========== 视频详情聚合接口（优化版）==========
+
+@router.get("/{video_id}/full")
+async def get_video_full_detail(
+    video_id: int,
+    comment_limit: int = Query(10, ge=1, le=50),
+    recommend_limit: int = Query(10, ge=1, le=20),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    视频详情聚合接口 - 一次返回视频详情+评论+推荐视频
+    减少前端请求次数，提升页面加载速度
+    """
+    import asyncio
+    from app.models.user import UserVIP, UserRole
+    from app.models.coins import VideoPurchase
+    from app.models.video import VideoComment
+    from app.models.social import VideoLike, VideoFavorite
+    from app.services.cache_service import CacheService, CacheTTL
+    
+    # 获取视频基本信息
+    result = await db.execute(
+        select(Video)
+        .options(selectinload(Video.tags))
+        .where(Video.id == video_id)
+    )
+    video = result.scalar_one_or_none()
+    
+    if not video:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="视频不存在")
+    
+    # 定义所有并行查询任务
+    async def get_uploader_info():
+        uploader_result = await db.execute(select(User).where(User.id == video.uploader_id))
+        uploader = uploader_result.scalar_one_or_none()
+        uploader_vip_level = 0
+        if uploader:
+            vip_result = await db.execute(
+                select(UserVIP).where(
+                    UserVIP.user_id == uploader.id,
+                    UserVIP.is_active == True,
+                    UserVIP.expire_date > datetime.utcnow()
+                )
+            )
+            vip = vip_result.scalar_one_or_none()
+            if vip:
+                uploader_vip_level = getattr(vip, 'vip_level', 0) or 0
+        return uploader, uploader_vip_level
+    
+    async def get_category_name():
+        if not video.category_id:
+            return None
+        cat_result = await db.execute(select(VideoCategory).where(VideoCategory.id == video.category_id))
+        cat = cat_result.scalar_one_or_none()
+        return cat.name if cat else None
+    
+    async def check_user_vip():
+        if not video.is_vip_only:
+            return False
+        if not current_user:
+            return True
+        if current_user.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+            return False
+        result = await db.execute(
+            select(UserVIP).where(
+                UserVIP.user_id == current_user.id,
+                UserVIP.is_active == True,
+                UserVIP.expire_date > datetime.utcnow()
+            )
+        )
+        return result.scalar_one_or_none() is None
+    
+    async def check_purchase():
+        pay_type = getattr(video, 'pay_type', 'free') or 'free'
+        coin_price = getattr(video, 'coin_price', 0) or 0
+        if not current_user or pay_type == 'free' or coin_price <= 0:
+            return False
+        purchase_result = await db.execute(
+            select(VideoPurchase).where(
+                VideoPurchase.user_id == current_user.id,
+                VideoPurchase.video_id == video_id
+            )
+        )
+        return purchase_result.scalar_one_or_none() is not None
+    
+    async def check_like_favorite():
+        is_liked = False
+        is_favorited = False
+        if current_user:
+            like_result = await db.execute(
+                select(VideoLike).where(
+                    VideoLike.user_id == current_user.id,
+                    VideoLike.video_id == video_id
+                )
+            )
+            is_liked = like_result.scalar_one_or_none() is not None
+            
+            fav_result = await db.execute(
+                select(VideoFavorite).where(
+                    VideoFavorite.user_id == current_user.id,
+                    VideoFavorite.video_id == video_id
+                )
+            )
+            is_favorited = fav_result.scalar_one_or_none() is not None
+        return is_liked, is_favorited
+    
+    async def get_comments():
+        """获取评论列表（批量查询用户信息）"""
+        comment_result = await db.execute(
+            select(VideoComment)
+            .where(VideoComment.video_id == video_id, VideoComment.status == 'visible')
+            .order_by(VideoComment.is_top.desc(), VideoComment.created_at.desc())
+            .limit(comment_limit)
+        )
+        comments = comment_result.scalars().all()
+        
+        if not comments:
+            return []
+        
+        # 批量获取用户信息
+        user_ids = list(set(c.user_id for c in comments))
+        users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+        users_map = {u.id: u for u in users_result.scalars().all()}
+        
+        # 批量获取VIP信息
+        vip_result = await db.execute(
+            select(UserVIP).where(UserVIP.user_id.in_(user_ids), UserVIP.is_active == True)
+        )
+        vip_map = {v.user_id: v for v in vip_result.scalars().all()}
+        
+        result_comments = []
+        for c in comments:
+            user = users_map.get(c.user_id)
+            vip = vip_map.get(c.user_id)
+            is_vip = vip is not None and vip.expire_date and vip.expire_date > datetime.utcnow()
+            
+            result_comments.append({
+                "id": c.id,
+                "content": c.content,
+                "user_id": c.user_id,
+                "user_nickname": user.nickname if user else "用户",
+                "user_avatar": user.avatar if user else None,
+                "user_vip_level": vip.vip_level if is_vip else 0,
+                "like_count": c.like_count or 0,
+                "reply_count": c.reply_count or 0,
+                "is_top": c.is_top,
+                "created_at": c.created_at.isoformat() if c.created_at else None
+            })
+        
+        return result_comments
+    
+    async def get_recommend_videos():
+        """获取推荐视频（带缓存）"""
+        cache_key = f"video_recommend:{video.category_id or 'all'}:{recommend_limit}"
+        cached = await CacheService.get(cache_key)
+        if cached:
+            # 过滤掉当前视频
+            return [v for v in cached if v["id"] != video_id][:recommend_limit]
+        
+        query = select(Video).where(
+            Video.status == VideoStatus.PUBLISHED,
+            Video.id != video_id,
+            Video.is_short != True
+        )
+        
+        if video.category_id:
+            query = query.where(Video.category_id == video.category_id)
+        
+        query = query.order_by(Video.view_count.desc()).limit(recommend_limit + 5)
+        
+        result = await db.execute(query)
+        videos = result.scalars().all()
+        
+        recommend_data = [
+            {
+                "id": v.id,
+                "title": v.title,
+                "cover_url": v.cover_url,
+                "duration": v.duration or 0,
+                "view_count": v.view_count or 0
+            }
+            for v in videos
+        ]
+        
+        # 缓存5分钟
+        await CacheService.set(cache_key, recommend_data, CacheTTL.MEDIUM)
+        
+        return [v for v in recommend_data if v["id"] != video_id][:recommend_limit]
+    
+    # 并行执行所有查询
+    (
+        (uploader, uploader_vip_level),
+        category_name,
+        needs_vip,
+        is_purchased,
+        (is_liked, is_favorited),
+        comments,
+        recommend_videos
+    ) = await asyncio.gather(
+        get_uploader_info(),
+        get_category_name(),
+        check_user_vip(),
+        check_purchase(),
+        check_like_favorite(),
+        get_comments(),
+        get_recommend_videos()
+    )
+    
+    # 获取标签
+    tags = [tag.name for tag in video.tags] if video.tags else []
+    
+    # 获取付费相关信息
+    pay_type = getattr(video, 'pay_type', 'free') or 'free'
+    coin_price = getattr(video, 'coin_price', 0) or 0
+    free_preview_seconds = getattr(video, 'free_preview_seconds', 30) or 30
+    needs_purchase = pay_type != 'free' and coin_price > 0 and not is_purchased and not needs_vip
+    
+    return {
+        "video": {
+            "id": video.id,
+            "title": video.title,
+            "description": video.description,
+            "cover_url": video.cover_url,
+            "preview_url": video.preview_url,
+            "hls_url": video.hls_url,
+            "duration": video.duration,
+            "status": video.status,
+            "quality": video.quality,
+            "is_vip_only": video.is_vip_only,
+            "is_featured": video.is_featured,
+            "view_count": video.view_count,
+            "like_count": video.like_count,
+            "favorite_count": getattr(video, 'favorite_count', 0) or 0,
+            "comment_count": video.comment_count,
+            "ai_summary": video.ai_summary,
+            "category_name": category_name,
+            "uploader_id": video.uploader_id,
+            "uploader_name": (uploader.nickname or uploader.username) if uploader else "未知用户",
+            "uploader_avatar": uploader.avatar if uploader else None,
+            "uploader_vip_level": uploader_vip_level,
+            "created_at": video.created_at.isoformat() if video.created_at else None,
+            "published_at": video.published_at.isoformat() if video.published_at else None,
+            "tags": tags,
+            "needs_vip": needs_vip,
+            "pay_type": pay_type,
+            "coin_price": coin_price,
+            "free_preview_seconds": free_preview_seconds if (needs_vip or needs_purchase) else 0,
+            "is_purchased": is_purchased,
+            "is_liked": is_liked,
+            "is_favorited": is_favorited
+        },
+        "comments": comments,
+        "recommend_videos": recommend_videos
     }

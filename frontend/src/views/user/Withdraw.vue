@@ -482,6 +482,10 @@ onMounted(() => {
   justify-content: space-between;
   padding: 16px;
   padding-top: calc(env(safe-area-inset-top, 16px) + 16px);
+  background: #0a0a0a;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   
   .back-btn {
     font-size: 28px;
@@ -881,6 +885,85 @@ onMounted(() => {
     text-align: center;
     padding: 40px;
     color: rgba(255, 255, 255, 0.4);
+  }
+}
+
+// 响应式断点
+@media (min-width: 768px) {
+  .withdraw-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .submit-section {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .history-modal .modal-content {
+    max-width: 600px;
+    margin: 0 auto;
+    border-radius: 20px 20px 0 0;
+  }
+  
+  .method-row .method-options {
+    gap: 16px;
+  }
+  
+  .method-row .method-item {
+    padding: 10px 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .withdraw-page {
+    max-width: 700px;
+  }
+  
+  .page-header {
+    max-width: 700px;
+  }
+  
+  .submit-section {
+    max-width: 700px;
+    
+    .submit-btn {
+      width: 50%;
+    }
+  }
+  
+  .balance-card {
+    padding: 24px;
+  }
+  
+  .form-row {
+    .row-label {
+      width: 100px;
+    }
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .method-row .method-item:hover {
+    background: rgba(168, 85, 247, 0.15);
+    border-color: rgba(168, 85, 247, 0.5);
+  }
+  
+  .submit-section .submit-btn:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  
+  .header-right:hover {
+    color: #fff;
   }
 }
 </style>

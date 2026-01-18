@@ -41,7 +41,10 @@ Base = declarative_base()
 
 
 async def get_db() -> AsyncSession:
-    """获取数据库会话"""
+    """
+    获取数据库会话
+    自动管理事务：成功时 commit，异常时 rollback
+    """
     async with AsyncSessionLocal() as session:
         try:
             yield session

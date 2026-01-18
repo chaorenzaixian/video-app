@@ -137,6 +137,36 @@ const contactService = () => {
     fill: rgba(255, 255, 255, 0.3);
   }
 }
+
+// 响应式优化
+@media (min-width: 768px) {
+  .account-recovery-page {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 500px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 1024px) {
+  .account-recovery-page {
+    max-width: 550px;
+  }
+  
+  .page-header {
+    max-width: 550px;
+  }
+}
+
+@media (hover: hover) {
+  .recovery-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
 </style>
 
 

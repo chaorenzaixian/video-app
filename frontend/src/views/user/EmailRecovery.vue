@@ -361,6 +361,52 @@ const loginWithCode = async () => {
     }
   }
 }
+
+// 响应式优化
+@media (min-width: 768px) {
+  .email-recovery-page {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 500px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .info-section {
+    padding-top: 60px;
+    
+    .info-icon {
+      font-size: 56px;
+    }
+    
+    h2 {
+      font-size: 20px;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .email-recovery-page {
+    max-width: 550px;
+  }
+  
+  .page-header {
+    max-width: 550px;
+  }
+}
+
+@media (hover: hover) {
+  .code-btn:not(.disabled):hover {
+    opacity: 0.8;
+  }
+  
+  .submit-btn:not(:disabled):hover {
+    opacity: 0.9;
+  }
+}
 </style>
 
 

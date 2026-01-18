@@ -665,7 +665,7 @@ onMounted(() => {
 
 @media (min-width: 768px) {
   .coins-recharge-page {
-    max-width: 500px;
+    max-width: 550px;
     margin: 0 auto;
   }
   
@@ -704,7 +704,31 @@ onMounted(() => {
 
 @media (min-width: 1024px) {
   .coins-recharge-page {
-    max-width: 560px;
+    max-width: 650px;
+  }
+  
+  .packages-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  
+  .package-card {
+    padding: 12px 10px 16px;
+    
+    .coin-icon-wrapper .pkg-coin-icon {
+      width: 48px;
+      height: 48px;
+    }
+    
+    .coins-amount {
+      font-size: 15px;
+    }
+  }
+}
+
+@media (min-width: 1280px) {
+  .coins-recharge-page {
+    max-width: 750px;
   }
 }
 
@@ -712,6 +736,10 @@ onMounted(() => {
 @media (hover: none) and (pointer: coarse) {
   .package-card:hover {
     transform: none;
+  }
+  
+  .package-card:active {
+    transform: scale(0.98);
   }
 }
 </style>

@@ -43,7 +43,7 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
 
   Future<void> _fetchTopics() async {
     try {
-      final res = await ApiService.get('/community/topics', queryParams: {'is_hot': 'true', 'page_size': '10'});
+      final res = await ApiService.get('/community/topics', params: {'is_hot': 'true', 'page_size': '10'});
       if (mounted) {
         setState(() => _topics = res ?? []);
       }
@@ -73,7 +73,7 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
         params['topic_id'] = _selectedTopicId.toString();
       }
 
-      final res = await ApiService.get('/community/posts', queryParams: params);
+      final res = await ApiService.get('/community/posts', params: params);
       final data = res as List? ?? [];
       
       if (mounted) {

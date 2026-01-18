@@ -380,10 +380,25 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+$breakpoint-lg: 768px;
+$breakpoint-xl: 1024px;
+$breakpoint-xxl: 1280px;
+
 .user-profile-page {
   min-height: 100vh;
   background: #0a0a0a;
   color: #fff;
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 750px;
+    margin: 0 auto;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 900px;
+  }
+  @media (min-width: $breakpoint-xxl) {
+    max-width: 1000px;
+  }
 }
 
 .profile-header {
@@ -560,6 +575,14 @@ onMounted(() => {
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   
+  @media (min-width: $breakpoint-lg) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (min-width: $breakpoint-xl) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
   .video-card {
     background: #1a1a2e;
     border-radius: 8px;
@@ -567,8 +590,10 @@ onMounted(() => {
     cursor: pointer;
     transition: transform 0.2s;
     
-    &:hover {
-      transform: scale(1.02);
+    @media (hover: hover) {
+      &:hover {
+        transform: scale(1.02);
+      }
     }
     
     .video-cover-wrapper {
@@ -613,8 +638,10 @@ onMounted(() => {
         }
       }
       
-      &:hover .play-overlay {
-        opacity: 1;
+      @media (hover: hover) {
+        &:hover .play-overlay {
+          opacity: 1;
+        }
       }
     }
     
@@ -645,6 +672,14 @@ onMounted(() => {
   grid-template-columns: repeat(3, 1fr);
   gap: 2px;
   
+  @media (min-width: $breakpoint-lg) {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+  @media (min-width: $breakpoint-xl) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  
   .short-item {
     position: relative;
     aspect-ratio: 9/16;
@@ -658,8 +693,10 @@ onMounted(() => {
       transition: transform 0.2s;
     }
     
-    &:hover .short-cover {
-      transform: scale(1.05);
+    @media (hover: hover) {
+      &:hover .short-cover {
+        transform: scale(1.05);
+      }
     }
     
     .short-info {
@@ -691,8 +728,10 @@ onMounted(() => {
     cursor: pointer;
     transition: background 0.2s;
     
-    &:hover {
-      background: #252540;
+    @media (hover: hover) {
+      &:hover {
+        background: #252540;
+      }
     }
     
     .post-content {
@@ -713,6 +752,11 @@ onMounted(() => {
       border-radius: 6px;
       overflow: hidden;
       margin-bottom: 10px;
+      
+      @media (min-width: $breakpoint-lg) {
+        width: 100px;
+        height: 100px;
+      }
       
       .post-thumb {
         width: 100%;

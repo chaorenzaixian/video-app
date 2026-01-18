@@ -578,6 +578,7 @@ import Artplayer from 'artplayer'
 import Hls from 'hls.js'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import utc from 'dayjs/plugin/utc'
 import 'dayjs/locale/zh-cn'
 import { useAbortController } from '@/composables/useAbortController'
 import { useTimers, useVideoCleanup, useEventListeners } from '@/composables/useCleanup'
@@ -585,6 +586,7 @@ import { formatCount, formatDuration, formatViewCount } from '@/utils/format'
 import { VIP_LEVEL_ICONS } from '@/constants/vip'
 
 dayjs.extend(relativeTime)
+dayjs.extend(utc)
 dayjs.locale('zh-cn')
 
 const route = useRoute()
@@ -2015,7 +2017,8 @@ const formatTime = (date) => {
 
 // 格式化评论时间（更详细）
 const formatCommentTime = (date) => {
-  const d = dayjs(date)
+  // 服务器返回的是 UTC 时间，需要转换为本地时间
+  const d = dayjs.utc(date).local()
   const now = dayjs()
   const diffDays = now.diff(d, 'day')
   
@@ -2060,25 +2063,34 @@ onMounted(async () => {
   // 重置返回计数
   resetBackCount()
   
-  // 尝试获取当前用户信息
-  try {
-    const userRes = await api.get('/users/me')
-    const userData = userRes.data || userRes
-    currentUserId.value = userData.id
-    isVip.value = userData.is_vip || false
-    userVipLevel.value = userData.vip_level || 0
-    userVipLevelNameFromApi.value = userData.vip_level_name || '非VIP'
-    userVipExpireDate.value = userData.vip_expire_date || null
-    isAdmin.value = userData.role === 'admin' || userData.role === 'super_admin'
-  } catch (error) {
-    console.log('未登录或获取用户信息失败')
-  }
+  // 并行加载所有数据，提升页面打开速度
+  const [userResult, videoResult] = await Promise.allSettled([
+    // 获取用户信息
+    api.get('/users/me').then(res => {
+      const userData = res.data || res
+      currentUserId.value = userData.id
+      isVip.value = userData.is_vip || false
+      userVipLevel.value = userData.vip_level || 0
+      userVipLevelNameFromApi.value = userData.vip_level_name || '非VIP'
+      userVipExpireDate.value = userData.vip_expire_date || null
+      isAdmin.value = userData.role === 'admin' || userData.role === 'super_admin'
+    }).catch(() => {
+      console.log('未登录或获取用户信息失败')
+    }),
+    // 获取视频信息（核心数据，优先）
+    fetchVideo()
+  ])
   
-  await fetchVideo()
-  await Promise.all([fetchComments(), fetchRecommend(), fetchIconAds(), fetchAnnouncement(), fetchUserCoins(), fetchPreRollAd()])
-  
-  await nextTick()
-  initArtPlayer()
+  // 视频加载完成后，并行加载其他数据和初始化播放器
+  await Promise.all([
+    fetchComments(),
+    fetchRecommend(), 
+    fetchIconAds(), 
+    fetchAnnouncement(), 
+    fetchUserCoins(), 
+    fetchPreRollAd(),
+    nextTick().then(() => initArtPlayer())
+  ])
 })
 
 onUnmounted(() => {
@@ -4548,6 +4560,80 @@ $bp-4k: 2560px;
       width: 20px;
       height: 20px;
     }
+  }
+}
+
+// ========== 响应式适配 ==========
+// 平板 (768px+)
+@media (min-width: 768px) {
+  .video-player-page {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  
+  .intro-content,
+  .comments-content .comment-list-wrapper {
+    padding: 0 24px;
+  }
+  
+  .video-title {
+    font-size: 18px;
+  }
+  
+  .video-list.double-column {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  
+  .comment-item {
+    .comment-text {
+      font-size: 15px;
+    }
+  }
+}
+
+// 桌面 (1024px+)
+@media (min-width: 1024px) {
+  .video-player-page {
+    max-width: 1100px;
+  }
+  
+  .player-container {
+    max-height: 70vh;
+    aspect-ratio: 16/9;
+  }
+  
+  .video-list.double-column {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .privileges-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+// 大桌面 (1280px+)
+@media (min-width: 1280px) {
+  .video-player-page {
+    max-width: 1200px;
+  }
+  
+  .video-list.double-column {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+// 触摸设备优化
+@media (hover: none) and (pointer: coarse) {
+  .video-card:hover {
+    transform: none;
+  }
+  
+  .video-card:active {
+    transform: scale(0.98);
+    opacity: 0.9;
   }
 }
 </style>

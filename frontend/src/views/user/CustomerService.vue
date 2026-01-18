@@ -1143,4 +1143,84 @@ watch(messages, () => {
     }
   }
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .service-page {
+    max-width: 768px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 768px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .input-area {
+    max-width: 768px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .message-bubble {
+    &.service-message .message-body .message-content .message-image,
+    &.user-message .message-body .message-content .message-image {
+      max-width: 280px;
+      max-height: 280px;
+    }
+  }
+  
+  .quick-questions .question-item {
+    padding: 14px 18px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .service-page {
+    max-width: 800px;
+  }
+  
+  .page-header {
+    max-width: 800px;
+  }
+  
+  .input-area {
+    max-width: 800px;
+  }
+  
+  .chat-area {
+    padding: 20px 24px;
+    padding-bottom: 90px;
+  }
+  
+  .message-bubble {
+    &.service-message .message-body .message-content .message-image,
+    &.user-message .message-body .message-content .message-image {
+      max-width: 320px;
+      max-height: 320px;
+    }
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .quick-questions .question-item:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateX(4px);
+  }
+  
+  .category-tabs .category-tab:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+@media (hover: none) {
+  .quick-questions .question-item:hover,
+  .category-tabs .category-tab:hover,
+  .input-icon:hover svg,
+  .send-btn:hover svg {
+    // 移除触摸设备上的 hover 效果
+  }
+}
 </style>

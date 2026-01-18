@@ -406,6 +406,9 @@ onMounted(() => {
   padding: 16px 20px;
   padding-top: calc(env(safe-area-inset-top) + 16px);
   background: #1a1a2e;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   
   .back-btn {
     width: 32px;
@@ -748,6 +751,60 @@ onMounted(() => {
     color: rgba(255,255,255,0.7);
     text-align: center;
     display: block;
+  }
+}
+
+// 响应式优化
+@media (min-width: 768px) {
+  .short-upload-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .upload-progress {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .cover-options .cover-item {
+    width: 90px;
+    height: 135px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .short-upload-page {
+    max-width: 700px;
+  }
+  
+  .page-header {
+    max-width: 700px;
+  }
+  
+  .upload-progress {
+    max-width: 700px;
+  }
+}
+
+@media (hover: hover) {
+  .upload-area:hover {
+    border-color: #a855f7;
+    background: rgba(168,85,247,0.1);
+  }
+  
+  .publish-btn:not(:disabled):hover {
+    opacity: 0.9;
+  }
+  
+  .cover-item:hover {
+    border-color: rgba(168, 85, 247, 0.5);
   }
 }
 </style>

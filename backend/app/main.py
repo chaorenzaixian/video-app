@@ -35,6 +35,9 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized")
     
+    # 缓存预热
+    await warm_up_cache()
+    
     # 启动定时任务
     from app.services.scheduled_tasks import ScheduledTasks
     await ScheduledTasks.start()
@@ -48,6 +51,33 @@ async def lifespan(app: FastAPI):
     await ScheduledTasks.stop()
     await close_redis()
     logger.info("Service closed")
+
+
+async def warm_up_cache():
+    """缓存预热 - 启动时预加载常用数据"""
+    from app.core.database import AsyncSessionLocal
+    
+    try:
+        async with AsyncSessionLocal() as db:
+            from app.api.home import (
+                get_cached_categories,
+                get_cached_func_entries,
+                get_cached_announcements,
+                get_cached_site_settings,
+                get_cached_banners
+            )
+            
+            # 预热首页静态数据
+            await get_cached_site_settings()
+            await get_cached_categories(db)
+            await get_cached_func_entries(db)
+            await get_cached_announcements(db)
+            await get_cached_banners(db, "home")
+            
+            logger.info("Cache warmed up successfully")
+    except Exception as e:
+        # 缓存预热失败不影响启动
+        logger.warning(f"Cache warm-up failed (non-critical): {e}")
 
 
 # 创建应用

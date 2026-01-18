@@ -142,42 +142,53 @@ def get_commission_rate(level: int) -> Decimal:
 
 
 async def get_or_create_profile(db: AsyncSession, user_id: int) -> UserProfile:
-    """获取或创建用户推广资料"""
+    """获取或创建用户推广资料（带并发处理）"""
+    from sqlalchemy.exc import IntegrityError
+    from app.core.invite_code import encode_user_id
+    
+    # 先尝试获取
+    result = await db.execute(
+        select(UserProfile).where(UserProfile.user_id == user_id)
+    )
+    profile = result.scalar_one_or_none()
+    
+    if profile:
+        return profile
+    
+    # 不存在则创建
+    code = encode_user_id(user_id)
+    
+    profile = UserProfile(
+        user_id=user_id,
+        invite_code=code,
+        agent_level=0,
+        commission_rate=Decimal("0"),
+        agent_status="inactive",
+        total_invites=0,
+        valid_invites=0,
+        total_team_size=0,
+        total_commission=Decimal("0"),
+        available_balance=Decimal("0"),
+        frozen_balance=Decimal("0"),
+        total_withdrawn=Decimal("0"),
+        total_reward_days=0
+    )
+    
     try:
+        db.add(profile)
+        await db.flush()  # 使用 flush 而不是 commit，让调用方控制事务
+        return profile
+    except IntegrityError:
+        # 并发创建冲突，回滚后重新查询
+        await db.rollback()
         result = await db.execute(
             select(UserProfile).where(UserProfile.user_id == user_id)
         )
         profile = result.scalar_one_or_none()
-        
-        if not profile:
-            # 基于用户ID生成唯一邀请码（无需检查重复）
-            from app.core.invite_code import encode_user_id
-            code = encode_user_id(user_id)
-            
-            profile = UserProfile(
-                user_id=user_id,
-                invite_code=code,
-                agent_level=0,
-                commission_rate=Decimal("0"),
-                agent_status="inactive",
-                total_invites=0,
-                valid_invites=0,
-                total_team_size=0,
-                total_commission=Decimal("0"),
-                available_balance=Decimal("0"),
-                frozen_balance=Decimal("0"),
-                total_withdrawn=Decimal("0"),
-                total_reward_days=0
-            )
-            db.add(profile)
-            await db.commit()
-            await db.refresh(profile)
-        
-        return profile
-    except Exception as e:
-        print(f"[ERROR] get_or_create_profile: {e}")
-        await db.rollback()
-        raise
+        if profile:
+            return profile
+        # 如果还是没有，抛出异常
+        raise Exception(f"Failed to get or create profile for user {user_id}")
 
 
 async def auto_grant_milestone_rewards(db: AsyncSession, user_id: int, valid_invites: int):
@@ -292,9 +303,10 @@ async def get_invite_code(
     """获取用户邀请码和分享链接"""
     profile = await get_or_create_profile(db, current_user.id)
     
-    # 构建邀请链接
+    # 构建邀请链接 - 指向用户首页，带邀请码参数
     base_url = str(request.base_url).rstrip('/')
-    invite_url = f"{base_url}/register?invite={profile.invite_code}"
+    # 使用首页路径，前端会自动处理邀请码
+    invite_url = f"{base_url}/user?invite={profile.invite_code}"
     qr_code_url = f"{base_url}/api/v1/promotion/qrcode/{profile.invite_code}"
     
     return InviteCodeResponse(
@@ -901,3 +913,47 @@ async def claim_milestone(
     await db.commit()
     
     return {"success": True, "message": "奖励已创建，请前往领取"}
+
+
+# ==================== 二维码相关 API ====================
+
+@router.get("/qrcode/{invite_code}")
+async def generate_qrcode(
+    invite_code: str,
+    request: Request
+):
+    """生成邀请二维码图片"""
+    import qrcode
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    
+    # 构建邀请链接 - 指向用户首页
+    base_url = str(request.base_url).rstrip('/')
+    invite_url = f"{base_url}/user?invite={invite_code}"
+    
+    # 生成二维码
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(invite_url)
+    qr.make(fit=True)
+    
+    # 创建图片
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # 转换为字节流
+    buffer = BytesIO()
+    img.save(buffer, format='PNG')
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "public, max-age=86400",  # 缓存24小时
+            "Content-Disposition": f"inline; filename=qrcode_{invite_code}.png"
+        }
+    )

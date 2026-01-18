@@ -227,10 +227,21 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+$breakpoint-lg: 768px;
+$breakpoint-xl: 1024px;
+
 .downloads-page {
   min-height: 100vh;
   background: #0a0a0a;
   padding-bottom: env(safe-area-inset-bottom);
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 800px;
+  }
 }
 
 .page-header {
@@ -505,6 +516,15 @@ onMounted(() => {
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
   background: #1a1a1a;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 700px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 800px;
+  }
   
   .select-all {
     display: flex;

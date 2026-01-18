@@ -512,6 +512,10 @@ onMounted(() => {
   justify-content: space-between;
   padding: 12px 16px;
   padding-top: calc(env(safe-area-inset-top, 12px) + 12px);
+  background: #0a0a0a;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   
   .back-btn {
     width: 32px;
@@ -1131,127 +1135,117 @@ onMounted(() => {
 // 响应式
 @media (min-width: 768px) {
   .vip-page {
-    max-width: 600px;
+    max-width: 650px;
     margin: 0 auto;
   }
   
   .vip-card {
-    width: 220px;
-    height: 300px;
+    width: 200px;
+    height: 280px;
   }
   
-  .page-header {
-    padding: 20px 30px;
-    h1 { font-size: 24px; }
+  .simple-cards-grid {
+    gap: 10px;
+  }
+  
+  .simple-card {
+    padding: 12px 6px 10px;
+    
+    .simple-card-price .amount {
+      font-size: 30px;
+    }
+  }
+  
+  .privileges-section {
+    padding: 50px 20px 30px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .vip-page {
+    max-width: 800px;
   }
   
   .vip-card {
-    padding: 30px;
-    
-    .card-bg {
-      padding: 50px 30px;
-      border-radius: 24px;
-      
-      .crown { font-size: 60px; }
-      h2 { font-size: 28px; }
-      p { font-size: 16px; }
-    }
+    width: 240px;
+    height: 320px;
   }
   
-  .benefits {
-    padding: 30px;
-    
-    h3 { font-size: 18px; }
-    
-    .benefit-grid {
-      gap: 20px;
-      
-      .benefit-item {
-        padding: 20px;
-        
-        .icon { font-size: 36px; }
-        span { font-size: 14px; }
-      }
-    }
+  .simple-cards-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
   
-  .plans {
-    padding: 30px;
-    
-    h3 { font-size: 18px; }
-    
-    .plan-list {
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      
-      .plan-item {
-        padding: 24px 15px;
-      }
-    }
+  .privileges-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0 24px;
   }
-  
-  .pay-section {
-    padding: 30px;
-    
-    .pay-btn {
-      max-width: 400px;
-      height: 56px;
-      font-size: 20px;
-    }
+}
 
-  }
-  
-  .payment-methods {
-    padding: 30px;
-    
-    .method-list {
-      max-width: 400px;
-      margin: 0 auto;
-    }
+@media (min-width: 1280px) {
+  .vip-page {
+    max-width: 900px;
   }
 }
 
 @media (max-width: 374px) {
-  .vip-card {
-    padding: 15px;
+  .simple-cards-grid {
+    gap: 4px;
+  }
+  
+  .simple-card {
+    padding: 8px 2px 6px;
     
-    .card-bg {
-      padding: 30px 20px;
-      
-      .crown { font-size: 40px; }
-      h2 { font-size: 20px; }
+    .simple-badge {
+      font-size: 7px;
+      padding: 1px 6px;
+    }
+    
+    .simple-card-name {
+      font-size: 11px;
+    }
+    
+    .simple-card-price .amount {
+      font-size: 22px;
+    }
+    
+    .simple-card-desc {
+      font-size: 9px;
     }
   }
   
-  .benefits {
-    padding: 15px;
-    
-    .benefit-grid {
-      gap: 10px;
+  .privilege-item {
+    .privilege-icon {
+      width: 36px;
+      height: 36px;
       
-      .benefit-item {
-        padding: 12px 8px;
-        
-        .icon { font-size: 24px; }
-        span { font-size: 11px; }
+      img {
+        width: 36px;
+        height: 36px;
+      }
+    }
+    
+    .privilege-info {
+      .privilege-name {
+        font-size: 12px;
+      }
+      .privilege-desc {
+        font-size: 11px;
       }
     }
   }
-  
-  .plans {
-    padding: 15px;
-    
-    .plan-list .plan-item {
-      padding: 15px 10px;
-      
-      .plan-price .amount { font-size: 24px; }
-    }
+}
+
+// 触摸设备优化
+@media (hover: none) and (pointer: coarse) {
+  .vip-card:hover,
+  .simple-card:hover {
+    transform: none;
   }
   
-  .pay-section .pay-btn {
-    width: 90%;
-    height: 46px;
-    font-size: 16px;
+  .vip-card:active,
+  .simple-card:active {
+    transform: scale(0.98);
   }
 }
 </style>

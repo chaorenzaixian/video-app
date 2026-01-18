@@ -42,7 +42,7 @@
 <script setup>
 defineOptions({ name: 'UserProfile' })
 
-import { ref, onMounted, onActivated, nextTick } from 'vue'
+import { ref, onMounted, onActivated, onUnmounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
@@ -64,6 +64,9 @@ const scrollContainer = ref(null)
 // 是否已初始化
 const hasInitialized = ref(false)
 
+// 加载超时保护
+let loadingTimeout = null
+
 // 签到防重复
 const { execute: executeSign, loading: signingIn } = useAsyncLock(async () => {
   const res = await api.post('/points/tasks/checkin', null, { signal })
@@ -72,6 +75,26 @@ const { execute: executeSign, loading: signingIn } = useAsyncLock(async () => {
 
 // 使用composables
 const { user, iconAds, isLoading, unreadMessageCount, avatarUrl, vipLevelIcon, vipLevelName, formattedExpireDate, initUserData, fetchUserVipInfo, fetchIconAds, fetchUnreadCount } = useProfileData(signal)
+
+// 监听 userStore 初始化完成
+watch(() => userStore.isInitialized, (initialized) => {
+  if (initialized && !hasInitialized.value) {
+    initData()
+  }
+}, { immediate: true })
+
+// 监听用户登录状态变化（自动注册完成后会触发）
+watch(() => userStore.user, (newUser) => {
+  if (newUser) {
+    initUserData(newUser)
+    if (hasInitialized.value) {
+      fetchUserVipInfo()
+    }
+  } else {
+    // 用户为空时，停止加载状态
+    isLoading.value = false
+  }
+}, { deep: true, immediate: true })
 
 // 桌面图标
 const selectedIcon = ref('icon_0')
@@ -118,6 +141,12 @@ const resetDesktopIcon = () => { selectedIcon.value = 'icon_0'; ElMessage.succes
 // 初始化数据
 const initData = async () => {
   if (hasInitialized.value) return
+  
+  // 等待 userStore 初始化完成
+  if (!userStore.isInitialized) {
+    return // watch 会在初始化完成后再次调用
+  }
+  
   hasInitialized.value = true
   
   // 并行加载所有数据，提升加载速度
@@ -127,6 +156,7 @@ const initData = async () => {
     initUserData(userStore.user)
     promises.push(fetchUserVipInfo())
   } else {
+    // 即使没有用户数据，也要停止加载状态
     isLoading.value = false
   }
   
@@ -135,7 +165,19 @@ const initData = async () => {
 }
 
 onMounted(() => {
-  initData()
+  // 设置加载超时保护（10秒后强制停止加载状态）
+  loadingTimeout = setTimeout(() => {
+    if (isLoading.value) {
+      console.warn('加载超时，强制停止加载状态')
+      isLoading.value = false
+    }
+  }, 10000)
+  
+  // 如果 userStore 已初始化，直接加载数据
+  if (userStore.isInitialized) {
+    initData()
+  }
+  // 否则等待 watch 触发
 })
 
 // keep-alive 激活时滚动到顶部，只刷新未读消息数
@@ -146,9 +188,25 @@ onActivated(async () => {
     scrollContainer.value.scrollTop = 0
   }
   
+  // 清除之前的超时
+  if (loadingTimeout) {
+    clearTimeout(loadingTimeout)
+  }
+  
   if (hasInitialized.value) {
     // 只刷新未读消息数，不重新加载全部数据
     fetchUnreadCount()
+    
+    // 如果用户数据已更新，同步到本地
+    if (userStore.user) {
+      initUserData(userStore.user)
+    }
+  }
+})
+
+onUnmounted(() => {
+  if (loadingTimeout) {
+    clearTimeout(loadingTimeout)
   }
 })
 </script>

@@ -287,10 +287,25 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+$breakpoint-lg: 768px;
+$breakpoint-xl: 1024px;
+$breakpoint-xxl: 1280px;
+
 .favorites-page {
   min-height: 100vh;
   background: #0a0a0a;
   padding-bottom: env(safe-area-inset-bottom);
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 750px;
+    margin: 0 auto;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 900px;
+  }
+  @media (min-width: $breakpoint-xxl) {
+    max-width: 1100px;
+  }
 }
 
 .page-header {
@@ -394,12 +409,31 @@ onMounted(() => {
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   
+  @media (min-width: $breakpoint-lg) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (min-width: $breakpoint-xl) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  @media (min-width: $breakpoint-xxl) {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+  }
+  
   .favorite-item {
     position: relative;
     cursor: pointer;
     background: rgba(255, 255, 255, 0.03);
     border-radius: 8px;
     overflow: hidden;
+    transition: transform 0.2s;
+    
+    @media (hover: hover) {
+      &:hover {
+        transform: translateY(-3px);
+      }
+    }
     
     .checkbox {
       position: absolute;
@@ -537,6 +571,18 @@ onMounted(() => {
   background: #1a1a1a;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   
+  @media (min-width: $breakpoint-lg) {
+    max-width: 750px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 900px;
+  }
+  @media (min-width: $breakpoint-xxl) {
+    max-width: 1100px;
+  }
+  
   .select-all {
     display: flex;
     align-items: center;
@@ -594,6 +640,14 @@ onMounted(() => {
   border-radius: 12px;
   padding: 12px;
   cursor: pointer;
+  transition: transform 0.2s;
+  
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.08);
+    }
+  }
   
   .checkbox {
     position: absolute;
@@ -643,6 +697,11 @@ onMounted(() => {
       height: 80px;
       object-fit: cover;
       border-radius: 4px;
+      
+      @media (min-width: $breakpoint-lg) {
+        width: 100px;
+        height: 100px;
+      }
     }
   }
   

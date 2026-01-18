@@ -142,6 +142,10 @@ onMounted(() => {
   justify-content: space-between;
   padding: 16px;
   padding-top: calc(env(safe-area-inset-top, 16px) + 16px);
+  background: #0a0a0a;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   
   .back-btn {
     font-size: 28px;
@@ -254,6 +258,45 @@ onMounted(() => {
   padding: 16px;
   color: #a855f7;
   cursor: pointer;
+}
+
+// 响应式断点
+@media (min-width: 768px) {
+  .withdraw-history-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .history-item {
+    padding: 18px 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .withdraw-history-page {
+    max-width: 700px;
+  }
+  
+  .page-header {
+    max-width: 700px;
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .history-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  
+  .load-more:hover {
+    color: #c084fc;
+  }
 }
 </style>
 

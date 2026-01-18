@@ -7,7 +7,7 @@
         current-page="result"
         :show-search-box="true"
         v-model:keyword="keyword"
-        placeholder=""
+        placeholder="请输入关键字搜索......"
         @search="handleSearch"
       />
 

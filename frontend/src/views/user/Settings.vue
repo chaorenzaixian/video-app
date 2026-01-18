@@ -273,11 +273,23 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+$breakpoint-lg: 768px;
+$breakpoint-xl: 1024px;
+$breakpoint-xxl: 1280px;
+
 .settings-page {
   min-height: 100vh;
   background: #0a0a0a;
   color: #fff;
   padding-bottom: env(safe-area-inset-bottom, 20px);
+  
+  @media (min-width: $breakpoint-lg) {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 700px;
+  }
 }
 
 .page-header {
@@ -335,6 +347,12 @@ onMounted(() => {
   
   &:last-child {
     border-bottom: none;
+  }
+  
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
   }
   
   &:active {

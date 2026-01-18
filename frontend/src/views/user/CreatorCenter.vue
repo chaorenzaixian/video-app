@@ -721,4 +721,71 @@ onMounted(() => {
     transform: translateY(0);
   }
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .creator-center-page {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    max-width: 700px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .publish-btn {
+    right: calc(50% - 350px + 16px);
+  }
+  
+  .publish-modal .modal-content {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  
+  .video-list .video-item {
+    .video-cover {
+      width: 180px;
+      height: 100px;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .creator-center-page {
+    max-width: 800px;
+  }
+  
+  .page-header {
+    max-width: 800px;
+  }
+  
+  .publish-btn {
+    right: calc(50% - 400px + 16px);
+  }
+  
+  .publish-modal .modal-content {
+    max-width: 600px;
+  }
+  
+  .earnings-card {
+    padding: 24px 20px;
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .video-list .video-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  
+  .tab-item:hover {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  
+  .publish-option:hover {
+    transform: scale(1.05);
+  }
+}
 </style>

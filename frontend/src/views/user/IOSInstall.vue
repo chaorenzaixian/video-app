@@ -564,6 +564,64 @@ onMounted(() => {
 .fade-leave-to {
   opacity: 0;
 }
+
+/* 响应式优化 */
+@media (min-width: 768px) {
+  .ios-install-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+  }
+  
+  .container {
+    max-width: 450px;
+  }
+  
+  .app-icon {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .icon-inner {
+    font-size: 60px;
+    border-radius: 32px;
+  }
+  
+  .title {
+    font-size: 38px;
+  }
+  
+  .install-btn {
+    padding: 20px 36px;
+    font-size: 19px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 500px;
+  }
+}
+
+@media (hover: hover) {
+  .install-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 40px rgba(99, 102, 241, 0.5);
+  }
+  
+  .step:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  
+  .link:hover {
+    color: #a78bfa;
+  }
+  
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
 </style>
 
 

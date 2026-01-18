@@ -1,0 +1,300 @@
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:vod_app/core/services/token_manager.dart';
+import 'package:vod_app/core/services/js_bridge.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io' show Platform, File;
+
+/// WebView 页面容器
+class WebViewPage extends StatefulWidget {
+  final String url;
+  final String? title;
+  final bool showAppBar;
+  final bool enableEdgeSwipeBack;
+
+  const WebViewPage({
+    super.key,
+    required this.url,
+    this.title,
+    this.showAppBar = true,
+    this.enableEdgeSwipeBack = false,
+  });
+
+  @override
+  State<WebViewPage> createState() => _WebViewPageState();
+}
+
+class _WebViewPageState extends State<WebViewPage> {
+  late WebViewController _controller;
+  late JSBridge _jsBridge;
+  bool _isLoading = true;
+  bool _hasError = false;
+  int _loadingProgress = 0;
+  bool _mounted = true;
+  
+  // 边缘滑动返回相关
+  double _dragStartX = 0;
+  bool _isDragging = false;
+  static const double _edgeWidth = 30.0; // 左边缘触发区域宽度
+
+  @override
+  void initState() {
+    super.initState();
+    _initWebView();
+  }
+
+  @override
+  void dispose() {
+    _mounted = false;
+    super.dispose();
+  }
+
+  void _safeSetState(VoidCallback fn) {
+    if (_mounted && mounted) {
+      setState(fn);
+    }
+  }
+
+  void _initWebView() {
+    debugPrint('WebView 初始化: ${widget.url}');
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageStarted: (url) {
+          debugPrint('WebView 开始加载: $url');
+          _safeSetState(() {
+            _isLoading = true;
+            _hasError = false;
+          });
+        },
+        onPageFinished: (url) {
+          debugPrint('WebView 加载完成: $url');
+          _onPageLoaded();
+        },
+        onProgress: (progress) {
+          _safeSetState(() => _loadingProgress = progress);
+        },
+        onNavigationRequest: (request) {
+          debugPrint('WebView 导航请求: ${request.url}');
+          return NavigationDecision.navigate;
+        },
+        onWebResourceError: (error) {
+          // 只记录主框架错误，忽略资源加载错误（如视频、图片）
+          if (error.isForMainFrame == true) {
+            debugPrint('WebView 主框架错误: ${error.description}, URL: ${error.url}');
+            _safeSetState(() {
+              _hasError = true;
+              _isLoading = false;
+            });
+          }
+          // 资源加载错误不显示错误页面，只记录日志
+        },
+      ))
+      ..loadRequest(Uri.parse(widget.url));
+    
+    // Android 平台配置文件选择器
+    if (Platform.isAndroid) {
+      final androidController = _controller.platform as AndroidWebViewController;
+      androidController.setOnShowFileSelector((params) async {
+        debugPrint('文件选择器被调用: ${params.acceptTypes}');
+        
+        // 根据 acceptTypes 确定文件类型
+        FileType fileType = FileType.any;
+        List<String>? allowedExtensions;
+        
+        final acceptTypes = params.acceptTypes;
+        if (acceptTypes.isNotEmpty) {
+          final firstType = acceptTypes.first.toLowerCase();
+          if (firstType.contains('image')) {
+            fileType = FileType.image;
+          } else if (firstType.contains('video')) {
+            fileType = FileType.video;
+          } else if (firstType.contains('audio')) {
+            fileType = FileType.audio;
+          }
+        }
+        
+        try {
+          final result = await FilePicker.platform.pickFiles(
+            type: fileType,
+            allowMultiple: params.mode == FileSelectorMode.openMultiple,
+            allowedExtensions: allowedExtensions,
+          );
+          
+          if (result != null && result.files.isNotEmpty) {
+            final paths = result.files
+                .where((f) => f.path != null)
+                .map((f) => 'file://${f.path}')
+                .toList();
+            debugPrint('选择的文件: $paths');
+            return paths;
+          }
+        } catch (e) {
+          debugPrint('文件选择错误: $e');
+        }
+        
+        return [];
+      });
+    }
+
+    _jsBridge = JSBridge(
+      controller: _controller,
+      onNavigate: _handleNavigation,
+      onTokenUpdate: _handleTokenUpdate,
+    );
+    _jsBridge.init();
+  }
+
+  Future<void> _onPageLoaded() async {
+    if (!_mounted || !mounted) return;
+    
+    // 注入 Token
+    try {
+      final script = TokenManager().generateTokenInjectionScript();
+      if (script.isNotEmpty) {
+        await _controller.runJavaScript(script);
+      }
+    } catch (e) {
+      debugPrint('Token 注入失败: $e');
+    }
+    
+    _safeSetState(() => _isLoading = false);
+  }
+
+  void _handleNavigation(String route, Map<String, dynamic>? params) {
+    // 通过 Navigator 处理导航
+    Navigator.pushNamed(context, route, arguments: params);
+  }
+
+  void _handleTokenUpdate(String token) {
+    TokenManager().setToken(token);
+  }
+
+  Future<bool> _onWillPop() async {
+    if (await _controller.canGoBack()) {
+      await _controller.goBack();
+      return false;
+    }
+    return true;
+  }
+
+  // 处理边缘滑动开始
+  void _onHorizontalDragStart(DragStartDetails details) {
+    if (!widget.enableEdgeSwipeBack) return;
+    
+    // 只在左边缘触发
+    if (details.localPosition.dx <= _edgeWidth) {
+      _dragStartX = details.localPosition.dx;
+      _isDragging = true;
+    }
+  }
+
+  // 处理边缘滑动更新
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    // 可以在这里添加滑动动画效果
+  }
+
+  // 处理边缘滑动结束
+  void _onHorizontalDragEnd(DragEndDetails details) async {
+    if (!_isDragging) return;
+    _isDragging = false;
+    
+    // 检查滑动速度，如果向右滑动且速度足够快，执行返回
+    if (details.velocity.pixelsPerSecond.dx > 200) {
+      if (await _controller.canGoBack()) {
+        await _controller.goBack();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget webViewContent = Stack(
+      children: [
+        WebViewWidget(controller: _controller),
+        if (_isLoading && _loadingProgress < 100)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: LinearProgressIndicator(
+              value: _loadingProgress / 100,
+            ),
+          ),
+        if (_hasError) _buildErrorWidget(),
+        // 左边缘滑动检测区域
+        if (widget.enableEdgeSwipeBack)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: _edgeWidth,
+            child: GestureDetector(
+              onHorizontalDragStart: _onHorizontalDragStart,
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+              behavior: HitTestBehavior.translucent,
+            ),
+          ),
+      ],
+    );
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final canPop = await _onWillPop();
+        if (canPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: widget.showAppBar
+            ? AppBar(
+                title: Text(widget.title ?? ''),
+                actions: [
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                ],
+              )
+            : null,
+        body: webViewContent,
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            const Text('页面加载失败', style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _hasError = false;
+                  _isLoading = true;
+                });
+                _controller.reload();
+              },
+              child: const Text('重试'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

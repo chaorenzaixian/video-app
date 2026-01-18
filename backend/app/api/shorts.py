@@ -81,9 +81,19 @@ async def get_short_videos(
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    """获取短视频列表（推荐流）"""
+    """获取短视频列表（推荐流）- 优化版：添加缓存"""
+    from app.services.cache_service import CacheService, CacheTTL
+    
     # 使用 short_category_id，兼容 category_id
     filter_category_id = short_category_id or category_id
+    
+    # 未登录用户的热门短视频使用缓存
+    use_cache = not current_user and not uploader_id and page == 1
+    if use_cache:
+        cache_key = f"shorts:list:{filter_category_id or 'all'}:{limit}"
+        cached = await CacheService.get(cache_key)
+        if cached:
+            return ShortVideoListResponse(**cached)
     
     # 构建查询
     query = select(Video).where(
@@ -212,13 +222,53 @@ async def get_short_videos(
             created_at=v.created_at
         ))
     
-    return ShortVideoListResponse(
+    response = ShortVideoListResponse(
         items=items,
         total=total,
         page=page,
         limit=limit,
         has_more=(page * limit) < total
     )
+    
+    # 缓存未登录用户的结果
+    if use_cache and items:
+        cache_data = {
+            "items": [
+                {
+                    "id": item.id,
+                    "title": item.title,
+                    "description": item.description,
+                    "cover_url": item.cover_url,
+                    "video_url": item.video_url,
+                    "hls_url": item.hls_url,
+                    "duration": item.duration,
+                    "view_count": item.view_count,
+                    "like_count": item.like_count,
+                    "favorite_count": item.favorite_count,
+                    "comment_count": item.comment_count,
+                    "share_count": item.share_count,
+                    "is_vip_only": item.is_vip_only,
+                    "coin_price": item.coin_price,
+                    "uploader_id": item.uploader_id,
+                    "uploader_nickname": item.uploader_nickname,
+                    "uploader_avatar": item.uploader_avatar,
+                    "is_liked": False,
+                    "is_favorited": False,
+                    "is_followed": False,
+                    "is_purchased": False,
+                    "trial_seconds": item.trial_seconds,
+                    "created_at": item.created_at.isoformat() if item.created_at else None
+                }
+                for item in items
+            ],
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "has_more": (page * limit) < total
+        }
+        await CacheService.set(cache_key, cache_data, CacheTTL.SHORT)  # 1分钟缓存
+    
+    return response
 
 
 # ============== 短视频分类 API ==============

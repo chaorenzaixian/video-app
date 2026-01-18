@@ -306,10 +306,13 @@ class Novel(Base):
 class NovelChapter(Base):
     """小说章节"""
     __tablename__ = "novel_chapters"
+    __table_args__ = (
+        Index('ix_novel_chapters_novel_chapter', 'novel_id', 'chapter_num'),  # 复合索引
+    )
     
     id = Column(Integer, primary_key=True, index=True)
     novel_id = Column(Integer, ForeignKey("novels.id", ondelete="CASCADE"), nullable=False, index=True)
-    chapter_num = Column(Integer, nullable=False)
+    chapter_num = Column(Integer, nullable=False, index=True)  # 添加索引
     title = Column(String(200), nullable=False)
     content = Column(Text, nullable=True)  # 文字内容
     audio_url = Column(String(500), nullable=True)  # 音频URL

@@ -256,4 +256,44 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.5);
   font-size: 14px;
 }
+
+// 响应式断点
+@media (min-width: 768px) {
+  .official-groups-page {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .header {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .group-item {
+    padding: 18px 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .official-groups-page {
+    max-width: 700px;
+  }
+  
+  .header {
+    max-width: 700px;
+  }
+}
+
+// 触摸设备优化
+@media (hover: hover) {
+  .group-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  
+  .join-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+}
 </style>

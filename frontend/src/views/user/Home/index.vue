@@ -498,6 +498,16 @@ $breakpoint-xxl: 1280px;
   grid-template-columns: repeat(4, 1fr);
   gap: clamp(6px, 2vw, 12px);
   
+  @media (min-width: $breakpoint-lg) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  @media (min-width: $breakpoint-xl) {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  @media (min-width: $breakpoint-xxl) {
+    grid-template-columns: repeat(8, 1fr);
+  }
+  
   .tag-item {
     padding: clamp(6px, 2vw, 10px) clamp(2px, 1vw, 6px);
     background: rgba(255, 255, 255, 0.08);
@@ -512,6 +522,13 @@ $breakpoint-xxl: 1280px;
     &:hover {
       background: linear-gradient(135deg, #a855f7, #7c3aed);
       transform: translateY(-1px);
+    }
+    
+    @media (hover: none) {
+      &:active {
+        background: linear-gradient(135deg, #a855f7, #7c3aed);
+        transform: translateY(-1px);
+      }
     }
   }
 }
@@ -614,6 +631,12 @@ $breakpoint-xxl: 1280px;
     left: 50%;
     transform: translateX(-50%);
   }
+  @media (min-width: $breakpoint-xl) {
+    max-width: 900px;
+  }
+  @media (min-width: $breakpoint-xxl) {
+    max-width: 1200px;
+  }
   
   .promo-icon { width: 28px; height: 28px; svg { width: 100%; height: 100%; } }
   
@@ -653,8 +676,23 @@ $breakpoint-xxl: 1280px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 224, 255, 0.3);
   transition: transform 0.3s ease;
   
+  @media (min-width: $breakpoint-lg) {
+    width: 70px;
+    height: 70px;
+    right: calc(50% - 375px + 16px);
+  }
+  @media (min-width: $breakpoint-xl) {
+    right: calc(50% - 450px + 16px);
+  }
+  @media (min-width: $breakpoint-xxl) {
+    right: calc(50% - 600px + 20px);
+  }
+  
   img { width: 100%; height: 100%; object-fit: cover; }
-  &:hover { transform: scale(1.1); }
+  
+  @media (hover: hover) {
+    &:hover { transform: scale(1.1); }
+  }
   &:active { transform: scale(0.95); }
 }
 

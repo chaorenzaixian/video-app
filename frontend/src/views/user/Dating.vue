@@ -347,6 +347,9 @@ watch(activeMainTab, (newTab) => {
   padding: 12px 16px;
   background: #0a0a0a;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
   
   .tab-item {
     display: flex;
@@ -919,6 +922,43 @@ watch(activeMainTab, (newTab) => {
   
   .host-grid {
     grid-template-columns: repeat(6, 1fr);
+  }
+  
+  .live-page .live-banner-frame .host-grid-overlay {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .dating-page {
+    max-width: 1100px;
+  }
+  
+  .user-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  
+  .host-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+  
+  .live-page .live-banner-frame .host-grid-overlay {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+// 触摸设备优化
+@media (hover: none) and (pointer: coarse) {
+  .group-card:hover,
+  .user-card:hover,
+  .host-card:hover {
+    transform: none;
+  }
+  
+  .group-card:active,
+  .user-card:active,
+  .host-card:active {
+    transform: scale(0.98);
   }
 }
 </style>

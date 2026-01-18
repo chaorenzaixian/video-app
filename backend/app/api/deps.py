@@ -19,16 +19,10 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ) -> User:
-    """获取当前用户"""
+    """获取当前用户（优化版：并行检查黑名单）"""
+    import asyncio
+    
     token = credentials.credentials
-    
-    # 检查令牌是否在黑名单中
-    if await TokenBlacklist.is_blacklisted(token):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="令牌已失效，请重新登录"
-        )
-    
     payload = decode_token(token)
     
     if payload is None:
@@ -50,15 +44,34 @@ async def get_current_user(
             detail="无效的令牌内容"
         )
     
-    # 检查用户是否被全局黑名单（强制登出所有设备）
-    if await TokenBlacklist.is_user_blacklisted(int(user_id)):
+    # 并行检查：令牌黑名单 + 用户黑名单 + 查询用户
+    async def check_token_blacklist():
+        return await TokenBlacklist.is_blacklisted(token)
+    
+    async def check_user_blacklist():
+        return await TokenBlacklist.is_user_blacklisted(int(user_id))
+    
+    async def get_user():
+        result = await db.execute(select(User).where(User.id == int(user_id)))
+        return result.scalar_one_or_none()
+    
+    token_blacklisted, user_blacklisted, user = await asyncio.gather(
+        check_token_blacklist(),
+        check_user_blacklist(),
+        get_user()
+    )
+    
+    if token_blacklisted:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="令牌已失效，请重新登录"
+        )
+    
+    if user_blacklisted:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="账号已在其他地方登出，请重新登录"
         )
-    
-    result = await db.execute(select(User).where(User.id == int(user_id)))
-    user = result.scalar_one_or_none()
     
     if user is None:
         raise HTTPException(
