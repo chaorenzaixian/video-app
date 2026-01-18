@@ -246,7 +246,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, onActivated, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, onActivated, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
@@ -278,6 +278,7 @@ const filterTabsRef = ref(null)
 const filterPlaceholderRef = ref(null)
 const isFilterFixed = ref(false)
 let filterTabsOriginalTop = 0  // 筛选栏原始位置（相对于文档顶部）
+let contentObserver = null  // MutationObserver 用于监听内容变化
 
 // 更新筛选栏原始位置
 const updateFilterOriginalTop = () => {
@@ -285,11 +286,44 @@ const updateFilterOriginalTop = () => {
     const rect = filterTabsRef.value.getBoundingClientRect()
     const scrollTop = window.scrollY || document.documentElement.scrollTop
     filterTabsOriginalTop = rect.top + scrollTop
+    console.log('[Community] 更新筛选栏位置:', filterTabsOriginalTop)
   } else if (filterPlaceholderRef.value) {
     const rect = filterPlaceholderRef.value.getBoundingClientRect()
     const scrollTop = window.scrollY || document.documentElement.scrollTop
     filterTabsOriginalTop = rect.top + scrollTop
+    console.log('[Community] 从占位符更新筛选栏位置:', filterTabsOriginalTop)
   }
+}
+
+// 设置内容观察器，监听DOM变化后更新筛选栏位置
+const setupContentObserver = () => {
+  if (contentObserver) {
+    contentObserver.disconnect()
+  }
+  
+  // 获取内容区域的父元素
+  const communityPage = document.querySelector('.community-page')
+  if (!communityPage) return
+  
+  contentObserver = new MutationObserver(() => {
+    // DOM 变化后延迟更新位置
+    nextTick(() => {
+      updateFilterOriginalTop()
+    })
+  })
+  
+  contentObserver.observe(communityPage, {
+    childList: true,
+    subtree: true
+  })
+  
+  // 5秒后停止观察，避免持续消耗性能
+  setTimeout(() => {
+    if (contentObserver) {
+      contentObserver.disconnect()
+      contentObserver = null
+    }
+  }, 5000)
 }
 
 // 处理滚动，控制筛选栏固定
@@ -382,12 +416,6 @@ const fetchIconAds = async () => {
   try {
     const res = await api.get('/ads/icons')
     iconAds.value = res.data || []
-    // 广告加载完成后，更新筛选栏原始位置
-    nextTick(() => {
-      setTimeout(() => {
-        updateFilterOriginalTop()
-      }, 100)
-    })
   } catch (e) {
     console.error('获取广告失败', e)
   }
@@ -417,13 +445,6 @@ const fetchCategories = async () => {
         })
       }
     })
-    
-    // 分类加载完成后，多次更新筛选栏原始位置（确保所有内容渲染完成）
-    nextTick(() => {
-      updateFilterOriginalTop()
-      setTimeout(() => updateFilterOriginalTop(), 200)
-      setTimeout(() => updateFilterOriginalTop(), 500)
-    })
   } catch (e) {
     console.error('获取分类失败', e)
     // 如果API不存在，使用旧的话题接口
@@ -444,13 +465,6 @@ const fetchTopicsLegacy = async () => {
     }
     
     data.forEach(t => { topicsMap.value[t.id] = t.name })
-    
-    // 分类加载完成后，多次更新筛选栏原始位置
-    nextTick(() => {
-      updateFilterOriginalTop()
-      setTimeout(() => updateFilterOriginalTop(), 200)
-      setTimeout(() => updateFilterOriginalTop(), 500)
-    })
   } catch (e) {
     console.error('获取话题失败', e)
   }
@@ -669,12 +683,10 @@ onMounted(() => {
     fetchNovels()
   }
   
-  // 多次延迟初始化筛选栏原始位置，确保所有异步数据加载完成后 DOM 已渲染
+  // 设置内容观察器，监听DOM变化
   nextTick(() => {
+    setupContentObserver()
     updateFilterOriginalTop()
-    setTimeout(() => updateFilterOriginalTop(), 300)
-    setTimeout(() => updateFilterOriginalTop(), 600)
-    setTimeout(() => updateFilterOriginalTop(), 1000)
   })
   
   // 监听滚动
@@ -683,20 +695,31 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
+  if (contentObserver) {
+    contentObserver.disconnect()
+    contentObserver = null
+  }
 })
+
+// 监听关键数据变化，更新筛选栏位置
+watch([topCategories, iconAds, currentSubTopics], () => {
+  nextTick(() => {
+    setTimeout(() => updateFilterOriginalTop(), 100)
+  })
+}, { deep: true })
 
 // 处理 keep-alive 缓存恢复时重新初始化
 onActivated(() => {
   nextTick(() => {
     // 重置筛选栏固定状态
     isFilterFixed.value = false
-    // 延迟更新筛选栏原始位置（确保数据已加载、DOM已渲染）
+    // 重新设置观察器
+    setupContentObserver()
+    // 延迟更新筛选栏原始位置
     setTimeout(() => {
       updateFilterOriginalTop()
       handleScroll()
     }, 100)
-    setTimeout(() => updateFilterOriginalTop(), 300)
-    setTimeout(() => updateFilterOriginalTop(), 600)
   })
 })
 </script>
