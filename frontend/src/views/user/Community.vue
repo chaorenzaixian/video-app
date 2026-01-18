@@ -375,6 +375,11 @@ const fetchCategories = async () => {
         })
       }
     })
+    
+    // 分类加载完成后重新计算头部高度
+    nextTick(() => {
+      updateHeaderHeight()
+    })
   } catch (e) {
     console.error('获取分类失败', e)
     // 如果API不存在，使用旧的话题接口
@@ -395,6 +400,11 @@ const fetchTopicsLegacy = async () => {
     }
     
     data.forEach(t => { topicsMap.value[t.id] = t.name })
+    
+    // 分类加载完成后重新计算头部高度
+    nextTick(() => {
+      updateHeaderHeight()
+    })
   } catch (e) {
     console.error('获取话题失败', e)
   }
@@ -847,22 +857,9 @@ onBeforeUnmount(() => {
   }
 }
 
-/* 筛选标签 */
-.filter-tabs {
-  display: flex;
-  gap: 24px;
-  padding: 10px 16px 12px;
-  border-bottom: 1px solid #1a1a1a;
-  background: #0d0d0d;
-  transition: none;
-  
-  /* 固定状态 */
-  &.is-fixed {
-    position: fixed;
-    left: 0;
-    right: 0;
 /* 筛选标签 - sticky 定位，滚动时吸附在固定头部下方 */
 .filter-tabs-sticky {
+  position: -webkit-sticky;
   position: sticky;
   z-index: 99;
   display: flex;
@@ -870,6 +867,20 @@ onBeforeUnmount(() => {
   padding: 10px 16px 12px;
   border-bottom: 1px solid #1a1a1a;
   background: #0d0d0d;
+  
+  @media (min-width: 768px) {
+    max-width: 750px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  @media (min-width: 1024px) {
+    max-width: 900px;
+  }
+  
+  @media (min-width: 1280px) {
+    max-width: 1200px;
+  }
 }
 
 .filter-tab {
