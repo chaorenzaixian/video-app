@@ -129,6 +129,41 @@
             <el-divider />
           </div>
           
+          <!-- Mobileconfig 上传区域 -->
+          <div class="mobileconfig-upload-section">
+            <el-divider content-position="left">上传 Mobileconfig 配置文件</el-divider>
+            <el-upload
+              :action="mobileconfigUploadUrl"
+              :headers="uploadHeaders"
+              :show-file-list="false"
+              :on-success="handleMobileconfigUploadSuccess"
+              :on-error="handleMobileconfigUploadError"
+              :on-progress="handleMobileconfigUploadProgress"
+              :before-upload="beforeMobileconfigUpload"
+              accept=".mobileconfig"
+            >
+              <el-button type="success" :loading="mobileconfigUploading">
+                <el-icon><Upload /></el-icon>
+                {{ mobileconfigUploading ? '上传中...' : '选择 Mobileconfig 文件' }}
+              </el-button>
+            </el-upload>
+            <el-progress 
+              v-if="mobileconfigUploadProgress > 0 && mobileconfigUploadProgress < 100" 
+              :percentage="mobileconfigUploadProgress" 
+              :stroke-width="10"
+              style="margin-top: 10px"
+            />
+            <div v-if="lastUploadedMobileconfig" class="uploaded-mobileconfig-info">
+              <el-tag type="success">
+                已上传: {{ lastUploadedMobileconfig.filename }} ({{ lastUploadedMobileconfig.size_kb }}KB)
+              </el-tag>
+              <el-button size="small" type="primary" text @click="useUploadedMobileconfig">
+                使用此链接
+              </el-button>
+            </div>
+            <el-divider />
+          </div>
+          
           <el-form label-width="120px">
             <el-form-item label="App Store">
               <el-input v-model="config.ios_links.appstore" placeholder="https://apps.apple.com/..." />
@@ -346,10 +381,14 @@ const ipaUploading = ref(false)
 const ipaUploadProgress = ref(0)
 const lastUploadedIpa = ref(null)
 const ipaUploadRef = ref(null)
+const mobileconfigUploading = ref(false)
+const mobileconfigUploadProgress = ref(0)
+const lastUploadedMobileconfig = ref(null)
 
 const uploadUrl = computed(() => '/api/v1/download-page/admin/upload')
 const apkUploadUrl = computed(() => '/api/v1/download-page/admin/upload-apk')
 const ipaUploadUrl = computed(() => '/api/v1/download-page/admin/upload-ipa')
+const mobileconfigUploadUrl = computed(() => '/api/v1/download-page/admin/upload-mobileconfig')
 const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`
 }))
@@ -511,10 +550,55 @@ const handleIpaUploadError = (error) => {
 const useUploadedIpa = () => {
   if (!lastUploadedIpa.value) return
   
-  // 更新 mobileconfig 链接为 IPA 下载地址
-  config.ios_links.mobileconfig = lastUploadedIpa.value.url
+  // 更新 App Store 链接为 IPA 下载地址
+  config.ios_links.appstore = lastUploadedIpa.value.url
+  config.ios_links.appstore_active = true
+  ElMessage.success('已更新 iOS IPA 下载链接')
+}
+
+// Mobileconfig 上传相关方法
+const beforeMobileconfigUpload = (file) => {
+  const isMobileconfig = file.name.toLowerCase().endsWith('.mobileconfig')
+  if (!isMobileconfig) {
+    ElMessage.error('只能上传 mobileconfig 格式文件')
+    return false
+  }
+  const isLt10M = file.size / 1024 / 1024 < 10
+  if (!isLt10M) {
+    ElMessage.error('mobileconfig 文件大小不能超过 10MB')
+    return false
+  }
+  mobileconfigUploading.value = true
+  mobileconfigUploadProgress.value = 0
+  return true
+}
+
+const handleMobileconfigUploadProgress = (event) => {
+  mobileconfigUploadProgress.value = Math.round(event.percent || 0)
+}
+
+const handleMobileconfigUploadSuccess = (res) => {
+  mobileconfigUploading.value = false
+  mobileconfigUploadProgress.value = 100
+  if (res.url) {
+    lastUploadedMobileconfig.value = res
+    ElMessage.success(`Mobileconfig 上传成功: ${res.filename} (${res.size_kb}KB)`)
+  }
+}
+
+const handleMobileconfigUploadError = (error) => {
+  mobileconfigUploading.value = false
+  mobileconfigUploadProgress.value = 0
+  ElMessage.error('Mobileconfig 上传失败: ' + (error.message || '未知错误'))
+}
+
+const useUploadedMobileconfig = () => {
+  if (!lastUploadedMobileconfig.value) return
+  
+  // 更新 mobileconfig 链接
+  config.ios_links.mobileconfig = lastUploadedMobileconfig.value.url
   config.ios_links.mobileconfig_active = true
-  ElMessage.success('已更新 iOS 下载链接')
+  ElMessage.success('已更新 Mobileconfig 链接')
 }
 
 const generateQRCode = async () => {
@@ -596,6 +680,15 @@ onMounted(() => {
   margin-bottom: 15px;
 }
 .uploaded-ipa-info {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mobileconfig-upload-section {
+  margin-bottom: 15px;
+}
+.uploaded-mobileconfig-info {
   margin-top: 10px;
   display: flex;
   align-items: center;

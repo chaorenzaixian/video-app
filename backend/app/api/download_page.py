@@ -646,3 +646,69 @@ async def delete_ipa(
         return {"message": "删除成功"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除失败: {str(e)}")
+
+
+# Mobileconfig 上传配置
+MOBILECONFIG_UPLOAD_DIR = "/www/wwwroot/app-download"
+MOBILECONFIG_MAX_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+@router.post("/admin/upload-mobileconfig")
+async def upload_mobileconfig(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_admin_user)
+):
+    """上传 iOS mobileconfig 配置文件"""
+    import os
+    import aiofiles
+    
+    # 验证文件扩展名
+    if not file.filename or not file.filename.lower().endswith('.mobileconfig'):
+        raise HTTPException(
+            status_code=400,
+            detail="只支持 mobileconfig 格式文件"
+        )
+    
+    # 读取文件内容
+    content = await file.read()
+    file_size = len(content)
+    
+    # 验证文件大小
+    if file_size > MOBILECONFIG_MAX_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"mobileconfig 文件大小不能超过 10MB，当前文件大小: {file_size / 1024 / 1024:.1f}MB"
+        )
+    
+    # 生成安全的文件名
+    import re
+    from datetime import datetime
+    
+    original_name = file.filename.rsplit('.', 1)[0]
+    safe_name = re.sub(r'[^\w\-]', '_', original_name)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{safe_name}_{timestamp}.mobileconfig"
+    
+    # 确保目录存在
+    os.makedirs(MOBILECONFIG_UPLOAD_DIR, exist_ok=True)
+    
+    # 保存文件
+    filepath = os.path.join(MOBILECONFIG_UPLOAD_DIR, filename)
+    async with aiofiles.open(filepath, "wb") as f:
+        await f.write(content)
+    
+    # 设置文件权限
+    try:
+        os.chmod(filepath, 0o644)
+    except:
+        pass
+    
+    # 返回下载 URL
+    download_url = f"http://38.47.218.230/{filename}"
+    
+    return {
+        "url": download_url,
+        "filename": filename,
+        "size": file_size,
+        "size_kb": round(file_size / 1024, 2)
+    }
