@@ -65,7 +65,7 @@
     </header>
 
     <!-- 头部占位 -->
-    <div class="header-placeholder"></div>
+    <div class="header-placeholder" :style="{ height: fixedHeaderHeight + 'px' }"></div>
 
     <!-- 图标广告位 -->
     <div class="promo-grid-fixed" v-if="iconAds.length">
@@ -120,6 +120,7 @@
     <div 
       ref="filterTabsRef"
       :class="['filter-tabs-wrapper', { 'is-fixed': isFilterFixed }]"
+      :style="isFilterFixed ? { top: fixedHeaderHeight + 'px' } : {}"
       v-if="activeMainTab === 'community'"
     >
       <span 
@@ -734,7 +735,7 @@ onActivated(() => {
 /* 头部占位 */
 .header-placeholder {
   width: 100%;
-  height: var(--community-header-height, 90px);
+  /* 高度通过 :style 动态绑定 */
 }
 
 /* 顶部导航 - 固定定位 */
@@ -954,7 +955,7 @@ onActivated(() => {
   
   &.is-fixed {
     position: fixed;
-    top: var(--community-header-height, 90px);
+    /* top 通过 :style 动态绑定 */
     left: 0;
     right: 0;
     z-index: 99;
