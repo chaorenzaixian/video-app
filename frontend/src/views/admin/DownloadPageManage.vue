@@ -92,6 +92,43 @@
           <template #header>
             <span>iOS 下载链接</span>
           </template>
+          
+          <!-- IPA 上传区域 -->
+          <div class="ipa-upload-section">
+            <el-divider content-position="left">上传 IPA 安装包</el-divider>
+            <el-upload
+              ref="ipaUploadRef"
+              :action="ipaUploadUrl"
+              :headers="uploadHeaders"
+              :show-file-list="false"
+              :on-success="handleIpaUploadSuccess"
+              :on-error="handleIpaUploadError"
+              :on-progress="handleIpaUploadProgress"
+              :before-upload="beforeIpaUpload"
+              accept=".ipa"
+            >
+              <el-button type="success" :loading="ipaUploading">
+                <el-icon><Upload /></el-icon>
+                {{ ipaUploading ? '上传中...' : '选择 IPA 文件' }}
+              </el-button>
+            </el-upload>
+            <el-progress 
+              v-if="ipaUploadProgress > 0 && ipaUploadProgress < 100" 
+              :percentage="ipaUploadProgress" 
+              :stroke-width="10"
+              style="margin-top: 10px"
+            />
+            <div v-if="lastUploadedIpa" class="uploaded-ipa-info">
+              <el-tag type="success">
+                已上传: {{ lastUploadedIpa.filename }} ({{ lastUploadedIpa.size_mb }}MB)
+              </el-tag>
+              <el-button size="small" type="primary" text @click="useUploadedIpa">
+                使用此链接
+              </el-button>
+            </div>
+            <el-divider />
+          </div>
+          
           <el-form label-width="120px">
             <el-form-item label="App Store">
               <el-input v-model="config.ios_links.appstore" placeholder="https://apps.apple.com/..." />
@@ -305,9 +342,14 @@ const apkUploading = ref(false)
 const apkUploadProgress = ref(0)
 const lastUploadedApk = ref(null)
 const apkUploadRef = ref(null)
+const ipaUploading = ref(false)
+const ipaUploadProgress = ref(0)
+const lastUploadedIpa = ref(null)
+const ipaUploadRef = ref(null)
 
 const uploadUrl = computed(() => '/api/v1/download-page/admin/upload')
 const apkUploadUrl = computed(() => '/api/v1/download-page/admin/upload-apk')
+const ipaUploadUrl = computed(() => '/api/v1/download-page/admin/upload-ipa')
 const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`
 }))
@@ -430,6 +472,51 @@ const useUploadedApk = () => {
   }
 }
 
+// IPA 上传相关方法
+const beforeIpaUpload = (file) => {
+  const isIpa = file.name.toLowerCase().endsWith('.ipa')
+  if (!isIpa) {
+    ElMessage.error('只能上传 IPA 格式文件')
+    return false
+  }
+  const isLt500M = file.size / 1024 / 1024 < 500
+  if (!isLt500M) {
+    ElMessage.error('IPA 文件大小不能超过 500MB')
+    return false
+  }
+  ipaUploading.value = true
+  ipaUploadProgress.value = 0
+  return true
+}
+
+const handleIpaUploadProgress = (event) => {
+  ipaUploadProgress.value = Math.round(event.percent || 0)
+}
+
+const handleIpaUploadSuccess = (res) => {
+  ipaUploading.value = false
+  ipaUploadProgress.value = 100
+  if (res.url) {
+    lastUploadedIpa.value = res
+    ElMessage.success(`IPA 上传成功: ${res.filename} (${res.size_mb}MB)`)
+  }
+}
+
+const handleIpaUploadError = (error) => {
+  ipaUploading.value = false
+  ipaUploadProgress.value = 0
+  ElMessage.error('IPA 上传失败: ' + (error.message || '未知错误'))
+}
+
+const useUploadedIpa = () => {
+  if (!lastUploadedIpa.value) return
+  
+  // 更新 mobileconfig 链接为 IPA 下载地址
+  config.ios_links.mobileconfig = lastUploadedIpa.value.url
+  config.ios_links.mobileconfig_active = true
+  ElMessage.success('已更新 iOS 下载链接')
+}
+
 const generateQRCode = async () => {
   if (!config.qrcode.url) {
     ElMessage.warning('请输入二维码目标 URL')
@@ -500,6 +587,15 @@ onMounted(() => {
   margin-bottom: 15px;
 }
 .uploaded-apk-info {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ipa-upload-section {
+  margin-bottom: 15px;
+}
+.uploaded-ipa-info {
   margin-top: 10px;
   display: flex;
   align-items: center;

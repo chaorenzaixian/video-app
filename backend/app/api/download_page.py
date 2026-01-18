@@ -543,3 +543,106 @@ async def delete_apk(
         return {"message": "删除成功"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除失败: {str(e)}")
+
+
+# IPA 上传配置
+IPA_UPLOAD_DIR = "/www/wwwroot/app-download"
+IPA_MAX_SIZE = 500 * 1024 * 1024  # 500MB (iOS 应用通常较大)
+
+
+@router.post("/admin/upload-ipa")
+async def upload_ipa(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_admin_user)
+):
+    """上传 iOS IPA 安装包"""
+    import os
+    import aiofiles
+    
+    # 验证文件扩展名
+    if not file.filename or not file.filename.lower().endswith('.ipa'):
+        raise HTTPException(
+            status_code=400,
+            detail="只支持 IPA 格式文件"
+        )
+    
+    # 读取文件内容
+    content = await file.read()
+    file_size = len(content)
+    
+    # 验证文件大小
+    if file_size > IPA_MAX_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"IPA 文件大小不能超过 500MB，当前文件大小: {file_size / 1024 / 1024:.1f}MB"
+        )
+    
+    # 生成安全的文件名
+    import re
+    from datetime import datetime
+    
+    original_name = file.filename.rsplit('.', 1)[0]
+    safe_name = re.sub(r'[^\w\-]', '_', original_name)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{safe_name}_{timestamp}.ipa"
+    
+    # 确保目录存在
+    os.makedirs(IPA_UPLOAD_DIR, exist_ok=True)
+    
+    # 保存文件
+    filepath = os.path.join(IPA_UPLOAD_DIR, filename)
+    async with aiofiles.open(filepath, "wb") as f:
+        await f.write(content)
+    
+    # 设置文件权限
+    try:
+        os.chmod(filepath, 0o644)
+    except:
+        pass
+    
+    # 返回下载 URL
+    download_url = f"http://38.47.218.230/{filename}"
+    
+    # 生成 itms-services 安装链接 (用于 iOS 企业分发)
+    plist_url = f"http://38.47.218.230/{filename.replace('.ipa', '.plist')}"
+    install_url = f"itms-services://?action=download-manifest&url={plist_url}"
+    
+    return {
+        "url": download_url,
+        "filename": filename,
+        "size": file_size,
+        "size_mb": round(file_size / 1024 / 1024, 2),
+        "install_url": install_url,
+        "plist_url": plist_url
+    }
+
+
+@router.delete("/admin/ipa/{filename}")
+async def delete_ipa(
+    filename: str,
+    current_user: User = Depends(get_admin_user)
+):
+    """删除 IPA 文件"""
+    import os
+    
+    # 验证文件名安全性
+    if '..' in filename or '/' in filename or '\\' in filename:
+        raise HTTPException(status_code=400, detail="无效的文件名")
+    
+    if not filename.lower().endswith('.ipa'):
+        raise HTTPException(status_code=400, detail="只能删除 IPA 文件")
+    
+    filepath = os.path.join(IPA_UPLOAD_DIR, filename)
+    
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    try:
+        os.remove(filepath)
+        # 同时删除对应的 plist 文件
+        plist_path = filepath.replace('.ipa', '.plist')
+        if os.path.exists(plist_path):
+            os.remove(plist_path)
+        return {"message": "删除成功"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除失败: {str(e)}")
