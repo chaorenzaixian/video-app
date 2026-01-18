@@ -116,10 +116,11 @@
       </div>
     </div>
 
-    <!-- 筛选标签 - 使用 sticky 定位，滚动到顶部时吸附在固定头部下方 -->
+    <!-- 筛选标签 - 滚动到顶部时固定在头部下方 -->
     <div 
-      class="filter-tabs-sticky" 
-      :style="{ top: fixedHeaderHeight + 'px' }"
+      ref="filterTabsRef"
+      :class="['filter-tabs-wrapper', { 'is-fixed': isFilterFixed }]"
+      :style="isFilterFixed ? { top: fixedHeaderHeight + 'px' } : {}"
       v-if="activeMainTab === 'community'"
     >
       <span 
@@ -129,6 +130,12 @@
         @click="activeFilter = filter.value; fetchPosts(true)"
       >{{ filter.label }}</span>
     </div>
+    <!-- 筛选栏占位符 - 当筛选栏固定时保持布局 -->
+    <div 
+      class="filter-tabs-placeholder" 
+      v-if="activeMainTab === 'community' && isFilterFixed"
+      :style="{ height: filterTabsHeight + 'px' }"
+    ></div>
 
     <!-- 内容区域 -->
     <div class="content-area">
@@ -267,10 +274,45 @@ const getVipIcon = (level) => getVipLevelIcon(level)
 const fixedHeaderRef = ref(null)
 const fixedHeaderHeight = ref(0)
 
+// 筛选栏固定相关
+const filterTabsRef = ref(null)
+const isFilterFixed = ref(false)
+const filterTabsHeight = ref(0)
+const filterTabsOriginalTop = ref(0)
+
 // 计算固定头部高度
 const updateHeaderHeight = () => {
   if (fixedHeaderRef.value) {
     fixedHeaderHeight.value = fixedHeaderRef.value.offsetHeight
+  }
+}
+
+// 更新筛选栏位置信息
+const updateFilterPosition = () => {
+  if (filterTabsRef.value && !isFilterFixed.value) {
+    const rect = filterTabsRef.value.getBoundingClientRect()
+    filterTabsHeight.value = filterTabsRef.value.offsetHeight
+    // 计算筛选栏相对于文档顶部的原始位置
+    filterTabsOriginalTop.value = rect.top + window.scrollY
+  }
+}
+
+// 滚动处理 - 判断是否需要固定筛选栏
+const handleScroll = () => {
+  if (!filterTabsRef.value) return
+  
+  // 当滚动位置超过筛选栏原始位置减去固定头部高度时，固定筛选栏
+  const scrollTop = window.scrollY
+  const threshold = filterTabsOriginalTop.value - fixedHeaderHeight.value
+  
+  if (scrollTop >= threshold && !isFilterFixed.value) {
+    isFilterFixed.value = true
+  } else if (scrollTop < threshold && isFilterFixed.value) {
+    isFilterFixed.value = false
+    // 重新计算原始位置
+    nextTick(() => {
+      updateFilterPosition()
+    })
   }
 }
 
@@ -376,9 +418,12 @@ const fetchCategories = async () => {
       }
     })
     
-    // 分类加载完成后重新计算头部高度
+    // 分类加载完成后重新计算头部高度和筛选栏位置
     nextTick(() => {
       updateHeaderHeight()
+      setTimeout(() => {
+        updateFilterPosition()
+      }, 50)
     })
   } catch (e) {
     console.error('获取分类失败', e)
@@ -401,9 +446,12 @@ const fetchTopicsLegacy = async () => {
     
     data.forEach(t => { topicsMap.value[t.id] = t.name })
     
-    // 分类加载完成后重新计算头部高度
+    // 分类加载完成后重新计算头部高度和筛选栏位置
     nextTick(() => {
       updateHeaderHeight()
+      setTimeout(() => {
+        updateFilterPosition()
+      }, 50)
     })
   } catch (e) {
     console.error('获取话题失败', e)
@@ -623,17 +671,24 @@ onMounted(() => {
     fetchNovels()
   }
   
-  // 初始化固定头部高度
+  // 初始化固定头部高度和筛选栏位置
   nextTick(() => {
     updateHeaderHeight()
+    // 延迟一点确保 DOM 完全渲染
+    setTimeout(() => {
+      updateFilterPosition()
+    }, 100)
   })
   
   // 监听窗口大小变化
   window.addEventListener('resize', updateHeaderHeight, { passive: true })
+  // 监听滚动事件
+  window.addEventListener('scroll', handleScroll, { passive: true })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateHeaderHeight)
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -857,30 +912,38 @@ onBeforeUnmount(() => {
   }
 }
 
-/* 筛选标签 - sticky 定位，滚动时吸附在固定头部下方 */
-.filter-tabs-sticky {
-  position: -webkit-sticky;
-  position: sticky;
-  z-index: 99;
+/* 筛选标签 - 滚动时固定在头部下方 */
+.filter-tabs-wrapper {
   display: flex;
   gap: 24px;
   padding: 10px 16px 12px;
   border-bottom: 1px solid #1a1a1a;
   background: #0d0d0d;
   
-  @media (min-width: 768px) {
-    max-width: 750px;
-    margin-left: auto;
-    margin-right: auto;
+  &.is-fixed {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 99;
+    
+    @media (min-width: 768px) {
+      max-width: 750px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    
+    @media (min-width: 1024px) {
+      max-width: 900px;
+    }
+    
+    @media (min-width: 1280px) {
+      max-width: 1200px;
+    }
   }
-  
-  @media (min-width: 1024px) {
-    max-width: 900px;
-  }
-  
-  @media (min-width: 1280px) {
-    max-width: 1200px;
-  }
+}
+
+.filter-tabs-placeholder {
+  width: 100%;
 }
 
 .filter-tab {
