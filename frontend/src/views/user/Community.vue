@@ -65,7 +65,7 @@
     </header>
 
     <!-- 头部占位 -->
-    <div class="header-placeholder" :style="{ height: fixedHeaderHeight + 'px' }"></div>
+    <div class="header-placeholder"></div>
 
     <!-- 图标广告位 -->
     <div class="promo-grid-fixed" v-if="iconAds.length">
@@ -428,6 +428,9 @@ const fetchCategories = async () => {
     // 分类加载完成后重新初始化头部高度
     nextTick(() => {
       initHeaderHeight()
+      // 延迟再执行一次，确保 DOM 完全渲染
+      setTimeout(initHeaderHeight, 100)
+      setTimeout(initHeaderHeight, 300)
     })
   } catch (e) {
     console.error('获取分类失败', e)
@@ -453,6 +456,9 @@ const fetchTopicsLegacy = async () => {
     // 分类加载完成后重新初始化头部高度
     nextTick(() => {
       initHeaderHeight()
+      // 延迟再执行一次，确保 DOM 完全渲染
+      setTimeout(initHeaderHeight, 100)
+      setTimeout(initHeaderHeight, 300)
     })
   } catch (e) {
     console.error('获取话题失败', e)
@@ -720,6 +726,7 @@ onActivated(() => {
 /* 头部占位 */
 .header-placeholder {
   width: 100%;
+  height: var(--community-header-height, 90px);
 }
 
 /* 顶部导航 - 固定定位 */
