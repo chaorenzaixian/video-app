@@ -285,6 +285,7 @@ const filterTabsHeight = ref(44)  // 筛选栏默认高度
 // 更新头部高度 CSS 变量
 const updateHeaderHeight = (height) => {
   if (height > 0 && height !== fixedHeaderHeight.value) {
+    console.log('[Community] 更新头部高度:', height)
     fixedHeaderHeight.value = height
     document.documentElement.style.setProperty('--community-header-height', `${height}px`)
   }
@@ -293,6 +294,7 @@ const updateHeaderHeight = (height) => {
 // 初始化头部高度 CSS 变量
 const initHeaderHeight = () => {
   const headerEl = fixedHeaderRef.value || document.querySelector('.top-header')
+  console.log('[Community] initHeaderHeight - headerEl:', headerEl, 'offsetHeight:', headerEl?.offsetHeight)
   if (headerEl) {
     updateHeaderHeight(headerEl.offsetHeight)
   }
@@ -301,6 +303,7 @@ const initHeaderHeight = () => {
 // 设置 ResizeObserver 监听头部高度变化
 const setupHeaderObserver = () => {
   const headerEl = fixedHeaderRef.value || document.querySelector('.top-header')
+  console.log('[Community] setupHeaderObserver - headerEl:', headerEl, 'existing observer:', !!headerResizeObserver)
   if (!headerEl || headerResizeObserver) return
   
   headerResizeObserver = new ResizeObserver((entries) => {
@@ -308,10 +311,12 @@ const setupHeaderObserver = () => {
       const height = entry.contentRect.height + 
         parseFloat(getComputedStyle(entry.target).paddingTop) +
         parseFloat(getComputedStyle(entry.target).paddingBottom)
+      console.log('[Community] ResizeObserver 检测到高度变化:', Math.round(height))
       updateHeaderHeight(Math.round(height))
     }
   })
   headerResizeObserver.observe(headerEl)
+  console.log('[Community] ResizeObserver 已设置')
 }
 
 // 处理滚动，控制筛选栏固定
@@ -440,7 +445,12 @@ const fetchCategories = async () => {
       }
     })
     
-    // 分类加载完成后，ResizeObserver 会自动检测高度变化
+    // 分类加载完成后，等待 DOM 更新再重新计算高度
+    console.log('[Community] 分类加载完成，等待 DOM 更新')
+    nextTick(() => {
+      console.log('[Community] 分类加载后 nextTick，调用 initHeaderHeight')
+      initHeaderHeight()
+    })
   } catch (e) {
     console.error('获取分类失败', e)
     // 如果API不存在，使用旧的话题接口
@@ -462,7 +472,12 @@ const fetchTopicsLegacy = async () => {
     
     data.forEach(t => { topicsMap.value[t.id] = t.name })
     
-    // 分类加载完成后，ResizeObserver 会自动检测高度变化
+    // 分类加载完成后，等待 DOM 更新再重新计算高度
+    console.log('[Community] 旧话题接口加载完成，等待 DOM 更新')
+    nextTick(() => {
+      console.log('[Community] 旧话题接口加载后 nextTick，调用 initHeaderHeight')
+      initHeaderHeight()
+    })
   } catch (e) {
     console.error('获取话题失败', e)
   }
@@ -655,6 +670,8 @@ const selectNovelCategory = (catId) => {
 }
 
 onMounted(() => {
+  console.log('[Community] onMounted 开始')
+  
   // 从URL参数读取tab
   const tabParam = route.query.tab
   if (tabParam && ['community', 'gallery', 'novel'].includes(tabParam)) {
@@ -682,17 +699,23 @@ onMounted(() => {
   }
   
   // 初始化头部高度 CSS 变量
+  console.log('[Community] 调用 initHeaderHeight')
   initHeaderHeight()
   
   // 设置 ResizeObserver 监听头部高度变化（自动处理分类加载后的高度变化）
   nextTick(() => {
+    console.log('[Community] nextTick 中调用 setupHeaderObserver')
     setupHeaderObserver()
+    // 再次初始化高度，确保 DOM 已渲染
+    initHeaderHeight()
   })
   
   // 监听滚动
   window.addEventListener('scroll', handleScroll, { passive: true })
   // 监听窗口大小变化，重新计算头部高度
   window.addEventListener('resize', initHeaderHeight, { passive: true })
+  
+  console.log('[Community] onMounted 结束')
 })
 
 onBeforeUnmount(() => {
