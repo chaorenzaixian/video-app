@@ -159,6 +159,7 @@
           </template>
           <el-menu-item index="/admin/site-settings">网站设置</el-menu-item>
           <el-menu-item index="/admin/system-config">系统配置</el-menu-item>
+          <el-menu-item index="/admin/download-page">下载页管理</el-menu-item>
           <el-menu-item index="/admin/settings">其他设置</el-menu-item>
         </el-sub-menu>
       </el-menu>
