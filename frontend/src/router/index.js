@@ -845,12 +845,15 @@ router.beforeEach(async (to, from, next) => {
   // 检查是否需要管理员权限
   const needsAdmin = isAdminPath(to.path)
   
+  // 用户端页面（/user开头）不需要跳转到管理员登录页
+  const isUserPath = to.path.startsWith('/user') || to.path.startsWith('/shorts') || to.path.startsWith('/creator') || to.path.startsWith('/qr-login')
+  
   // 检查是否已登录
   if (to.meta.requiresAuth !== false && !userStore.isLoggedIn) {
     if (needsAdmin) {
       next({ path: '/admin/login', query: { redirect: to.fullPath } })
     } else {
-      // 普通用户页面，等待自动注册完成
+      // 普通用户页面，等待自动注册完成，不跳转到登录页
       next()
     }
     return
@@ -858,7 +861,15 @@ router.beforeEach(async (to, from, next) => {
   
   // 如果已登录，确保获取用户信息
   if (userStore.isLoggedIn && !userStore.user) {
-    await userStore.fetchUser()
+    try {
+      await userStore.fetchUser()
+    } catch (e) {
+      // 如果获取用户信息失败，对于用户端页面不跳转
+      if (isUserPath) {
+        next()
+        return
+      }
+    }
   }
   
   // 如果访问后台管理页面，检查管理员权限
