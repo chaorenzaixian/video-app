@@ -1,7 +1,7 @@
 <template>
   <div class="community-page">
-    <!-- 顶部导航 -->
-    <header class="top-header">
+    <!-- 固定顶部区域：导航 + 一级分类 -->
+    <header ref="fixedHeaderRef" class="top-header">
       <div class="main-tabs">
         <div 
           v-for="tab in mainTabs" 
@@ -17,39 +17,6 @@
         </router-link>
       </div>
 
-      <!-- 图标广告位 - 移到顶部导航下方 -->
-      <div class="promo-grid-fixed" v-if="iconAds.length">
-        <div 
-          v-for="ad in iconAds.slice(0, 5)" 
-          :key="ad.id" 
-          class="promo-item"
-          @click="openAdLink(ad)"
-        >
-          <div class="promo-icon-wrap">
-            <img v-if="ad.image" :src="ad.image" :alt="ad.name" class="promo-img" />
-            <span v-else class="fallback-icon">{{ ad.icon || '📦' }}</span>
-          </div>
-          <span class="promo-name">{{ ad.name }}</span>
-        </div>
-      </div>
-      <!-- 滚动广告位 -->
-      <div class="promo-scroll-container" v-if="iconAds.length > 5">
-        <div class="promo-grid-scroll">
-          <div 
-            v-for="ad in [...iconAds.slice(5), ...iconAds.slice(5)]" 
-            :key="ad.id + '-' + Math.random()" 
-            class="promo-item"
-            @click="openAdLink(ad)"
-          >
-            <div class="promo-icon-wrap">
-              <img v-if="ad.image" :src="ad.image" :alt="ad.name" class="promo-img" />
-              <span v-else class="fallback-icon">{{ ad.icon || '📦' }}</span>
-            </div>
-            <span class="promo-name">{{ ad.name }}</span>
-          </div>
-        </div>
-      </div>
-      
       <!-- 一级分类（顶级分类）- 仅社区显示 -->
       <div class="category-tabs" v-if="activeMainTab === 'community'">
         <div class="category-scroll">
@@ -60,32 +27,6 @@
             @click="selectCategory(cat)"
           >{{ cat.name }}</span>
         </div>
-      </div>
-
-      <!-- 二级分类（子话题）- 仅社区显示 -->
-      <div class="topic-cards" v-if="activeMainTab === 'community' && currentSubTopics.length">
-        <div class="topic-grid">
-          <div 
-            v-for="topic in currentSubTopics" 
-            :key="topic.id"
-            :class="['topic-card', { active: selectedTopic === topic.id }]"
-            :style="topic.cover ? { backgroundImage: `url(${topic.cover})` } : {}"
-            @click="selectTopic(topic)"
-          >
-            <span class="topic-name">{{ topic.name }}</span>
-            <span class="topic-count">{{ formatCount(topic.post_count) }}个帖子</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 筛选标签 -->
-      <div class="filter-tabs" v-if="activeMainTab === 'community'">
-        <span 
-          v-for="filter in filterTabs" 
-          :key="filter.value"
-          :class="['filter-tab', { active: activeFilter === filter.value }]"
-          @click="activeFilter = filter.value; fetchPosts(true)"
-        >{{ filter.label }}</span>
       </div>
 
       <!-- 图集分类 -->
@@ -122,6 +63,75 @@
         </div>
       </div>
     </header>
+
+    <!-- 头部占位 -->
+    <div class="header-placeholder" :style="{ height: fixedHeaderHeight + 'px' }"></div>
+
+    <!-- 图标广告位 -->
+    <div class="promo-grid-fixed" v-if="iconAds.length">
+      <div 
+        v-for="ad in iconAds.slice(0, 5)" 
+        :key="ad.id" 
+        class="promo-item"
+        @click="openAdLink(ad)"
+      >
+        <div class="promo-icon-wrap">
+          <img v-if="ad.image" :src="ad.image" :alt="ad.name" class="promo-img" />
+          <span v-else class="fallback-icon">{{ ad.icon || '📦' }}</span>
+        </div>
+        <span class="promo-name">{{ ad.name }}</span>
+      </div>
+    </div>
+    <!-- 滚动广告位 -->
+    <div class="promo-scroll-container" v-if="iconAds.length > 5">
+      <div class="promo-grid-scroll">
+        <div 
+          v-for="ad in [...iconAds.slice(5), ...iconAds.slice(5)]" 
+          :key="ad.id + '-' + Math.random()" 
+          class="promo-item"
+          @click="openAdLink(ad)"
+        >
+          <div class="promo-icon-wrap">
+            <img v-if="ad.image" :src="ad.image" :alt="ad.name" class="promo-img" />
+            <span v-else class="fallback-icon">{{ ad.icon || '📦' }}</span>
+          </div>
+          <span class="promo-name">{{ ad.name }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 二级分类（子话题）- 仅社区显示 -->
+    <div class="topic-cards" v-if="activeMainTab === 'community' && currentSubTopics.length">
+      <div class="topic-grid">
+        <div 
+          v-for="topic in currentSubTopics" 
+          :key="topic.id"
+          :class="['topic-card', { active: selectedTopic === topic.id }]"
+          :style="topic.cover ? { backgroundImage: `url(${topic.cover})` } : {}"
+          @click="selectTopic(topic)"
+        >
+          <span class="topic-name">{{ topic.name }}</span>
+          <span class="topic-count">{{ formatCount(topic.post_count) }}个帖子</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 筛选标签 - 独立出来实现吸顶效果 -->
+    <div 
+      ref="filterBarRef"
+      :class="['filter-tabs', { 'is-fixed': isFilterFixed }]" 
+      :style="isFilterFixed ? { top: fixedHeaderHeight + 'px' } : {}"
+      v-if="activeMainTab === 'community'"
+    >
+      <span 
+        v-for="filter in filterTabs" 
+        :key="filter.value"
+        :class="['filter-tab', { active: activeFilter === filter.value }]"
+        @click="activeFilter = filter.value; fetchPosts(true)"
+      >{{ filter.label }}</span>
+    </div>
+    <!-- 筛选栏固定时的占位 -->
+    <div class="filter-placeholder" v-if="isFilterFixed && activeMainTab === 'community'"></div>
 
     <!-- 内容区域 -->
     <div class="content-area">
@@ -232,7 +242,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
@@ -255,6 +265,43 @@ const { withLock } = useActionLock()
 
 // 获取VIP图标 - 使用统一的常量
 const getVipIcon = (level) => getVipLevelIcon(level)
+
+// 固定头部相关
+const fixedHeaderRef = ref(null)
+const filterBarRef = ref(null)
+const fixedHeaderHeight = ref(0)
+const isFilterFixed = ref(false)
+const filterBarOriginalTop = ref(0)
+
+// 计算固定头部高度
+const updateHeaderHeight = () => {
+  if (fixedHeaderRef.value) {
+    fixedHeaderHeight.value = fixedHeaderRef.value.offsetHeight
+  }
+}
+
+// 记录筛选栏原始位置
+const updateFilterBarPosition = () => {
+  if (filterBarRef.value && !isFilterFixed.value) {
+    const rect = filterBarRef.value.getBoundingClientRect()
+    filterBarOriginalTop.value = rect.top + window.scrollY
+  }
+}
+
+// 滚动处理
+const handleScroll = () => {
+  if (!filterBarRef.value) return
+  
+  const scrollY = window.scrollY
+  // 当滚动超过筛选栏原始位置减去固定头部高度时，固定筛选栏
+  const threshold = filterBarOriginalTop.value - fixedHeaderHeight.value
+  
+  if (scrollY >= threshold && !isFilterFixed.value) {
+    isFilterFixed.value = true
+  } else if (scrollY < threshold && isFilterFixed.value) {
+    isFilterFixed.value = false
+  }
+}
 
 // 主Tab配置
 const mainTabs = [
@@ -594,6 +641,28 @@ onMounted(() => {
   } else if (activeMainTab.value === 'novel') {
     fetchNovels()
   }
+  
+  // 初始化固定头部高度
+  nextTick(() => {
+    updateHeaderHeight()
+    // 延迟计算筛选栏位置，等待内容渲染
+    setTimeout(() => {
+      updateFilterBarPosition()
+    }, 100)
+  })
+  
+  // 监听滚动
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  // 监听窗口大小变化
+  window.addEventListener('resize', () => {
+    updateHeaderHeight()
+    updateFilterBarPosition()
+  }, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', updateHeaderHeight)
 })
 </script>
 
@@ -605,12 +674,33 @@ onMounted(() => {
   padding-bottom: 70px;
 }
 
-/* 顶部导航 */
+/* 头部占位 */
+.header-placeholder {
+  width: 100%;
+}
+
+/* 顶部导航 - 固定定位 */
 .top-header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
   background: #0d0d0d;
+  
+  @media (min-width: 768px) {
+    max-width: 750px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  @media (min-width: 1024px) {
+    max-width: 900px;
+  }
+  
+  @media (min-width: 1280px) {
+    max-width: 1200px;
+  }
 }
 
 .main-tabs {
@@ -802,6 +892,35 @@ onMounted(() => {
   gap: 24px;
   padding: 10px 16px 12px;
   border-bottom: 1px solid #1a1a1a;
+  background: #0d0d0d;
+  transition: none;
+  
+  /* 固定状态 */
+  &.is-fixed {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 99;
+    
+    @media (min-width: 768px) {
+      max-width: 750px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    
+    @media (min-width: 1024px) {
+      max-width: 900px;
+    }
+    
+    @media (min-width: 1280px) {
+      max-width: 1200px;
+    }
+  }
+}
+
+/* 筛选栏占位 */
+.filter-placeholder {
+  height: 46px; /* 与筛选栏高度一致 */
 }
 
 .filter-tab {
