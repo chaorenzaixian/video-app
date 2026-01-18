@@ -59,14 +59,32 @@ class GroupResponse(BaseModel):
     join_url: Optional[str] = None
     member_count: str = "0"
     coin_cost: int = 0
-    is_free: bool = False
+    is_free: Optional[bool] = False
     category: str = "soul"
     sort_order: int = 0
-    is_active: bool = True
+    is_active: Optional[bool] = True
     created_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_group(cls, group):
+        """从数据库模型创建响应，处理None值"""
+        return cls(
+            id=group.id,
+            name=group.name,
+            description=group.description,
+            avatar=group.avatar,
+            join_url=group.join_url,
+            member_count=group.member_count or "0",
+            coin_cost=group.coin_cost or 0,
+            is_free=group.is_free if group.is_free is not None else False,
+            category=group.category or "soul",
+            sort_order=group.sort_order or 0,
+            is_active=group.is_active if group.is_active is not None else True,
+            created_at=group.created_at
+        )
 
 
 class HostCreate(BaseModel):
@@ -111,17 +129,39 @@ class HostResponse(BaseModel):
     weight: Optional[int] = None
     cup: Optional[str] = None
     chat_count: int = 0
-    is_vip: bool = False
-    is_ace: bool = False
+    is_vip: Optional[bool] = False
+    is_ace: Optional[bool] = False
     profile_url: Optional[str] = None
     category: str = "chat"
     sub_category: Optional[str] = None
     sort_order: int = 0
-    is_active: bool = True
+    is_active: Optional[bool] = True
     created_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_host(cls, host):
+        """从数据库模型创建响应，处理None值"""
+        return cls(
+            id=host.id,
+            nickname=host.nickname,
+            avatar=host.avatar,
+            age=host.age,
+            height=host.height,
+            weight=host.weight,
+            cup=host.cup,
+            chat_count=host.chat_count or 0,
+            is_vip=host.is_vip if host.is_vip is not None else False,
+            is_ace=host.is_ace if host.is_ace is not None else False,
+            profile_url=host.profile_url,
+            category=host.category or "chat",
+            sub_category=host.sub_category,
+            sort_order=host.sort_order or 0,
+            is_active=host.is_active if host.is_active is not None else True,
+            created_at=host.created_at
+        )
 
 
 # ========== 群聊管理 ==========
@@ -190,7 +230,7 @@ async def create_group(
     db.add(group)
     await db.commit()
     await db.refresh(group)
-    return GroupResponse.model_validate(group)
+    return GroupResponse.from_group(group)
 
 
 @router.put("/groups/{group_id}", response_model=GroupResponse)
@@ -214,7 +254,7 @@ async def update_group(
     group.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(group)
-    return GroupResponse.model_validate(group)
+    return GroupResponse.from_group(group)
 
 
 @router.delete("/groups/{group_id}")
@@ -320,7 +360,7 @@ async def create_host(
     db.add(host)
     await db.commit()
     await db.refresh(host)
-    return HostResponse.model_validate(host)
+    return HostResponse.from_host(host)
 
 
 @router.put("/hosts/{host_id}", response_model=HostResponse)
@@ -345,7 +385,7 @@ async def update_host(
         host.updated_at = datetime.utcnow()
         await db.commit()
         await db.refresh(host)
-        return HostResponse.model_validate(host)
+        return HostResponse.from_host(host)
     except HTTPException:
         raise
     except Exception as e:
