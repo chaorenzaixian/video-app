@@ -279,11 +279,15 @@ const filterTabsRef = ref(null)
 const isFilterFixed = ref(false)
 const filterTabsHeight = ref(0)
 const filterTabsOriginalTop = ref(0)
+const positionInitialized = ref(false)  // 标记位置是否已初始化
 
 // 计算固定头部高度
 const updateHeaderHeight = () => {
   if (fixedHeaderRef.value) {
-    fixedHeaderHeight.value = fixedHeaderRef.value.offsetHeight
+    const newHeight = fixedHeaderRef.value.offsetHeight
+    if (newHeight > 0) {
+      fixedHeaderHeight.value = newHeight
+    }
   }
 }
 
@@ -291,15 +295,43 @@ const updateHeaderHeight = () => {
 const updateFilterPosition = () => {
   if (filterTabsRef.value && !isFilterFixed.value) {
     const rect = filterTabsRef.value.getBoundingClientRect()
-    filterTabsHeight.value = filterTabsRef.value.offsetHeight
-    // 计算筛选栏相对于文档顶部的原始位置
-    filterTabsOriginalTop.value = rect.top + window.scrollY
+    const height = filterTabsRef.value.offsetHeight
+    if (height > 0) {
+      filterTabsHeight.value = height
+      // 计算筛选栏相对于文档顶部的原始位置
+      filterTabsOriginalTop.value = rect.top + window.scrollY
+      positionInitialized.value = true
+    }
+  }
+}
+
+// 强制重新计算所有位置（用于数据加载后）
+const recalculatePositions = () => {
+  // 先更新头部高度
+  updateHeaderHeight()
+  // 如果筛选栏当前是固定状态，先取消固定以获取正确位置
+  if (isFilterFixed.value) {
+    isFilterFixed.value = false
+    nextTick(() => {
+      updateFilterPosition()
+      // 重新检查是否需要固定
+      handleScroll()
+    })
+  } else {
+    updateFilterPosition()
   }
 }
 
 // 滚动处理 - 判断是否需要固定筛选栏
 const handleScroll = () => {
   if (!filterTabsRef.value) return
+  
+  // 如果位置还没初始化，先尝试初始化
+  if (!positionInitialized.value) {
+    updateHeaderHeight()
+    updateFilterPosition()
+    if (!positionInitialized.value) return
+  }
   
   // 当滚动位置超过筛选栏原始位置减去固定头部高度时，固定筛选栏
   const scrollTop = window.scrollY
@@ -420,10 +452,7 @@ const fetchCategories = async () => {
     
     // 分类加载完成后重新计算头部高度和筛选栏位置
     nextTick(() => {
-      updateHeaderHeight()
-      setTimeout(() => {
-        updateFilterPosition()
-      }, 50)
+      recalculatePositions()
     })
   } catch (e) {
     console.error('获取分类失败', e)
@@ -448,10 +477,7 @@ const fetchTopicsLegacy = async () => {
     
     // 分类加载完成后重新计算头部高度和筛选栏位置
     nextTick(() => {
-      updateHeaderHeight()
-      setTimeout(() => {
-        updateFilterPosition()
-      }, 50)
+      recalculatePositions()
     })
   } catch (e) {
     console.error('获取话题失败', e)
@@ -672,22 +698,28 @@ onMounted(() => {
   }
   
   // 初始化固定头部高度和筛选栏位置
-  nextTick(() => {
+  // 使用多次延迟确保在各种情况下都能正确初始化
+  const initPositions = () => {
     updateHeaderHeight()
-    // 延迟一点确保 DOM 完全渲染
-    setTimeout(() => {
-      updateFilterPosition()
-    }, 100)
+    updateFilterPosition()
+  }
+  
+  nextTick(() => {
+    initPositions()
+    // 多次延迟重试，确保数据加载后位置正确
+    setTimeout(initPositions, 100)
+    setTimeout(initPositions, 300)
+    setTimeout(initPositions, 500)
   })
   
   // 监听窗口大小变化
-  window.addEventListener('resize', updateHeaderHeight, { passive: true })
+  window.addEventListener('resize', recalculatePositions, { passive: true })
   // 监听滚动事件
   window.addEventListener('scroll', handleScroll, { passive: true })
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateHeaderHeight)
+  window.removeEventListener('resize', recalculatePositions)
   window.removeEventListener('scroll', handleScroll)
 })
 </script>
