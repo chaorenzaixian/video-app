@@ -62,6 +62,16 @@
           >{{ cat.name }}</span>
         </div>
       </div>
+      
+      <!-- 筛选标签 - 放在 header 内部，使用 sticky 定位 -->
+      <div class="filter-tabs" v-if="activeMainTab === 'community'">
+        <span 
+          v-for="filter in filterTabs" 
+          :key="filter.value"
+          :class="['filter-tab', { active: activeFilter === filter.value }]"
+          @click="activeFilter = filter.value; fetchPosts(true)"
+        >{{ filter.label }}</span>
+      </div>
     </header>
 
     <!-- 头部占位 -->
@@ -115,23 +125,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 筛选标签 - 独立出来实现吸顶效果 -->
-    <div 
-      ref="filterBarRef"
-      :class="['filter-tabs', { 'is-fixed': isFilterFixed }]" 
-      :style="isFilterFixed ? { top: fixedHeaderHeight + 'px' } : {}"
-      v-if="activeMainTab === 'community'"
-    >
-      <span 
-        v-for="filter in filterTabs" 
-        :key="filter.value"
-        :class="['filter-tab', { active: activeFilter === filter.value }]"
-        @click="activeFilter = filter.value; fetchPosts(true)"
-      >{{ filter.label }}</span>
-    </div>
-    <!-- 筛选栏固定时的占位 -->
-    <div class="filter-placeholder" v-if="isFilterFixed && activeMainTab === 'community'"></div>
 
     <!-- 内容区域 -->
     <div class="content-area">
@@ -268,45 +261,12 @@ const getVipIcon = (level) => getVipLevelIcon(level)
 
 // 固定头部相关
 const fixedHeaderRef = ref(null)
-const filterBarRef = ref(null)
 const fixedHeaderHeight = ref(0)
-const isFilterFixed = ref(false)
 
 // 计算固定头部高度
 const updateHeaderHeight = () => {
   if (fixedHeaderRef.value) {
     fixedHeaderHeight.value = fixedHeaderRef.value.offsetHeight
-  }
-}
-
-// 滚动处理 - 实时计算而不是依赖缓存的位置
-const handleScroll = () => {
-  if (!filterBarRef.value || !fixedHeaderRef.value) return
-  
-  // 实时获取固定头部高度
-  const headerHeight = fixedHeaderRef.value.offsetHeight
-  fixedHeaderHeight.value = headerHeight
-  
-  // 获取筛选栏当前位置
-  const filterRect = filterBarRef.value.getBoundingClientRect()
-  
-  // 当筛选栏顶部到达固定头部底部时，固定筛选栏
-  if (filterRect.top <= headerHeight && !isFilterFixed.value) {
-    isFilterFixed.value = true
-  } else if (!isFilterFixed.value) {
-    // 不固定时正常显示
-  }
-  
-  // 当滚动回顶部时，取消固定
-  if (isFilterFixed.value) {
-    // 计算原始位置：需要考虑占位元素
-    const placeholder = document.querySelector('.filter-placeholder')
-    if (placeholder) {
-      const placeholderRect = placeholder.getBoundingClientRect()
-      if (placeholderRect.top > headerHeight) {
-        isFilterFixed.value = false
-      }
-    }
   }
 }
 
@@ -654,14 +614,11 @@ onMounted(() => {
     updateHeaderHeight()
   })
   
-  // 监听滚动
-  window.addEventListener('scroll', handleScroll, { passive: true })
   // 监听窗口大小变化
   window.addEventListener('resize', updateHeaderHeight, { passive: true })
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('resize', updateHeaderHeight)
 })
 </script>
@@ -900,27 +857,13 @@ onBeforeUnmount(() => {
     position: fixed;
     left: 0;
     right: 0;
-    z-index: 99;
-    
-    @media (min-width: 768px) {
-      max-width: 750px;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-    
-    @media (min-width: 1024px) {
-      max-width: 900px;
-    }
-    
-    @media (min-width: 1280px) {
-      max-width: 1200px;
-    }
-  }
-}
-
-/* 筛选栏占位 */
-.filter-placeholder {
-  height: 46px; /* 与筛选栏高度一致 */
+/* 筛选标签 - 在固定头部内 */
+.filter-tabs {
+  display: flex;
+  gap: 24px;
+  padding: 10px 16px 12px;
+  border-bottom: 1px solid #1a1a1a;
+  background: #0d0d0d;
 }
 
 .filter-tab {
