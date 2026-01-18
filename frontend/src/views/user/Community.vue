@@ -129,11 +129,12 @@
         @click="activeFilter = filter.value; fetchPosts(true)"
       >{{ filter.label }}</span>
     </div>
-    <!-- 筛选栏占位符 - 当筛选栏固定时保持布局 -->
+    <!-- 筛选栏占位符 - 始终存在，用于检测滚动位置 -->
     <div 
+      ref="filterPlaceholderRef"
       class="filter-tabs-placeholder" 
-      v-if="activeMainTab === 'community' && isFilterFixed"
-      :style="{ height: filterTabsHeight + 'px' }"
+      v-if="activeMainTab === 'community'"
+      :style="{ height: isFilterFixed ? filterTabsHeight + 'px' : '0px', visibility: isFilterFixed ? 'visible' : 'hidden' }"
     ></div>
 
     <!-- 内容区域 -->
@@ -245,7 +246,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, onActivated, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
@@ -275,6 +276,7 @@ const fixedHeaderHeight = ref(90)  // 默认值，防止首次加载时为0导�
 
 // 筛选栏固定相关
 const filterTabsRef = ref(null)
+const filterPlaceholderRef = ref(null)
 const isFilterFixed = ref(false)
 const filterTabsHeight = ref(44)  // 筛选栏默认高度
 
@@ -309,18 +311,16 @@ const handleScroll = () => {
   
   // 当筛选栏顶部到达固定头部底部时，固定筛选栏
   if (rect.top <= headerHeight && !isFilterFixed.value) {
+    // 记录筛选栏的实际高度
+    filterTabsHeight.value = filterTabsRef.value.offsetHeight
     isFilterFixed.value = true
-  } else if (isFilterFixed.value) {
-    // 需要检查占位元素的位置来决定是否取消固定
-    const placeholder = document.querySelector('.filter-tabs-placeholder')
-    if (placeholder) {
-      const placeholderRect = placeholder.getBoundingClientRect()
-      if (placeholderRect.top > headerHeight) {
-        isFilterFixed.value = false
-      }
+  } else if (isFilterFixed.value && filterPlaceholderRef.value) {
+    // 使用占位符的位置来决定是否取消固定
+    const placeholderRect = filterPlaceholderRef.value.getBoundingClientRect()
+    if (placeholderRect.top > headerHeight) {
+      isFilterFixed.value = false
     }
   }
-}
 }
 
 // 主Tab配置
@@ -691,6 +691,21 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('resize', initHeaderHeight)
+})
+
+// 处理 keep-alive 缓存恢复时重新初始化
+onActivated(() => {
+  // 重新初始化头部高度
+  nextTick(() => {
+    initHeaderHeight()
+    // 重置筛选栏固定状态，让滚动事件重新判断
+    isFilterFixed.value = false
+    // 延迟执行确保 DOM 完全渲染
+    setTimeout(() => {
+      initHeaderHeight()
+      handleScroll()
+    }, 50)
+  })
 })
 </script>
 
