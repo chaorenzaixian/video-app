@@ -273,6 +273,7 @@ const getVipIcon = (level) => getVipLevelIcon(level)
 // 固定头部相关
 const fixedHeaderRef = ref(null)
 const fixedHeaderHeight = ref(90)  // 默认值，防止首次加载时为0导致遮盖
+let headerResizeObserver = null  // ResizeObserver 实例
 
 // 筛选栏固定相关
 const filterTabsRef = ref(null)
@@ -280,16 +281,36 @@ const filterPlaceholderRef = ref(null)
 const isFilterFixed = ref(false)
 const filterTabsHeight = ref(44)  // 筛选栏默认高度
 
+// 更新头部高度 CSS 变量
+const updateHeaderHeight = (height) => {
+  if (height > 0 && height !== fixedHeaderHeight.value) {
+    fixedHeaderHeight.value = height
+    document.documentElement.style.setProperty('--community-header-height', `${height}px`)
+  }
+}
+
 // 初始化头部高度 CSS 变量
 const initHeaderHeight = () => {
   const headerEl = fixedHeaderRef.value || document.querySelector('.top-header')
   if (headerEl) {
-    const height = headerEl.offsetHeight
-    if (height > 0) {
-      fixedHeaderHeight.value = height
-      document.documentElement.style.setProperty('--community-header-height', `${height}px`)
-    }
+    updateHeaderHeight(headerEl.offsetHeight)
   }
+}
+
+// 设置 ResizeObserver 监听头部高度变化
+const setupHeaderObserver = () => {
+  const headerEl = fixedHeaderRef.value || document.querySelector('.top-header')
+  if (!headerEl || headerResizeObserver) return
+  
+  headerResizeObserver = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      const height = entry.contentRect.height + 
+        parseFloat(getComputedStyle(entry.target).paddingTop) +
+        parseFloat(getComputedStyle(entry.target).paddingBottom)
+      updateHeaderHeight(Math.round(height))
+    }
+  })
+  headerResizeObserver.observe(headerEl)
 }
 
 // 处理滚动，控制筛选栏固定
@@ -297,14 +318,7 @@ const handleScroll = () => {
   if (!filterTabsRef.value) return
   
   // 获取固定头部的实际高度
-  const headerEl = fixedHeaderRef.value || document.querySelector('.top-header')
-  const headerHeight = headerEl?.offsetHeight || fixedHeaderHeight.value
-  
-  // 更新固定头部高度（用于 CSS 变量）
-  if (headerHeight !== fixedHeaderHeight.value && headerHeight > 0) {
-    fixedHeaderHeight.value = headerHeight
-    document.documentElement.style.setProperty('--community-header-height', `${headerHeight}px`)
-  }
+  const headerHeight = fixedHeaderHeight.value
   
   // 获取筛选栏相对于视口的位置
   const rect = filterTabsRef.value.getBoundingClientRect()
@@ -425,13 +439,7 @@ const fetchCategories = async () => {
       }
     })
     
-    // 分类加载完成后重新初始化头部高度
-    nextTick(() => {
-      initHeaderHeight()
-      // 延迟再执行一次，确保 DOM 完全渲染
-      setTimeout(initHeaderHeight, 100)
-      setTimeout(initHeaderHeight, 300)
-    })
+    // 分类加载完成后，ResizeObserver 会自动检测高度变化
   } catch (e) {
     console.error('获取分类失败', e)
     // 如果API不存在，使用旧的话题接口
@@ -453,13 +461,7 @@ const fetchTopicsLegacy = async () => {
     
     data.forEach(t => { topicsMap.value[t.id] = t.name })
     
-    // 分类加载完成后重新初始化头部高度
-    nextTick(() => {
-      initHeaderHeight()
-      // 延迟再执行一次，确保 DOM 完全渲染
-      setTimeout(initHeaderHeight, 100)
-      setTimeout(initHeaderHeight, 300)
-    })
+    // 分类加载完成后，ResizeObserver 会自动检测高度变化
   } catch (e) {
     console.error('获取话题失败', e)
   }
@@ -681,11 +683,9 @@ onMounted(() => {
   // 初始化头部高度 CSS 变量
   initHeaderHeight()
   
-  // DOM 完全渲染后再执行一次确保准确
+  // 设置 ResizeObserver 监听头部高度变化（自动处理分类加载后的高度变化）
   nextTick(() => {
-    initHeaderHeight()
-    setTimeout(initHeaderHeight, 50)
-    setTimeout(initHeaderHeight, 100)
+    setupHeaderObserver()
   })
   
   // 监听滚动
@@ -697,6 +697,11 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('resize', initHeaderHeight)
+  // 清理 ResizeObserver
+  if (headerResizeObserver) {
+    headerResizeObserver.disconnect()
+    headerResizeObserver = null
+  }
 })
 
 // 处理 keep-alive 缓存恢复时重新初始化
@@ -704,11 +709,14 @@ onActivated(() => {
   // 重新初始化头部高度
   nextTick(() => {
     initHeaderHeight()
+    // 确保 ResizeObserver 正在运行
+    if (!headerResizeObserver) {
+      setupHeaderObserver()
+    }
     // 重置筛选栏固定状态，让滚动事件重新判断
     isFilterFixed.value = false
     // 延迟执行确保 DOM 完全渲染
     setTimeout(() => {
-      initHeaderHeight()
       handleScroll()
     }, 50)
   })
