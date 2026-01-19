@@ -227,7 +227,8 @@ async def get_posts(
     page_size: int = Query(20, ge=1, le=50),
     topic_id: Optional[int] = None,
     user_id: Optional[int] = None,
-    feed_type: str = Query("recommend", description="recommend/following/hot/latest"),
+    feed_type: str = Query("recommend", description="recommend/following/hot/latest/hot_comment"),
+    content_type: Optional[str] = Query(None, description="video - 只显示视频帖子"),
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
@@ -236,7 +237,7 @@ async def get_posts(
     from app.services.cache_service import CacheService, CacheTTL
     
     # 热门帖子使用缓存（仅第一页且无筛选条件时）
-    use_cache = feed_type == "hot" and page == 1 and not topic_id and not user_id
+    use_cache = feed_type == "hot" and page == 1 and not topic_id and not user_id and not content_type
     if use_cache:
         cache_key = f"community:hot_posts:{page_size}"
         cached = await CacheService.get(cache_key)
@@ -245,6 +246,10 @@ async def get_posts(
             return cached
     
     query = select(Post).where(Post.status == "published")
+    
+    # 按内容类型筛选（视频帖子）
+    if content_type == "video":
+        query = query.where(Post.video_url.isnot(None), Post.video_url != "")
     
     # 按类型筛选
     if feed_type == "following" and current_user:
@@ -271,9 +276,15 @@ async def get_posts(
         if not current_user or current_user.id != user_id:
             query = query.where(Post.visibility == "public")
     
+    # 排序逻辑
     if feed_type == "hot":
         query = query.order_by(desc(Post.like_count), desc(Post.created_at))
+    elif feed_type == "hot_comment":
+        query = query.order_by(desc(Post.comment_count), desc(Post.created_at))
+    elif feed_type == "latest":
+        query = query.order_by(desc(Post.created_at))
     else:
+        # recommend 和其他情况：置顶优先，然后按时间
         query = query.order_by(desc(Post.is_top), desc(Post.created_at))
     
     query = query.offset((page - 1) * page_size).limit(page_size)

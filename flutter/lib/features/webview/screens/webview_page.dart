@@ -32,6 +32,7 @@ class _WebViewPageState extends State<WebViewPage> {
   bool _hasError = false;
   int _loadingProgress = 0;
   bool _mounted = true;
+  bool _isFirstLoad = true;  // 首次加载标记，用于隐藏进度条
   
   // 边缘滑动返回相关
   double _dragStartX = 0;
@@ -59,6 +60,7 @@ class _WebViewPageState extends State<WebViewPage> {
   void _initWebView() {
     debugPrint('WebView 初始化: ${widget.url}');
     _controller = WebViewController()
+      ..setBackgroundColor(Colors.black)  // 设置 WebView 背景为黑色
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(NavigationDelegate(
         onPageStarted: (url) {
@@ -159,7 +161,10 @@ class _WebViewPageState extends State<WebViewPage> {
       debugPrint('Token 注入失败: $e');
     }
     
-    _safeSetState(() => _isLoading = false);
+    _safeSetState(() {
+      _isLoading = false;
+      _isFirstLoad = false;  // 首次加载完成
+    });
   }
 
   void _handleNavigation(String route, Map<String, dynamic>? params) {
@@ -210,16 +215,21 @@ class _WebViewPageState extends State<WebViewPage> {
 
   @override
   Widget build(BuildContext context) {
-    Widget webViewContent = Stack(
-      children: [
-        WebViewWidget(controller: _controller),
-        if (_isLoading && _loadingProgress < 100)
+    Widget webViewContent = Container(
+      color: Colors.black,
+      child: Stack(
+        children: [
+          WebViewWidget(controller: _controller),
+        // 只在非首次加载时显示进度条，避免开屏后的紫色闪烁
+        if (_isLoading && _loadingProgress < 100 && !_isFirstLoad)
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: LinearProgressIndicator(
               value: _loadingProgress / 100,
+              backgroundColor: Colors.transparent,
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white24),
             ),
           ),
         if (_hasError) _buildErrorWidget(),
@@ -238,6 +248,7 @@ class _WebViewPageState extends State<WebViewPage> {
             ),
           ),
       ],
+      ),
     );
 
     return PopScope(
@@ -250,6 +261,7 @@ class _WebViewPageState extends State<WebViewPage> {
         }
       },
       child: Scaffold(
+        backgroundColor: Colors.black,
         appBar: widget.showAppBar
             ? AppBar(
                 title: Text(widget.title ?? ''),

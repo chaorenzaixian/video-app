@@ -24,6 +24,15 @@ class AppRoutes {
   static const String vip = '/vip';
   static const String search = '/search';
   
+  // 无动画的页面路由，避免白色闪烁
+  static PageRouteBuilder _noAnimationRoute(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+    );
+  }
+  
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case splash:
@@ -36,8 +45,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const RegisterScreen());
       
       case home:
-        // 使用 MainLayout 作为主页面，包含底部导航和 WebView 页面
-        return MaterialPageRoute(builder: (_) => const MainLayout());
+        // 使用无动画路由，避免从 splash 跳转时的白色闪烁
+        return _noAnimationRoute(const MainLayout());
       
       case videoPlayer:
         final args = settings.arguments as Map<String, dynamic>;

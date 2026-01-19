@@ -539,6 +539,12 @@ const fetchPosts = async (reset = false) => {
       page_size: 20,
       feed_type: activeFilter.value === 'video' ? 'recommend' : activeFilter.value
     }
+    
+    // 如果是视频筛选，添加内容类型参数
+    if (activeFilter.value === 'video') {
+      params.content_type = 'video'
+    }
+    
     // 如果选择了二级话题，按话题筛选
     if (selectedTopic.value) {
       params.topic_id = selectedTopic.value

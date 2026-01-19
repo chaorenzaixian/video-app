@@ -54,6 +54,15 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.1
+  flutter_native_splash: ^2.3.8
+
+# 原生启动屏配置 - 全黑背景
+flutter_native_splash:
+  color: "#000000"
+  android: true
+  ios: true
+  android_12:
+    color: "#000000"
 
 flutter:
   uses-material-design: true
