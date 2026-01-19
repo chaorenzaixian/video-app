@@ -1,6 +1,6 @@
 <template>
   <div class="community-page" ref="scrollContainer">
-    <!-- 固定顶部区域：导航 + 分类 -->
+    <!-- 固定顶部区域：导航 + 分类 + 筛选栏 -->
     <div class="fixed-top" ref="fixedTopRef">
       <!-- 顶部导航 -->
       <div class="main-tabs">
@@ -19,6 +19,10 @@
           <div class="category-scroll">
             <span v-for="cat in topCategories" :key="cat.id" :class="['category-tab', { active: selectedCategory === cat.id }]" @click="selectCategory(cat)">{{ cat.name }}</span>
           </div>
+        </div>
+        <!-- 筛选栏 - 放入固定头部 -->
+        <div class="filter-tabs">
+          <span v-for="filter in filterTabs" :key="filter.value" :class="['filter-tab', { active: activeFilter === filter.value }]" @click="setFilter(filter.value)">{{ filter.label }}</span>
         </div>
       </template>
 
@@ -42,7 +46,7 @@
     </div>
     
     <!-- 占位元素 -->
-    <div :class="['header-placeholder', { 'novel-mode': activeMainTab === 'novel' }]"></div>
+    <div :class="['header-placeholder', { 'community-mode': activeMainTab === 'community', 'novel-mode': activeMainTab === 'novel' }]"></div>
 
     <!-- 图标广告位 -->
     <IconAdsGrid :ads="iconAds" />
@@ -58,11 +62,6 @@
         </div>
       </div>
     </template>
-    
-    <!-- 筛选栏 - sticky 固定 -->
-    <div class="filter-tabs" v-if="activeMainTab === 'community'">
-      <span v-for="filter in filterTabs" :key="filter.value" :class="['filter-tab', { active: activeFilter === filter.value }]" @click="setFilter(filter.value)">{{ filter.label }}</span>
-    </div>
 
     <!-- 内容区域 -->
     <div class="content-area">
@@ -268,7 +267,12 @@ onUnmounted(() => {
 
 // 占位元素 - 使用固定高度
 .header-placeholder {
-  height: 105px;
+  height: 105px;  /* 默认：54px(导航) + 51px(分类) - 用于图集tab */
+  
+  // 社区tab包含筛选栏，需要更高
+  &.community-mode {
+    height: 150px;  /* 54px(导航) + 51px(分类) + 45px(筛选栏) */
+  }
   
   // 小说tab时占位更高（有两行分类）
   &.novel-mode {
@@ -378,10 +382,6 @@ onUnmounted(() => {
   padding: 10px 16px 12px;
   border-bottom: 1px solid #1a1a1a;
   background: #0d0d0d;
-  position: sticky;
-  top: 105px;  /* 固定值：54px(导航) + 51px(分类) */
-  z-index: 90;
-  box-shadow: 0 -10px 0 0 #0d0d0d;
 }
 
 .filter-tab {
