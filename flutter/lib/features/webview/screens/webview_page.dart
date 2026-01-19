@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'package:vod_app/core/services/token_manager.dart';
 import 'package:vod_app/core/services/js_bridge.dart';
 import 'package:file_picker/file_picker.dart';
@@ -25,7 +26,7 @@ class WebViewPage extends StatefulWidget {
   State<WebViewPage> createState() => _WebViewPageState();
 }
 
-class _WebViewPageState extends State<WebViewPage> {
+class _WebViewPageState extends State<WebViewPage> with WidgetsBindingObserver {
   late WebViewController _controller;
   late JSBridge _jsBridge;
   bool _isLoading = true;
@@ -42,13 +43,37 @@ class _WebViewPageState extends State<WebViewPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initWebView();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mounted = false;
     super.dispose();
+  }
+
+  // 监听App生命周期，从后台恢复时重新注入token
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('App从后台恢复，重新注入Token');
+      _injectToken();
+    }
+  }
+
+  // 注入Token到WebView
+  Future<void> _injectToken() async {
+    try {
+      final script = TokenManager().generateTokenInjectionScript();
+      if (script.isNotEmpty) {
+        await _controller.runJavaScript(script);
+        debugPrint('Token注入成功');
+      }
+    } catch (e) {
+      debugPrint('Token注入失败: $e');
+    }
   }
 
   void _safeSetState(VoidCallback fn) {
@@ -59,7 +84,20 @@ class _WebViewPageState extends State<WebViewPage> {
 
   void _initWebView() {
     debugPrint('WebView 初始化: ${widget.url}');
-    _controller = WebViewController()
+    
+    // 平台特定配置
+    late final PlatformWebViewControllerCreationParams params;
+    if (Platform.isIOS) {
+      // iOS: 配置WKWebView数据持久化
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      );
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
+    
+    _controller = WebViewController.fromPlatformCreationParams(params)
       ..setBackgroundColor(Colors.black)  // 设置 WebView 背景为黑色
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(NavigationDelegate(
@@ -152,14 +190,7 @@ class _WebViewPageState extends State<WebViewPage> {
     if (!_mounted || !mounted) return;
     
     // 注入 Token
-    try {
-      final script = TokenManager().generateTokenInjectionScript();
-      if (script.isNotEmpty) {
-        await _controller.runJavaScript(script);
-      }
-    } catch (e) {
-      debugPrint('Token 注入失败: $e');
-    }
+    await _injectToken();
     
     _safeSetState(() {
       _isLoading = false;

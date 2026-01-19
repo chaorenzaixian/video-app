@@ -89,15 +89,22 @@ api.interceptors.response.use(
     if (response) {
       switch (response.status) {
         case 401:
-          localStorage.removeItem('token')
-          localStorage.removeItem('refreshToken')
-          // 根据当前页面判断跳转到用户端还是管理端登录页
+          // 用户端401错误，尝试自动重新注册游客
           const isUserPage = window.location.pathname.startsWith('/user') || 
-                             window.location.pathname.startsWith('/shorts')
+                             window.location.pathname.startsWith('/shorts') ||
+                             window.location.pathname === '/' ||
+                             window.location.pathname.startsWith('/video')
           if (isUserPage) {
-            // 用户端不跳转到登录页，让游客自动注册机制处理
-            console.log('用户端401错误，等待游客自动注册')
+            // 用户端：清除旧token，触发自动重新注册
+            localStorage.removeItem('token')
+            localStorage.removeItem('refreshToken')
+            console.log('用户端401错误，将自动重新注册游客')
+            // 刷新页面触发重新初始化
+            window.location.reload()
           } else {
+            // 管理端：跳转到登录页
+            localStorage.removeItem('token')
+            localStorage.removeItem('refreshToken')
             router.push('/login')
             ElMessage.error('登录已过期，请重新登录')
           }

@@ -1010,14 +1010,21 @@ async def delete_video(
     current_user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """删除视频"""
+    """删除视频（包括数据库记录和服务器文件）"""
     from sqlalchemy import text
+    import shutil
     
     result = await db.execute(select(Video).where(Video.id == video_id))
     video = result.scalar_one_or_none()
     
     if not video:
         raise HTTPException(status_code=404, detail="视频不存在")
+    
+    # 保存文件路径用于删除
+    hls_url = video.hls_url
+    cover_url = video.cover_url
+    preview_url = video.preview_url
+    is_short = video.is_short
     
     try:
         # 使用原生SQL按顺序删除关联数据
@@ -1036,12 +1043,55 @@ async def delete_video(
         # 4. 删除视频-标签关联
         await db.execute(text("DELETE FROM video_tags_association WHERE video_id = :video_id"), {"video_id": video_id})
         
-        # 5. 删除视频
+        # 5. 删除视频记录
         await db.execute(text("DELETE FROM videos WHERE id = :video_id"), {"video_id": video_id})
         
         await db.commit()
         
-        return {"message": "删除成功"}
+        # 6. 删除服务器上的文件
+        UPLOAD_BASE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+        deleted_files = []
+        
+        if hls_url:
+            # 长视频: /uploads/hls/{video_name}/master.m3u8 -> 删除整个目录
+            # 短视频: /uploads/shorts/{filename}.mp4 -> 删除单个文件
+            if "/hls/" in hls_url:
+                # 提取目录名
+                parts = hls_url.split("/")
+                if len(parts) >= 4:
+                    video_name = parts[-2]
+                    hls_dir = os.path.join(UPLOAD_BASE, "hls", video_name)
+                    if os.path.exists(hls_dir):
+                        shutil.rmtree(hls_dir, ignore_errors=True)
+                        deleted_files.append(f"hls/{video_name}/")
+            elif "/shorts/" in hls_url:
+                # 短视频文件
+                filename = os.path.basename(hls_url)
+                short_file = os.path.join(UPLOAD_BASE, "shorts", filename)
+                if os.path.exists(short_file):
+                    os.remove(short_file)
+                    deleted_files.append(f"shorts/{filename}")
+        
+        if cover_url:
+            # 删除封面文件
+            cover_path = cover_url.lstrip("/uploads/")
+            cover_file = os.path.join(UPLOAD_BASE, cover_path)
+            if os.path.exists(cover_file):
+                os.remove(cover_file)
+                deleted_files.append(cover_path)
+        
+        if preview_url:
+            # 删除预览文件
+            preview_path = preview_url.lstrip("/uploads/")
+            preview_file = os.path.join(UPLOAD_BASE, preview_path)
+            if os.path.exists(preview_file):
+                os.remove(preview_file)
+                deleted_files.append(preview_path)
+        
+        return {
+            "message": "删除成功",
+            "deleted_files": deleted_files
+        }
         
     except Exception as e:
         await db.rollback()

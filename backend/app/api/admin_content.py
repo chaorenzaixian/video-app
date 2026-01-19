@@ -149,16 +149,35 @@ async def delete_banner(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_admin_user)
 ):
-    """删除轮播图"""
+    """删除轮播图（包括数据库记录和服务器文件）"""
+    import os
+    from app.core.config import settings
+    
     result = await db.execute(select(Banner).where(Banner.id == banner_id))
     banner = result.scalar_one_or_none()
     
     if not banner:
         raise HTTPException(status_code=404, detail="轮播图不存在")
     
+    # 保存图片路径
+    image_url = banner.image_url
+    
     await db.delete(banner)
     await db.commit()
-    return {"message": "删除成功"}
+    
+    # 删除服务器上的图片文件
+    deleted_files = []
+    try:
+        if image_url and image_url.startswith("/uploads/"):
+            img_path = image_url.replace("/uploads/", "")
+            img_file = os.path.join(settings.UPLOAD_DIR, img_path)
+            if os.path.exists(img_file):
+                os.remove(img_file)
+                deleted_files.append(img_path)
+    except Exception as e:
+        print(f"删除轮播图文件时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 @router.post("/banners/{banner_id}/click")

@@ -283,12 +283,19 @@ async def delete_post_admin(
     admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """删除帖子（管理员）- 真实删除"""
+    """删除帖子（管理员）- 真实删除，包括服务器文件"""
+    import os
+    from app.core.config import settings
+    
     result = await db.execute(select(Post).where(Post.id == post_id))
     post = result.scalar_one_or_none()
     
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")
+    
+    # 保存文件路径用于删除
+    images = post.images or []
+    video_url = post.video_url
     
     # 先删除关联数据
     await db.execute(
@@ -301,7 +308,29 @@ async def delete_post_admin(
     await db.delete(post)
     await db.commit()
     
-    return {"message": "删除成功"}
+    # 删除服务器上的文件
+    deleted_files = []
+    try:
+        # 删除图片
+        for img_url in images:
+            if img_url and img_url.startswith("/uploads/"):
+                img_path = img_url.replace("/uploads/", "")
+                img_file = os.path.join(settings.UPLOAD_DIR, img_path)
+                if os.path.exists(img_file):
+                    os.remove(img_file)
+                    deleted_files.append(img_path)
+        
+        # 删除视频
+        if video_url and video_url.startswith("/uploads/"):
+            video_path = video_url.replace("/uploads/", "")
+            video_file = os.path.join(settings.UPLOAD_DIR, video_path)
+            if os.path.exists(video_file):
+                os.remove(video_file)
+                deleted_files.append(video_path)
+    except Exception as e:
+        print(f"删除帖子文件时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 @router.post("/posts")
@@ -345,15 +374,24 @@ async def batch_audit_posts(
     db: AsyncSession = Depends(get_db)
 ):
     """批量审核帖子"""
+    import os
+    from app.core.config import settings
+    
     if req.status not in ["published", "hidden", "deleted"]:
         raise HTTPException(status_code=400, detail="无效的状态")
     
     result = await db.execute(select(Post).where(Post.id.in_(req.post_ids)))
     posts = result.scalars().all()
     
+    deleted_files = []
+    
     if req.status == "deleted":
-        # 真实删除 - 先删除关联数据
+        # 真实删除 - 先删除关联数据和文件
         for post in posts:
+            # 保存文件路径
+            images = post.images or []
+            video_url = post.video_url
+            
             # 删除帖子的评论
             await db.execute(
                 PostComment.__table__.delete().where(PostComment.post_id == post.id)
@@ -364,13 +402,32 @@ async def batch_audit_posts(
             )
             # 删除帖子
             await db.delete(post)
+            
+            # 删除服务器上的文件
+            try:
+                for img_url in images:
+                    if img_url and img_url.startswith("/uploads/"):
+                        img_path = img_url.replace("/uploads/", "")
+                        img_file = os.path.join(settings.UPLOAD_DIR, img_path)
+                        if os.path.exists(img_file):
+                            os.remove(img_file)
+                            deleted_files.append(img_path)
+                
+                if video_url and video_url.startswith("/uploads/"):
+                    video_path = video_url.replace("/uploads/", "")
+                    video_file = os.path.join(settings.UPLOAD_DIR, video_path)
+                    if os.path.exists(video_file):
+                        os.remove(video_file)
+                        deleted_files.append(video_path)
+            except Exception as e:
+                print(f"删除帖子文件时出错: {e}")
     else:
         for post in posts:
             post.status = req.status
     
     await db.commit()
     
-    return {"message": f"已处理 {len(posts)} 条帖子"}
+    return {"message": f"已处理 {len(posts)} 条帖子", "deleted_files": deleted_files}
 
 
 

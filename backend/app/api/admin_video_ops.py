@@ -59,14 +59,78 @@ async def batch_delete_videos(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_admin_user)
 ):
-    """批量删除视频"""
-    await db.execute(
-        update(Video)
-        .where(Video.id.in_(video_ids))
-        .values(status=VideoStatus.DELETED)
-    )
+    """批量删除视频（真删除，包括数据库记录和服务器文件）"""
+    import shutil
+    from sqlalchemy import text
+    
+    # 先获取所有视频信息
+    result = await db.execute(select(Video).where(Video.id.in_(video_ids)))
+    videos = result.scalars().all()
+    
+    if not videos:
+        raise HTTPException(status_code=404, detail="未找到视频")
+    
+    UPLOAD_BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
+    deleted_count = 0
+    deleted_files = []
+    
+    for video in videos:
+        try:
+            video_id = video.id
+            hls_url = video.hls_url
+            cover_url = video.cover_url
+            preview_url = video.preview_url
+            
+            # 删除数据库关联数据
+            await db.execute(text("""
+                DELETE FROM comment_likes 
+                WHERE comment_id IN (SELECT id FROM comments WHERE video_id = :video_id)
+            """), {"video_id": video_id})
+            await db.execute(text("DELETE FROM comments WHERE video_id = :video_id"), {"video_id": video_id})
+            await db.execute(text("DELETE FROM video_views WHERE video_id = :video_id"), {"video_id": video_id})
+            await db.execute(text("DELETE FROM video_tags_association WHERE video_id = :video_id"), {"video_id": video_id})
+            await db.execute(text("DELETE FROM videos WHERE id = :video_id"), {"video_id": video_id})
+            
+            # 删除服务器文件
+            if hls_url:
+                if "/hls/" in hls_url:
+                    parts = hls_url.split("/")
+                    if len(parts) >= 4:
+                        video_name = parts[-2]
+                        hls_dir = os.path.join(UPLOAD_BASE, "hls", video_name)
+                        if os.path.exists(hls_dir):
+                            shutil.rmtree(hls_dir, ignore_errors=True)
+                            deleted_files.append(f"hls/{video_name}/")
+                elif "/shorts/" in hls_url:
+                    filename = os.path.basename(hls_url)
+                    short_file = os.path.join(UPLOAD_BASE, "shorts", filename)
+                    if os.path.exists(short_file):
+                        os.remove(short_file)
+                        deleted_files.append(f"shorts/{filename}")
+            
+            if cover_url and cover_url.startswith("/uploads/"):
+                cover_path = cover_url[9:]  # 去掉 /uploads/
+                cover_file = os.path.join(UPLOAD_BASE, cover_path)
+                if os.path.exists(cover_file):
+                    os.remove(cover_file)
+            
+            if preview_url and preview_url.startswith("/uploads/"):
+                preview_path = preview_url[9:]
+                preview_file = os.path.join(UPLOAD_BASE, preview_path)
+                if os.path.exists(preview_file):
+                    os.remove(preview_file)
+            
+            deleted_count += 1
+            
+        except Exception as e:
+            print(f"删除视频 {video.id} 失败: {e}")
+            continue
+    
     await db.commit()
-    return {"message": f"已删除 {len(video_ids)} 个视频"}
+    return {
+        "message": f"已删除 {deleted_count} 个视频",
+        "deleted_files": deleted_files
+    }
 
 
 @router.post("/batch-feature")

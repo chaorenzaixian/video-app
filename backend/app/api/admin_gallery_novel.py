@@ -493,16 +493,47 @@ async def delete_gallery(
     admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """删除图集"""
+    """删除图集（包括数据库记录和服务器文件）"""
+    import os
+    from app.core.config import settings
+    
     result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
     gallery = result.scalar_one_or_none()
     
     if not gallery:
         raise HTTPException(status_code=404, detail="图集不存在")
     
-    gallery.is_active = False
+    # 保存文件路径用于删除
+    cover = gallery.cover
+    images = gallery.images or []
+    
+    # 真实删除数据库记录
+    await db.delete(gallery)
     await db.commit()
-    return {"message": "删除成功"}
+    
+    # 删除服务器上的文件
+    deleted_files = []
+    try:
+        # 删除封面
+        if cover and cover.startswith("/uploads/"):
+            cover_path = cover.replace("/uploads/", "")
+            cover_file = os.path.join(settings.UPLOAD_DIR, cover_path)
+            if os.path.exists(cover_file):
+                os.remove(cover_file)
+                deleted_files.append(cover_path)
+        
+        # 删除所有图片
+        for img_url in images:
+            if img_url and img_url.startswith("/uploads/"):
+                img_path = img_url.replace("/uploads/", "")
+                img_file = os.path.join(settings.UPLOAD_DIR, img_path)
+                if os.path.exists(img_file):
+                    os.remove(img_file)
+                    deleted_files.append(img_path)
+    except Exception as e:
+        print(f"删除图集文件时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 # ========== 小说分类管理 ==========
@@ -768,16 +799,57 @@ async def delete_novel(
     admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """删除小说"""
+    """删除小说（包括数据库记录和服务器文件）"""
+    import os
+    from app.core.config import settings
+    
     result = await db.execute(select(Novel).where(Novel.id == novel_id))
     novel = result.scalar_one_or_none()
     
     if not novel:
         raise HTTPException(status_code=404, detail="小说不存在")
     
-    novel.is_active = False
+    # 保存文件路径用于删除
+    cover = novel.cover
+    
+    # 获取所有章节的音频文件
+    chapters_result = await db.execute(
+        select(NovelChapter).where(NovelChapter.novel_id == novel_id)
+    )
+    chapters = chapters_result.scalars().all()
+    audio_urls = [c.audio_url for c in chapters if c.audio_url]
+    
+    # 删除所有章节
+    for chapter in chapters:
+        await db.delete(chapter)
+    
+    # 删除小说记录
+    await db.delete(novel)
     await db.commit()
-    return {"message": "删除成功"}
+    
+    # 删除服务器上的文件
+    deleted_files = []
+    try:
+        # 删除封面
+        if cover and cover.startswith("/uploads/"):
+            cover_path = cover.replace("/uploads/", "")
+            cover_file = os.path.join(settings.UPLOAD_DIR, cover_path)
+            if os.path.exists(cover_file):
+                os.remove(cover_file)
+                deleted_files.append(cover_path)
+        
+        # 删除所有音频文件
+        for audio_url in audio_urls:
+            if audio_url and audio_url.startswith("/uploads/"):
+                audio_path = audio_url.replace("/uploads/", "")
+                audio_file = os.path.join(settings.UPLOAD_DIR, audio_path)
+                if os.path.exists(audio_file):
+                    os.remove(audio_file)
+                    deleted_files.append(audio_path)
+    except Exception as e:
+        print(f"删除小说文件时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 # ========== 小说章节管理 ==========
@@ -887,7 +959,10 @@ async def delete_chapter(
     admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """删除章节"""
+    """删除章节（包括数据库记录和服务器文件）"""
+    import os
+    from app.core.config import settings
+    
     result = await db.execute(
         select(NovelChapter).where(
             NovelChapter.id == chapter_id,
@@ -899,6 +974,9 @@ async def delete_chapter(
     if not chapter:
         raise HTTPException(status_code=404, detail="章节不存在")
     
+    # 保存音频文件路径
+    audio_url = chapter.audio_url
+    
     # 更新小说章节数
     novel_result = await db.execute(select(Novel).where(Novel.id == novel_id))
     novel = novel_result.scalar_one_or_none()
@@ -908,7 +986,19 @@ async def delete_chapter(
     await db.delete(chapter)
     await db.commit()
     
-    return {"message": "删除成功"}
+    # 删除服务器上的音频文件
+    deleted_files = []
+    try:
+        if audio_url and audio_url.startswith("/uploads/"):
+            audio_path = audio_url.replace("/uploads/", "")
+            audio_file = os.path.join(settings.UPLOAD_DIR, audio_path)
+            if os.path.exists(audio_file):
+                os.remove(audio_file)
+                deleted_files.append(audio_path)
+    except Exception as e:
+        print(f"删除章节音频文件时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 # ========== 阅读数据统计 ==========

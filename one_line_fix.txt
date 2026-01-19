@@ -1,3 +1,0 @@
-# 在转码服务器 PowerShell 中执行这一行命令来修复语法错误：
-
-(Get-Content "D:\VideoTranscode\scripts\transcode_full.ps1" -Raw) -replace 'Write-Log "  片段 \$\(\$i\+1\)/\$numSegments: \$\(\[math\]::Round\(\$startTime, 1\)\)秒" "Gray"', '$roundedTime = [math]::Round($startTime, 1); Write-Log "  片段 $($i+1)/$numSegments: ${roundedTime}秒" "Gray"' | Set-Content "D:\VideoTranscode\scripts\transcode_full.ps1" -Encoding UTF8

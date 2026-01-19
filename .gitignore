@@ -39,6 +39,7 @@ Thumbs.db
 *.bak
 *.backup
 *_backup/
+_backup_scripts/
 server_backup/
 deploy_package/
 video-app_MhYR3/

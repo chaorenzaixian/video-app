@@ -533,17 +533,32 @@ async def delete_icon_ad(
     current_user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """管理后台：删除图标广告位"""
+    """管理后台：删除图标广告位（包括服务器文件）"""
     result = await db.execute(select(IconAd).where(IconAd.id == ad_id))
     ad = result.scalar_one_or_none()
     
     if not ad:
         raise HTTPException(status_code=404, detail="广告位不存在")
     
+    # 保存图片路径
+    image_url = ad.image
+    
     await db.delete(ad)
     await db.commit()
     
-    return {"message": "删除成功"}
+    # 删除服务器上的图片文件
+    deleted_files = []
+    try:
+        if image_url and image_url.startswith("/uploads/"):
+            img_path = image_url.replace("/uploads/", "")
+            img_file = os.path.join(settings.UPLOAD_DIR, img_path)
+            if os.path.exists(img_file):
+                os.remove(img_file)
+                deleted_files.append(img_path)
+    except Exception as e:
+        print(f"删除图标广告图片时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 @router.post("/icons/init")
@@ -885,17 +900,32 @@ async def delete_func_entry(
     current_user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """管理后台：删除功能入口"""
+    """管理后台：删除功能入口（包括服务器文件）"""
     result = await db.execute(select(FuncEntry).where(FuncEntry.id == entry_id))
     entry = result.scalar_one_or_none()
     
     if not entry:
         raise HTTPException(status_code=404, detail="功能入口不存在")
     
+    # 保存图片路径
+    image_url = entry.image
+    
     await db.delete(entry)
     await db.commit()
     
-    return {"message": "删除成功"}
+    # 删除服务器上的图片文件
+    deleted_files = []
+    try:
+        if image_url and image_url.startswith("/uploads/"):
+            img_path = image_url.replace("/uploads/", "")
+            img_file = os.path.join(settings.UPLOAD_DIR, img_path)
+            if os.path.exists(img_file):
+                os.remove(img_file)
+                deleted_files.append(img_path)
+    except Exception as e:
+        print(f"删除功能入口图片时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 @router.post("/func-entries/init")
@@ -1376,17 +1406,43 @@ async def delete_advertisement(
     current_user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """管理后台：删除视频广告"""
+    """管理后台：删除视频广告（包括服务器文件）"""
     result = await db.execute(select(Advertisement).where(Advertisement.id == ad_id))
     ad = result.scalar_one_or_none()
     
     if not ad:
         raise HTTPException(status_code=404, detail="广告不存在")
     
+    # 保存媒体文件路径
+    media_url = ad.media_url
+    extra_images = parse_extra_images(ad.extra_images)
+    
     await db.delete(ad)
     await db.commit()
     
-    return {"message": "删除成功"}
+    # 删除服务器上的文件
+    deleted_files = []
+    try:
+        # 删除主媒体文件
+        if media_url and media_url.startswith("/uploads/"):
+            media_path = media_url.replace("/uploads/", "")
+            media_file = os.path.join(settings.UPLOAD_DIR, media_path)
+            if os.path.exists(media_file):
+                os.remove(media_file)
+                deleted_files.append(media_path)
+        
+        # 删除额外图片
+        for img_url in extra_images:
+            if img_url and img_url.startswith("/uploads/"):
+                img_path = img_url.replace("/uploads/", "")
+                img_file = os.path.join(settings.UPLOAD_DIR, img_path)
+                if os.path.exists(img_file):
+                    os.remove(img_file)
+                    deleted_files.append(img_path)
+    except Exception as e:
+        print(f"删除广告文件时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 
@@ -1590,17 +1646,32 @@ async def delete_official_group(
     current_user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """管理后台：删除官方群组"""
+    """管理后台：删除官方群组（包括服务器文件）"""
     result = await db.execute(select(OfficialGroup).where(OfficialGroup.id == group_id))
     group = result.scalar_one_or_none()
     
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
     
+    # 保存图片路径
+    icon_image = group.icon_image
+    
     await db.delete(group)
     await db.commit()
     
-    return {"message": "删除成功"}
+    # 删除服务器上的图片文件
+    deleted_files = []
+    try:
+        if icon_image and icon_image.startswith("/uploads/"):
+            img_path = icon_image.replace("/uploads/", "")
+            img_file = os.path.join(settings.UPLOAD_DIR, img_path)
+            if os.path.exists(img_file):
+                os.remove(img_file)
+                deleted_files.append(img_path)
+    except Exception as e:
+        print(f"删除群组图片时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 @router.post("/groups/{group_id}/click")
@@ -1834,17 +1905,32 @@ async def delete_customer_service(
     current_user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """管理后台：删除客服"""
+    """管理后台：删除客服（包括服务器文件）"""
     result = await db.execute(select(CustomerService).where(CustomerService.id == service_id))
     service = result.scalar_one_or_none()
     
     if not service:
         raise HTTPException(status_code=404, detail="客服不存在")
     
+    # 保存图片路径
+    icon_image = service.icon_image
+    
     await db.delete(service)
     await db.commit()
     
-    return {"message": "删除成功"}
+    # 删除服务器上的图片文件
+    deleted_files = []
+    try:
+        if icon_image and icon_image.startswith("/uploads/"):
+            img_path = icon_image.replace("/uploads/", "")
+            img_file = os.path.join(settings.UPLOAD_DIR, img_path)
+            if os.path.exists(img_file):
+                os.remove(img_file)
+                deleted_files.append(img_path)
+    except Exception as e:
+        print(f"删除客服图片时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 @router.post("/customer-service/{service_id}/click")

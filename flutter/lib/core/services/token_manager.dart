@@ -34,9 +34,22 @@ class TokenManager {
     if (token == null || token.isEmpty) return '';
     return '''
       (function() {
-        localStorage.setItem('token', '$token');
-        localStorage.setItem('access_token', '$token');
-        console.log('Token injected from Flutter');
+        try {
+          // 保存token到localStorage
+          localStorage.setItem('token', '$token');
+          localStorage.setItem('access_token', '$token');
+          
+          // 检查是否需要刷新页面（如果当前在登录页）
+          const path = window.location.pathname;
+          if (path.includes('/login') || path.includes('/register')) {
+            console.log('Token injected, redirecting to home...');
+            window.location.href = '/';
+          } else {
+            console.log('Token injected from Flutter');
+          }
+        } catch(e) {
+          console.error('Token injection error:', e);
+        }
       })();
     ''';
   }

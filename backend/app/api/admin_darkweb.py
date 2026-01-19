@@ -568,7 +568,7 @@ async def delete_video(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_admin_user)
 ):
-    """删除视频"""
+    """删除视频（包括数据库记录和服务器文件）"""
     result = await db.execute(
         select(DarkwebVideo).where(DarkwebVideo.id == video_id)
     )
@@ -577,12 +577,56 @@ async def delete_video(
     if not video:
         raise HTTPException(status_code=404, detail="视频不存在")
     
+    # 保存文件路径用于删除
+    hls_url = video.hls_url
+    cover_url = video.cover_url
+    preview_url = video.preview_url
+    original_url = video.original_url
+    
+    # 删除关联数据
     await db.execute(delete(DarkwebView).where(DarkwebView.video_id == video_id))
     
     await db.delete(video)
     await db.commit()
     
-    return {"message": "删除成功"}
+    # 删除服务器上的文件
+    deleted_files = []
+    try:
+        # HLS目录
+        if hls_url and "/darkweb_hls/" in hls_url:
+            hls_dir = os.path.join(settings.UPLOAD_DIR, "darkweb_hls", str(video_id))
+            if os.path.exists(hls_dir):
+                shutil.rmtree(hls_dir, ignore_errors=True)
+                deleted_files.append(f"darkweb_hls/{video_id}/")
+        
+        # 封面
+        if cover_url and "/darkweb_thumbnails/" in cover_url:
+            cover_file = os.path.join(settings.UPLOAD_DIR, "darkweb_thumbnails", os.path.basename(cover_url))
+            if os.path.exists(cover_file):
+                os.remove(cover_file)
+                deleted_files.append(f"darkweb_thumbnails/{os.path.basename(cover_url)}")
+        
+        # 预览视频
+        if preview_url and "/darkweb_previews/" in preview_url:
+            preview_file = os.path.join(settings.UPLOAD_DIR, "darkweb_previews", os.path.basename(preview_url))
+            if os.path.exists(preview_file):
+                os.remove(preview_file)
+                deleted_files.append(f"darkweb_previews/{os.path.basename(preview_url)}")
+        
+        # 原始视频文件
+        if original_url and "/darkweb_videos/" in original_url:
+            original_file = os.path.join(settings.UPLOAD_DIR, "darkweb_videos", os.path.basename(original_url))
+            if os.path.exists(original_file):
+                os.remove(original_file)
+                deleted_files.append(f"darkweb_videos/{os.path.basename(original_url)}")
+        elif original_url and os.path.exists(original_url):
+            # 如果是绝对路径
+            os.remove(original_url)
+            deleted_files.append(original_url)
+    except Exception as e:
+        print(f"删除暗网视频文件时出错: {e}")
+    
+    return {"message": "删除成功", "deleted_files": deleted_files}
 
 
 # ========== 配置管理 ==========
