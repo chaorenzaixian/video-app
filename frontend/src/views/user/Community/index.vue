@@ -86,7 +86,7 @@
 <script setup>
 defineOptions({ name: 'Community' })
 
-import { ref, onMounted, onActivated, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onActivated, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '@/utils/api'
 import { formatCount } from '@/utils/format'
@@ -179,16 +179,6 @@ const handlePublish = (type) => {
   router.push(routes[type])
 }
 
-// 设置固定头部高度
-const updateHeaderHeight = () => {
-  if (fixedTopRef.value) {
-    const rect = fixedTopRef.value.getBoundingClientRect()
-    const height = Math.ceil(rect.height)
-    headerHeight.value = height
-    document.documentElement.style.setProperty('--community-header-height', `${height}px`)
-  }
-}
-
 onMounted(() => {
   const tabParam = route.query.tab
   if (tabParam && ['community', 'gallery', 'novel'].includes(tabParam)) activeMainTab.value = tabParam
@@ -203,13 +193,6 @@ onMounted(() => {
   if (activeMainTab.value === 'community') fetchPosts(true)
   else if (activeMainTab.value === 'gallery') fetchGalleries()
   else if (activeMainTab.value === 'novel') fetchNovels()
-  
-  // 初始化头部高度
-  updateHeaderHeight()
-  // DOM 渲染完成后再次更新
-  setTimeout(updateHeaderHeight, 100)
-  // 监听窗口大小变化
-  window.addEventListener('resize', updateHeaderHeight)
 })
 
 // keep-alive 激活时滚动到顶部
@@ -219,12 +202,6 @@ onActivated(async () => {
   if (scrollContainer.value) {
     scrollContainer.value.scrollTop = 0
   }
-  // 重新计算头部高度
-  updateHeaderHeight()
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateHeaderHeight)
 })
 </script>
 
