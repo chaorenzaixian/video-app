@@ -23,8 +23,8 @@ import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import sessionChecker from '@/utils/sessionChecker'
 
-// 需要缓存的页面组件名（移除 Community 避免首次加载位置计算问题）
-const cachedPages = ['UserHome', 'Dating', 'UserProfile', 'DarkwebEntry']
+// 需要缓存的页面组件名
+const cachedPages = ['UserHome', 'Dating', 'UserProfile', 'DarkwebEntry', 'Community']
 import axios from 'axios'
 
 const userStore = useUserStore()

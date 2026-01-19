@@ -144,24 +144,26 @@ const switchMainTab = (tab) => {
 const setFilter = async (value) => {
   if (activeFilter.value === value) return
   
-  // 判断筛选栏是否处于固定状态，保存当前滚动位置
+  // 保存当前滚动位置
   const currentScrollTop = scrollContainer.value?.scrollTop || 0
-  const filterTabsTop = 92 // header-placeholder高度
-  const isSticky = currentScrollTop >= filterTabsTop
   
   activeFilter.value = value
   
-  // 如果筛选栏固定，获取数据后恢复滚动位置
-  if (isSticky) {
-    await fetchPosts(true, true)
-    // 数据加载完成后，恢复滚动位置
-    await nextTick()
+  // 始终保持滚动位置不变，获取数据后恢复
+  await fetchPosts(true, true)
+  
+  // 使用多次 nextTick 和 requestAnimationFrame 确保滚动位置被正确恢复
+  await nextTick()
+  requestAnimationFrame(() => {
     if (scrollContainer.value) {
       scrollContainer.value.scrollTop = currentScrollTop
     }
-  } else {
-    await fetchPosts(true)
-  }
+    requestAnimationFrame(() => {
+      if (scrollContainer.value) {
+        scrollContainer.value.scrollTop = currentScrollTop
+      }
+    })
+  })
 }
 
 // 选择话题
@@ -213,13 +215,9 @@ onMounted(() => {
   else if (activeMainTab.value === 'novel') fetchNovels()
 })
 
-// keep-alive 激活时滚动到顶部
+// keep-alive 激活时不滚动，保持原位置
 onActivated(async () => {
-  await nextTick()
-  // 滚动容器到顶部
-  if (scrollContainer.value) {
-    scrollContainer.value.scrollTop = 0
-  }
+  // 不做任何滚动操作，保持用户离开时的位置
 })
 </script>
 
@@ -430,7 +428,10 @@ onActivated(async () => {
   }
 }
 
-.content-area { padding: 0 12px; }
+.content-area { 
+  padding: 0 12px; 
+  min-height: calc(100vh - 150px);  /* 保证内容区域有足够高度，防止切换筛选时滚动位置跳动 */
+}
 
 .publish-btn {
   position: fixed;
