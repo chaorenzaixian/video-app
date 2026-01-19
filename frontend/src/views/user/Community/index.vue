@@ -108,7 +108,6 @@ const { signal } = useAbortController()
 const { withLock } = useActionLock()
 const scrollContainer = ref(null)
 const fixedTopRef = ref(null)
-const headerHeight = ref(90)
 
 // Tab配置
 const mainTabs = [
@@ -380,7 +379,7 @@ onUnmounted(() => {
   border-bottom: 1px solid #1a1a1a;
   background: #0d0d0d;
   position: sticky;
-  top: var(--community-header-height, 105px);
+  top: 105px;  /* 固定值：54px(导航) + 51px(分类) */
   z-index: 90;
   box-shadow: 0 -10px 0 0 #0d0d0d;
 }
