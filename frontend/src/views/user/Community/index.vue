@@ -141,9 +141,27 @@ const switchMainTab = (tab) => {
 }
 
 // 设置筛选
-const setFilter = (value) => {
+const setFilter = async (value) => {
+  if (activeFilter.value === value) return
+  
+  // 判断筛选栏是否处于固定状态，保存当前滚动位置
+  const currentScrollTop = scrollContainer.value?.scrollTop || 0
+  const filterTabsTop = 92 // header-placeholder高度
+  const isSticky = currentScrollTop >= filterTabsTop
+  
   activeFilter.value = value
-  fetchPosts(true)
+  
+  // 如果筛选栏固定，获取数据后恢复滚动位置
+  if (isSticky) {
+    await fetchPosts(true, true)
+    // 数据加载完成后，恢复滚动位置
+    await nextTick()
+    if (scrollContainer.value) {
+      scrollContainer.value.scrollTop = currentScrollTop
+    }
+  } else {
+    await fetchPosts(true)
+  }
 }
 
 // 选择话题
@@ -245,11 +263,11 @@ onActivated(async () => {
 
 // 占位元素 - 使用固定高度
 .header-placeholder {
-  height: 105px;  /* 54px(导航) + 51px(分类) */
+  height: 92px;  /* main-tabs(55px) + category-tabs(37px) */
   
   // 小说tab时占位更高（有两行分类）
   &.novel-mode {
-    height: 140px;
+    height: 127px;
   }
 }
 
@@ -273,7 +291,7 @@ onActivated(async () => {
   img { width: 28px; height: 28px; }
 }
 
-.category-tabs { padding: 0 16px 10px; }
+.category-tabs { padding: 0 16px 10px; }  /* 缩小底部内边距 */
 
 .category-scroll {
   display: flex;
@@ -352,11 +370,11 @@ onActivated(async () => {
 .filter-tabs {
   display: flex;
   gap: 24px;
-  padding: 10px 16px 12px;
+  padding: 14px 16px 16px;  /* 增加上下内边距 */
   border-bottom: 1px solid #1a1a1a;
   background: #0d0d0d;
   position: sticky;
-  top: 105px;  /* 固定值：54px(导航) + 51px(分类) */
+  top: 92px;  /* 与header-placeholder高度一致 */
   z-index: 90;
 }
 

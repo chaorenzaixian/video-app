@@ -70,12 +70,15 @@ export function useCommunityData(signal) {
   }
 
   // 获取帖子列表
-  const fetchPosts = async (reset = false) => {
+  const fetchPosts = async (reset = false, keepScroll = false) => {
     if (loading.value) return
     if (reset) {
       page.value = 1
       hasMore.value = true
-      posts.value = []
+      // 如果需要保持滚动位置，不清空旧数据
+      if (!keepScroll) {
+        posts.value = []
+      }
     }
     if (!hasMore.value) return
 
@@ -94,7 +97,8 @@ export function useCommunityData(signal) {
       const data = res.data || []
       
       if (data.length < 20) hasMore.value = false
-      posts.value = reset ? data : [...posts.value, ...data]
+      // 如果是重置且保持滚动，直接替换数据
+      posts.value = (reset || keepScroll) ? data : [...posts.value, ...data]
       page.value++
     } catch (e) {
       if (e.name !== 'AbortError' && e.name !== 'CanceledError') {
