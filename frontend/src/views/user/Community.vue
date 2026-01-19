@@ -343,17 +343,34 @@ const updateFilterOriginalTop = () => {
 const forceUpdatePosition = () => {
   nextTick(() => {
     // 多次延迟尝试，确保DOM完全渲染
-    const delays = [50, 150, 300, 500]
+    const delays = [50, 150, 300, 500, 800]
     delays.forEach(delay => {
       setTimeout(() => {
+        // 更新一级分类位置
+        if (categoryTabsRef.value && !isCategoryFixed.value) {
+          const catRect = categoryTabsRef.value.getBoundingClientRect()
+          const scrollTop = window.scrollY || document.documentElement.scrollTop
+          const newCatTop = catRect.top + scrollTop
+          if (newCatTop > HEADER_HEIGHT && newCatTop !== categoryTabsOriginalTop) {
+            categoryTabsOriginalTop = newCatTop
+            console.log(`[Community] 延迟${delay}ms更新一级分类位置:`, categoryTabsOriginalTop)
+          }
+        }
+        
+        // 更新筛选栏位置
         if (filterTabsRef.value && !isFilterFixed.value) {
           const rect = filterTabsRef.value.getBoundingClientRect()
           const scrollTop = window.scrollY || document.documentElement.scrollTop
           const newTop = rect.top + scrollTop
           if (newTop > HEADER_HEIGHT + 50 && newTop !== filterTabsOriginalTop) {
             filterTabsOriginalTop = newTop
-            console.log(`[Community] 延迟${delay}ms更新位置:`, filterTabsOriginalTop)
+            console.log(`[Community] 延迟${delay}ms更新筛选栏位置:`, filterTabsOriginalTop)
           }
+        }
+        
+        // 最后一次延迟后触发滚动检查
+        if (delay === 800) {
+          handleScroll()
         }
       }, delay)
     })
@@ -773,6 +790,12 @@ onMounted(() => {
   // 重置数据加载状态
   dataLoaded.value = { categories: false, ads: false }
   
+  // 重置固定状态
+  isCategoryFixed.value = false
+  isFilterFixed.value = false
+  categoryTabsOriginalTop = 0
+  filterTabsOriginalTop = 0
+  
   fetchIconAds()
   fetchCategories()
   fetchGalleryCategories()
@@ -790,6 +813,10 @@ onMounted(() => {
   // 设置内容观察器，监听DOM变化
   nextTick(() => {
     setupContentObserver()
+    // 首次加载时也尝试更新位置（延迟更长时间等待数据加载）
+    setTimeout(() => {
+      forceUpdatePosition()
+    }, 100)
   })
   
   // 监听滚动
