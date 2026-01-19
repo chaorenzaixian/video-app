@@ -1090,10 +1090,12 @@ onActivated(() => {
   
   &.is-fixed {
     position: fixed;
-    top: 92px;  /* 54px(顶部导航) + 38px(一级分类) */
+    top: 93px;  /* 54px(顶部导航) + 38px(一级分类) + 1px(边框) */
     left: 0;
     right: 0;
     z-index: 98;
+    border-top: 1px solid #1a1a1a;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     
     @media (min-width: 768px) {
       left: 50%;
