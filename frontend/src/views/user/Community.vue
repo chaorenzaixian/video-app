@@ -913,6 +913,9 @@ onActivated(() => {
     right: 0;
     z-index: 99;
     padding-top: 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #1a1a1a;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     
     @media (min-width: 768px) {
       left: 50%;
