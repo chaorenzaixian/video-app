@@ -1,6 +1,6 @@
 <template>
   <div class="community-page">
-    <!-- 固定顶部导航：只有主标签 -->
+    <!-- 固定顶部：主标签 + 一级分类（社区时） -->
     <header class="top-header">
       <div class="main-tabs">
         <div 
@@ -16,32 +16,21 @@
           <img src="/images/backgrounds/ic_search.webp" alt="搜索" />
         </router-link>
       </div>
+      <!-- 一级分类（顶级分类）- 始终固定在顶部导航下方 -->
+      <div class="category-tabs-fixed" v-if="activeMainTab === 'community'">
+        <div class="category-scroll">
+          <span 
+            v-for="cat in topCategories" 
+            :key="cat.id"
+            :class="['category-tab', { active: selectedCategory === cat.id }]"
+            @click="selectCategory(cat)"
+          >{{ cat.name }}</span>
+        </div>
+      </div>
     </header>
 
-    <!-- 头部占位 - 固定高度，只为顶部导航留空间 -->
-    <div class="header-placeholder"></div>
-
-    <!-- 一级分类（顶级分类）- 固定在顶部导航下方 -->
-    <div 
-      ref="categoryTabsRef"
-      :class="['category-tabs', { 'is-fixed': isCategoryFixed }]" 
-      v-if="activeMainTab === 'community'"
-    >
-      <div class="category-scroll">
-        <span 
-          v-for="cat in topCategories" 
-          :key="cat.id"
-          :class="['category-tab', { active: selectedCategory === cat.id }]"
-          @click="selectCategory(cat)"
-        >{{ cat.name }}</span>
-      </div>
-    </div>
-    <!-- 一级分类占位符 -->
-    <div 
-      class="category-tabs-placeholder" 
-      v-if="activeMainTab === 'community'"
-      :style="{ height: isCategoryFixed ? '38px' : '0px' }"
-    ></div>
+    <!-- 头部占位 - 根据是否显示一级分类调整高度 -->
+    <div class="header-placeholder" :class="{ 'with-category': activeMainTab === 'community' }"></div>
 
     <!-- 图集分类 - 不固定 -->
     <div class="category-tabs" v-if="activeMainTab === 'gallery'">
@@ -126,7 +115,7 @@
       </div>
     </div>
 
-    <!-- 筛选标签 - 固定在一级分类下方 -->
+    <!-- 筛选标签 - 滚动时固定在顶部 -->
     <div 
       ref="filterTabsRef"
       :class="['filter-tabs-wrapper', { 'is-fixed': isFilterFixed }]"
@@ -280,21 +269,16 @@ const { withLock } = useActionLock()
 // 获取VIP图标 - 使用统一的常量
 const getVipIcon = (level) => getVipLevelIcon(level)
 
-// 顶部导航高度（固定值，只有主标签栏）
+// 顶部导航高度（固定值，主标签栏 + 一级分类）
 const HEADER_HEIGHT = 54
 const CATEGORY_HEIGHT = 38  // 一级分类高度
-
-// 一级分类固定相关
-const categoryTabsRef = ref(null)
-const isCategoryFixed = ref(false)
-let categoryTabsOriginalTop = 0  // 一级分类原始位置
+const FIXED_HEADER_HEIGHT = HEADER_HEIGHT + CATEGORY_HEIGHT  // 92px
 
 // 筛选栏固定相关
 const filterTabsRef = ref(null)
 const filterPlaceholderRef = ref(null)
 const isFilterFixed = ref(false)
 let filterTabsOriginalTop = 0  // 筛选栏原始位置（相对于文档顶部）
-let contentObserver = null  // MutationObserver 用于监听内容变化
 
 // 标记数据是否已加载
 const dataLoaded = ref({
@@ -313,12 +297,11 @@ const updateFilterOriginalTop = () => {
   // 更新一级分类原始位置
   if (categoryTabsRef.value && !isCategoryFixed.value) {
     const rect = categoryTabsRef.value.getBoundingClientRect()
-    const scrollTop = window.scrollY || document.documentElement.scrollTop
-    const newTop = rect.top + scrollTop
-    if (newTop > HEADER_HEIGHT) {
-      categoryTabsOriginalTop = newTop
-      console.log('[Community] 更新一级分类位置:', categoryTabsOriginalTop)
-    }
+// 更新筛选栏原始位置
+const updateFilterOriginalTop = () => {
+  // 只有当关键数据都加载完成后才更新位置
+  if (!dataLoaded.value.categories || !dataLoaded.value.ads) {
+    return
   }
   
   // 更新筛选栏原始位置
@@ -326,16 +309,14 @@ const updateFilterOriginalTop = () => {
     const rect = filterTabsRef.value.getBoundingClientRect()
     const scrollTop = window.scrollY || document.documentElement.scrollTop
     const newTop = rect.top + scrollTop
-    // 只有当位置大于头部高度时才更新（避免错误的小值）
-    if (newTop > HEADER_HEIGHT + 50) {
+    // 只有当位置大于固定头部高度时才更新
+    if (newTop > FIXED_HEADER_HEIGHT) {
       filterTabsOriginalTop = newTop
-      console.log('[Community] 更新筛选栏位置:', filterTabsOriginalTop)
     }
   } else if (filterPlaceholderRef.value && isFilterFixed.value) {
     const rect = filterPlaceholderRef.value.getBoundingClientRect()
     const scrollTop = window.scrollY || document.documentElement.scrollTop
     filterTabsOriginalTop = rect.top + scrollTop
-    console.log('[Community] 从占位符更新筛选栏位置:', filterTabsOriginalTop)
   }
 }
 
@@ -343,33 +324,20 @@ const updateFilterOriginalTop = () => {
 const forceUpdatePosition = () => {
   nextTick(() => {
     // 多次延迟尝试，确保DOM完全渲染
-    const delays = [50, 150, 300, 500, 800]
+    const delays = [50, 150, 300, 500]
     delays.forEach(delay => {
       setTimeout(() => {
-        // 更新一级分类位置
-        if (categoryTabsRef.value && !isCategoryFixed.value) {
-          const catRect = categoryTabsRef.value.getBoundingClientRect()
-          const scrollTop = window.scrollY || document.documentElement.scrollTop
-          const newCatTop = catRect.top + scrollTop
-          if (newCatTop > HEADER_HEIGHT && newCatTop !== categoryTabsOriginalTop) {
-            categoryTabsOriginalTop = newCatTop
-            console.log(`[Community] 延迟${delay}ms更新一级分类位置:`, categoryTabsOriginalTop)
-          }
-        }
-        
         // 更新筛选栏位置
         if (filterTabsRef.value && !isFilterFixed.value) {
           const rect = filterTabsRef.value.getBoundingClientRect()
           const scrollTop = window.scrollY || document.documentElement.scrollTop
           const newTop = rect.top + scrollTop
-          if (newTop > HEADER_HEIGHT + 50 && newTop !== filterTabsOriginalTop) {
+          if (newTop > FIXED_HEADER_HEIGHT && newTop !== filterTabsOriginalTop) {
             filterTabsOriginalTop = newTop
-            console.log(`[Community] 延迟${delay}ms更新筛选栏位置:`, filterTabsOriginalTop)
           }
         }
-        
         // 最后一次延迟后触发滚动检查
-        if (delay === 800) {
+        if (delay === 500) {
           handleScroll()
         }
       }, delay)
@@ -377,59 +345,13 @@ const forceUpdatePosition = () => {
   })
 }
 
-// 设置内容观察器，监听DOM变化后更新筛选栏位置
-const setupContentObserver = () => {
-  if (contentObserver) {
-    contentObserver.disconnect()
-  }
-  
-  // 获取内容区域的父元素
-  const communityPage = document.querySelector('.community-page')
-  if (!communityPage) return
-  
-  contentObserver = new MutationObserver(() => {
-    // DOM 变化后延迟更新位置
-    nextTick(() => {
-      updateFilterOriginalTop()
-    })
-  })
-  
-  contentObserver.observe(communityPage, {
-    childList: true,
-    subtree: true
-  })
-  
-  // 5秒后停止观察，避免持续消耗性能
-  setTimeout(() => {
-    if (contentObserver) {
-      contentObserver.disconnect()
-      contentObserver = null
-    }
-  }, 5000)
-}
-
-// 处理滚动，控制一级分类和筛选栏固定
+// 处理滚动，控制筛选栏固定
 const handleScroll = () => {
   const scrollTop = window.scrollY || document.documentElement.scrollTop
   
-  // 一级分类固定逻辑
-  if (categoryTabsRef.value && categoryTabsOriginalTop > 0) {
-    if (scrollTop + HEADER_HEIGHT >= categoryTabsOriginalTop) {
-      if (!isCategoryFixed.value) {
-        isCategoryFixed.value = true
-      }
-    } else {
-      if (isCategoryFixed.value) {
-        isCategoryFixed.value = false
-      }
-    }
-  }
-  
-  // 筛选栏固定逻辑 - 固定在一级分类下方
+  // 筛选栏固定逻辑 - 固定在顶部导航+一级分类下方
   if (filterTabsRef.value && filterTabsOriginalTop > 0) {
-    // 当一级分类固定时，筛选栏固定在一级分类下方
-    const fixedTop = isCategoryFixed.value ? HEADER_HEIGHT + CATEGORY_HEIGHT : HEADER_HEIGHT
-    if (scrollTop + fixedTop >= filterTabsOriginalTop) {
+    if (scrollTop + FIXED_HEADER_HEIGHT >= filterTabsOriginalTop) {
       if (!isFilterFixed.value) {
         isFilterFixed.value = true
       }
@@ -791,9 +713,7 @@ onMounted(() => {
   dataLoaded.value = { categories: false, ads: false }
   
   // 重置固定状态
-  isCategoryFixed.value = false
   isFilterFixed.value = false
-  categoryTabsOriginalTop = 0
   filterTabsOriginalTop = 0
   
   fetchIconAds()
@@ -810,10 +730,8 @@ onMounted(() => {
     fetchNovels()
   }
   
-  // 设置内容观察器，监听DOM变化
+  // 首次加载时尝试更新位置
   nextTick(() => {
-    setupContentObserver()
-    // 首次加载时也尝试更新位置（延迟更长时间等待数据加载）
     setTimeout(() => {
       forceUpdatePosition()
     }, 100)
@@ -825,10 +743,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
-  if (contentObserver) {
-    contentObserver.disconnect()
-    contentObserver = null
-  }
 })
 
 // 监听关键数据变化，更新筛选栏位置
@@ -842,10 +756,7 @@ watch([topCategories, iconAds, currentSubTopics], () => {
 onActivated(() => {
   nextTick(() => {
     // 重置固定状态
-    isCategoryFixed.value = false
     isFilterFixed.value = false
-    // 重新设置观察器
-    setupContentObserver()
     // 如果数据已加载，强制更新位置
     if (dataLoaded.value.categories && dataLoaded.value.ads) {
       forceUpdatePosition()
@@ -863,10 +774,14 @@ onActivated(() => {
   padding-bottom: 70px;
 }
 
-/* 头部占位 - 固定高度，只为顶部导航留空间 */
+/* 头部占位 - 根据是否显示一级分类调整高度 */
 .header-placeholder {
   width: 100%;
   height: 54px;
+  
+  &.with-category {
+    height: 92px;  /* 54px(主标签) + 38px(一级分类) */
+  }
 }
 
 /* 顶部导航 - 固定定位 */
@@ -928,40 +843,17 @@ onActivated(() => {
   height: 28px;
 }
 
-/* 一级分类 */
+/* 一级分类 - 始终固定在顶部导航下方 */
+.category-tabs-fixed {
+  padding: 6px 16px 10px;
+  background: #0d0d0d;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+/* 图集/小说的分类（不固定） */
 .category-tabs {
   padding: 0 16px 10px;
   background: #0d0d0d;
-  
-  &.is-fixed {
-    position: fixed;
-    top: 54px;
-    left: 0;
-    right: 0;
-    z-index: 99;
-    padding-top: 6px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #1a1a1a;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    
-    @media (min-width: 768px) {
-      left: 50%;
-      transform: translateX(-50%);
-      max-width: 750px;
-    }
-    
-    @media (min-width: 1024px) {
-      max-width: 900px;
-    }
-    
-    @media (min-width: 1280px) {
-      max-width: 1200px;
-    }
-  }
-}
-
-.category-tabs-placeholder {
-  width: 100%;
 }
 
 .category-scroll {
@@ -1107,7 +999,7 @@ onActivated(() => {
   }
 }
 
-/* 筛选标签 - 滚动时固定在一级分类下方 */
+/* 筛选标签 - 滚动时固定在顶部导航+一级分类下方 */
 .filter-tabs-wrapper {
   display: flex;
   gap: 24px;
@@ -1117,7 +1009,7 @@ onActivated(() => {
   
   &.is-fixed {
     position: fixed;
-    top: 93px;  /* 54px(顶部导航) + 38px(一级分类) + 1px(边框) */
+    top: 92px;  /* 54px(顶部导航) + 38px(一级分类) */
     left: 0;
     right: 0;
     z-index: 98;
