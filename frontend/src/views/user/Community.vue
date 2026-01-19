@@ -21,8 +21,12 @@
     <!-- 头部占位 - 固定高度，只为顶部导航留空间 -->
     <div class="header-placeholder"></div>
 
-    <!-- 一级分类（顶级分类）- 不固定，随页面滚动 -->
-    <div class="category-tabs" v-if="activeMainTab === 'community'">
+    <!-- 一级分类（顶级分类）- 固定在顶部导航下方 -->
+    <div 
+      ref="categoryTabsRef"
+      :class="['category-tabs', { 'is-fixed': isCategoryFixed }]" 
+      v-if="activeMainTab === 'community'"
+    >
       <div class="category-scroll">
         <span 
           v-for="cat in topCategories" 
@@ -32,6 +36,12 @@
         >{{ cat.name }}</span>
       </div>
     </div>
+    <!-- 一级分类占位符 -->
+    <div 
+      class="category-tabs-placeholder" 
+      v-if="activeMainTab === 'community'"
+      :style="{ height: isCategoryFixed ? '38px' : '0px' }"
+    ></div>
 
     <!-- 图集分类 - 不固定 -->
     <div class="category-tabs" v-if="activeMainTab === 'gallery'">
@@ -116,7 +126,7 @@
       </div>
     </div>
 
-    <!-- 筛选标签 - 滚动到顶部导航下方时固定 -->
+    <!-- 筛选标签 - 固定在一级分类下方 -->
     <div 
       ref="filterTabsRef"
       :class="['filter-tabs-wrapper', { 'is-fixed': isFilterFixed }]"
@@ -272,6 +282,12 @@ const getVipIcon = (level) => getVipLevelIcon(level)
 
 // 顶部导航高度（固定值，只有主标签栏）
 const HEADER_HEIGHT = 54
+const CATEGORY_HEIGHT = 38  // 一级分类高度
+
+// 一级分类固定相关
+const categoryTabsRef = ref(null)
+const isCategoryFixed = ref(false)
+let categoryTabsOriginalTop = 0  // 一级分类原始位置
 
 // 筛选栏固定相关
 const filterTabsRef = ref(null)
@@ -294,6 +310,18 @@ const updateFilterOriginalTop = () => {
     return
   }
   
+  // 更新一级分类原始位置
+  if (categoryTabsRef.value && !isCategoryFixed.value) {
+    const rect = categoryTabsRef.value.getBoundingClientRect()
+    const scrollTop = window.scrollY || document.documentElement.scrollTop
+    const newTop = rect.top + scrollTop
+    if (newTop > HEADER_HEIGHT) {
+      categoryTabsOriginalTop = newTop
+      console.log('[Community] 更新一级分类位置:', categoryTabsOriginalTop)
+    }
+  }
+  
+  // 更新筛选栏原始位置
   if (filterTabsRef.value && !isFilterFixed.value) {
     const rect = filterTabsRef.value.getBoundingClientRect()
     const scrollTop = window.scrollY || document.documentElement.scrollTop
@@ -363,20 +391,35 @@ const setupContentObserver = () => {
   }, 5000)
 }
 
-// 处理滚动，控制筛选栏固定
+// 处理滚动，控制一级分类和筛选栏固定
 const handleScroll = () => {
-  if (!filterTabsRef.value) return
-  
   const scrollTop = window.scrollY || document.documentElement.scrollTop
   
-  // 当滚动距离 + 顶部导航高度 >= 筛选栏原始位置时，固定筛选栏
-  if (scrollTop + HEADER_HEIGHT >= filterTabsOriginalTop && filterTabsOriginalTop > 0) {
-    if (!isFilterFixed.value) {
-      isFilterFixed.value = true
+  // 一级分类固定逻辑
+  if (categoryTabsRef.value && categoryTabsOriginalTop > 0) {
+    if (scrollTop + HEADER_HEIGHT >= categoryTabsOriginalTop) {
+      if (!isCategoryFixed.value) {
+        isCategoryFixed.value = true
+      }
+    } else {
+      if (isCategoryFixed.value) {
+        isCategoryFixed.value = false
+      }
     }
-  } else {
-    if (isFilterFixed.value) {
-      isFilterFixed.value = false
+  }
+  
+  // 筛选栏固定逻辑 - 固定在一级分类下方
+  if (filterTabsRef.value && filterTabsOriginalTop > 0) {
+    // 当一级分类固定时，筛选栏固定在一级分类下方
+    const fixedTop = isCategoryFixed.value ? HEADER_HEIGHT + CATEGORY_HEIGHT : HEADER_HEIGHT
+    if (scrollTop + fixedTop >= filterTabsOriginalTop) {
+      if (!isFilterFixed.value) {
+        isFilterFixed.value = true
+      }
+    } else {
+      if (isFilterFixed.value) {
+        isFilterFixed.value = false
+      }
     }
   }
 }
@@ -771,7 +814,8 @@ watch([topCategories, iconAds, currentSubTopics], () => {
 // 处理 keep-alive 缓存恢复时重新初始化
 onActivated(() => {
   nextTick(() => {
-    // 重置筛选栏固定状态
+    // 重置固定状态
+    isCategoryFixed.value = false
     isFilterFixed.value = false
     // 重新设置观察器
     setupContentObserver()
@@ -860,6 +904,34 @@ onActivated(() => {
 /* 一级分类 */
 .category-tabs {
   padding: 0 16px 10px;
+  background: #0d0d0d;
+  
+  &.is-fixed {
+    position: fixed;
+    top: 54px;
+    left: 0;
+    right: 0;
+    z-index: 99;
+    padding-top: 6px;
+    
+    @media (min-width: 768px) {
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 750px;
+    }
+    
+    @media (min-width: 1024px) {
+      max-width: 900px;
+    }
+    
+    @media (min-width: 1280px) {
+      max-width: 1200px;
+    }
+  }
+}
+
+.category-tabs-placeholder {
+  width: 100%;
 }
 
 .category-scroll {
@@ -1005,7 +1077,7 @@ onActivated(() => {
   }
 }
 
-/* 筛选标签 - 滚动时固定在头部下方 */
+/* 筛选标签 - 滚动时固定在一级分类下方 */
 .filter-tabs-wrapper {
   display: flex;
   gap: 24px;
@@ -1015,10 +1087,10 @@ onActivated(() => {
   
   &.is-fixed {
     position: fixed;
-    top: 54px;
+    top: 92px;  /* 54px(顶部导航) + 38px(一级分类) */
     left: 0;
     right: 0;
-    z-index: 99;
+    z-index: 98;
     
     @media (min-width: 768px) {
       left: 50%;
