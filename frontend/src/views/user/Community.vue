@@ -245,7 +245,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, onActivated, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
@@ -751,19 +751,6 @@ watch([topCategories, iconAds, currentSubTopics], () => {
     forceUpdatePosition()
   }
 }, { deep: true })
-
-// 处理 keep-alive 缓存恢复时重新初始化
-onActivated(() => {
-  nextTick(() => {
-    // 重置固定状态
-    isFilterFixed.value = false
-    // 如果数据已加载，强制更新位置
-    if (dataLoaded.value.categories && dataLoaded.value.ads) {
-      forceUpdatePosition()
-      setTimeout(() => handleScroll(), 200)
-    }
-  })
-})
 </script>
 
 
