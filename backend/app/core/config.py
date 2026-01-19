@@ -35,8 +35,8 @@ class Settings(BaseSettings):
     
     # JWT配置
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7天 (7*24*60)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 365      # 1年
     
     # API 限流配置
     RATE_LIMIT_ENABLED: bool = True

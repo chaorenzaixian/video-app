@@ -34,9 +34,33 @@ class ApiService {
         }
         return handler.next(options);
       },
-      onError: (error, handler) {
+      onError: (error, handler) async {
         if (error.response?.statusCode == 401) {
-          // Token过期处理
+          // Token过期，用 device_id 自动重新登录
+          final deviceId = _prefs.getString('device_id');
+          if (deviceId != null) {
+            try {
+              debugPrint('🔄 Token过期，自动重新登录...');
+              final newDio = Dio(BaseOptions(baseUrl: baseUrl));
+              final response = await newDio.post('/auth/guest/register', data: {
+                'device_id': deviceId,
+              });
+              
+              if (response.data['access_token'] != null) {
+                // 保存新 Token
+                await _prefs.setString('token', response.data['access_token']);
+                debugPrint('✅ 自动重新登录成功');
+                
+                // 用新 Token 重试原请求
+                final opts = error.requestOptions;
+                opts.headers['Authorization'] = 'Bearer ${response.data['access_token']}';
+                final retryResponse = await _dio.fetch(opts);
+                return handler.resolve(retryResponse);
+              }
+            } catch (e) {
+              debugPrint('❌ 自动重新登录失败: $e');
+            }
+          }
         }
         return handler.next(error);
       },
