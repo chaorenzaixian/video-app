@@ -3,6 +3,26 @@
  */
 
 /**
+ * 解析时间字符串为Date对象
+ * 后端返回的时间是UTC时间，需要正确解析
+ * @param {string|Date} time - 时间
+ * @returns {Date} Date对象
+ */
+function parseTime(time) {
+  if (!time) return null
+  if (time instanceof Date) return time
+  
+  // 如果时间字符串没有时区信息，添加Z表示UTC
+  let timeStr = String(time)
+  if (!timeStr.endsWith('Z') && !timeStr.includes('+') && !timeStr.includes('-', 10)) {
+    // 没有时区信息，假设是UTC时间
+    timeStr = timeStr + 'Z'
+  }
+  
+  return new Date(timeStr)
+}
+
+/**
  * 格式化相对时间
  * @param {string|Date} time - 时间
  * @returns {string} 相对时间字符串
@@ -10,7 +30,9 @@
 export function formatRelativeTime(time) {
   if (!time) return ''
   
-  const date = new Date(time)
+  const date = parseTime(time)
+  if (!date || isNaN(date.getTime())) return ''
+  
   const now = Date.now()
   const diff = (now - date.getTime()) / 1000
   
@@ -33,7 +55,9 @@ export function formatRelativeTime(time) {
 export function formatDateTime(time, format = 'datetime') {
   if (!time) return ''
   
-  const date = new Date(time)
+  const date = parseTime(time)
+  if (!date || isNaN(date.getTime())) return ''
+  
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
