@@ -1,6 +1,7 @@
 """
 管理后台API
 """
+import os
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
@@ -1095,7 +1096,8 @@ async def delete_video(
         
     except Exception as e:
         await db.rollback()
-        print(f"删除视频错误: {e}")
+        import logging
+        logging.error(f"Delete video error: {e}")
         raise HTTPException(status_code=500, detail=f"删除失败: {str(e)}")
 
 

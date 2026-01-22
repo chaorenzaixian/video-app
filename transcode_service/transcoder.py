@@ -153,14 +153,18 @@ class Transcoder:
             maxrate = "1000k"
             bufsize = "1600k"
         
-        # FFmpeg命令 - 优化版
+        # FFmpeg命令 - 优化版（添加多线程和tune参数）
         cmd = [
-            "ffmpeg", "-y", "-i", video_path,
+            "ffmpeg", "-y", 
+            "-threads", str(FFMPEG.get("threads", 0)),  # 多线程解码
+            "-i", video_path,
             "-c:v", "libx264", 
             "-preset", self.preset,
+            "-tune", "fastdecode",  # 优化解码速度，播放更流畅
             "-crf", str(FFMPEG["crf"]),
             "-maxrate", maxrate,
             "-bufsize", bufsize,
+            "-threads", str(FFMPEG.get("threads", 0)),  # 多线程编码
             "-c:a", "aac", "-b:a", FFMPEG["audio_bitrate"],
             "-movflags", "+faststart",
             "-f", "hls", 
@@ -187,24 +191,51 @@ class Transcoder:
     
     def generate_covers(self, video_path: str, output_dir: str, 
                         duration: float) -> Tuple[str, int]:
-        """生成封面图片，返回封面目录和最佳封面索引"""
+        """生成封面图片（并行优化版），返回封面目录和最佳封面索引"""
+        import concurrent.futures
+        
         covers_dir = os.path.join(output_dir, "covers")
         os.makedirs(covers_dir, exist_ok=True)
         
         count = FFMPEG["cover_count"]
         
-        for i in range(1, count + 1):
-            position = duration * (i / (count + 1))
+        def generate_single_cover(args):
+            """生成单张封面"""
+            i, position = args
             cover_path = os.path.join(covers_dir, f"cover_{i}.webp")
             
+            # -ss 放在 -i 前面可以快速 seek
             cmd = [
-                "ffmpeg", "-y", "-ss", str(position), "-i", video_path,
-                "-vframes", "1", "-vf", "scale=640:-1",
-                "-c:v", "libwebp", "-quality", str(FFMPEG["cover_quality"]),
+                "ffmpeg", "-y", 
+                "-ss", str(position),
+                "-i", video_path,
+                "-vframes", "1", 
+                "-vf", "scale=640:-1",
+                "-c:v", "libwebp", 
+                "-quality", str(FFMPEG["cover_quality"]),
                 cover_path
             ]
             
-            subprocess.run(cmd, capture_output=True)
+            try:
+                subprocess.run(cmd, capture_output=True, timeout=30)
+                return i, os.path.exists(cover_path)
+            except Exception as e:
+                print(f"[Cover] 封面 {i} 生成失败: {e}")
+                return i, False
+        
+        # 准备参数
+        tasks = []
+        for i in range(1, count + 1):
+            position = duration * (i / (count + 1))
+            tasks.append((i, position))
+        
+        # 并行生成（最多4个线程）
+        print(f"[Cover] 并行生成 {count} 张封面...")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, count)) as executor:
+            results = list(executor.map(generate_single_cover, tasks))
+        
+        success_count = sum(1 for _, ok in results if ok)
+        print(f"[Cover] 封面生成完成: {success_count}/{count}")
         
         # 选择最佳封面
         best_cover = self._select_best_cover(covers_dir)
@@ -212,7 +243,21 @@ class Transcoder:
         return covers_dir, best_cover
     
     def _select_best_cover(self, covers_dir: str) -> int:
-        """选择最佳封面（文件大小+位置权重）"""
+        """
+        智能选择最佳封面
+        综合评估：清晰度、对比度、亮度、色彩丰富度、位置权重
+        """
+        try:
+            # 尝试使用 PIL 进行图像质量分析
+            from PIL import Image
+            import numpy as np
+            return self._select_best_cover_smart(covers_dir)
+        except ImportError:
+            print("[Cover] PIL/numpy 未安装，使用简单选择")
+            return self._select_best_cover_simple(covers_dir)
+    
+    def _select_best_cover_simple(self, covers_dir: str) -> int:
+        """简单选择（文件大小+位置权重）- 备用方案"""
         best_cover = 5
         max_score = 0
         
@@ -220,13 +265,110 @@ class Transcoder:
             cover_path = os.path.join(covers_dir, f"cover_{i}.webp")
             if os.path.exists(cover_path):
                 size = os.path.getsize(cover_path)
-                # 中间位置加权
                 position_bonus = 1.2 if 4 <= i <= 7 else 1.0
                 score = size * position_bonus
                 
                 if score > max_score:
                     max_score = score
                     best_cover = i
+        
+        return best_cover
+    
+    def _select_best_cover_smart(self, covers_dir: str) -> int:
+        """
+        智能封面选择 - 使用图像质量分析
+        评分维度：
+        1. 清晰度（拉普拉斯方差）- 越高越清晰
+        2. 对比度（标准差）- 适中最好
+        3. 亮度（平均值）- 适中最好，避免过暗过亮
+        4. 色彩丰富度（颜色方差）- 越高越好
+        5. 位置权重 - 中间位置加分
+        """
+        from PIL import Image
+        import numpy as np
+        
+        scores = {}
+        details = {}
+        
+        for i in range(1, 11):
+            cover_path = os.path.join(covers_dir, f"cover_{i}.webp")
+            if not os.path.exists(cover_path):
+                continue
+            
+            try:
+                img = Image.open(cover_path)
+                img_array = np.array(img.convert('RGB'))
+                gray = np.array(img.convert('L'))
+                
+                # 1. 清晰度 - 使用简化的拉普拉斯算子
+                # 计算相邻像素差异的方差
+                dx = np.diff(gray.astype(float), axis=1)
+                dy = np.diff(gray.astype(float), axis=0)
+                sharpness = np.var(dx) + np.var(dy)
+                
+                # 2. 对比度 - 灰度标准差
+                contrast = np.std(gray)
+                
+                # 3. 亮度 - 灰度平均值（最佳范围 80-180）
+                brightness = np.mean(gray)
+                # 亮度评分：越接近130越好
+                brightness_score = 100 - abs(brightness - 130) * 0.8
+                brightness_score = max(0, brightness_score)
+                
+                # 4. 色彩丰富度 - RGB通道的方差之和
+                color_var = np.var(img_array[:,:,0]) + np.var(img_array[:,:,1]) + np.var(img_array[:,:,2])
+                
+                # 5. 位置权重 - 中间位置（4-7）加分
+                position_bonus = 1.15 if 4 <= i <= 7 else 1.0
+                
+                # 6. 检测是否为黑屏/白屏/纯色
+                is_bad_frame = False
+                if contrast < 15:  # 对比度太低，可能是纯色
+                    is_bad_frame = True
+                if brightness < 30 or brightness > 230:  # 太暗或太亮
+                    is_bad_frame = True
+                
+                # 综合评分（归一化后加权）
+                # 清晰度权重最高，其次是色彩和对比度
+                score = (
+                    sharpness * 0.35 +           # 清晰度 35%
+                    contrast * 10 * 0.20 +       # 对比度 20%
+                    brightness_score * 10 * 0.15 + # 亮度 15%
+                    color_var * 0.001 * 0.20 +   # 色彩 20%
+                    100 * 0.10                   # 基础分 10%
+                ) * position_bonus
+                
+                # 坏帧惩罚
+                if is_bad_frame:
+                    score *= 0.3
+                
+                scores[i] = score
+                details[i] = {
+                    'sharpness': sharpness,
+                    'contrast': contrast,
+                    'brightness': brightness,
+                    'color_var': color_var,
+                    'is_bad': is_bad_frame
+                }
+                
+            except Exception as e:
+                print(f"[Cover] 分析封面 {i} 失败: {e}")
+                scores[i] = 0
+        
+        if not scores:
+            return 5
+        
+        # 选择得分最高的
+        best_cover = max(scores, key=scores.get)
+        
+        # 打印分析结果
+        print(f"[Cover] 智能分析结果:")
+        for i in sorted(scores.keys()):
+            d = details.get(i, {})
+            mark = " ★" if i == best_cover else ""
+            bad = " [差]" if d.get('is_bad') else ""
+            print(f"  封面{i}: 分数={scores[i]:.1f}, 清晰={d.get('sharpness', 0):.0f}, "
+                  f"对比={d.get('contrast', 0):.1f}, 亮度={d.get('brightness', 0):.0f}{bad}{mark}")
         
         return best_cover
     

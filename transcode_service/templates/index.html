@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频转码管理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 200px; background: #16213e; padding: 20px 0; display: flex; flex-direction: column; }
+        .logo { padding: 0 20px 20px; font-size: 18px; font-weight: 600; color: #00d4ff; border-bottom: 1px solid #2a2a4a; }
+        .nav { flex: 1; padding: 15px 0; }
+        .nav-item { display: flex; align-items: center; padding: 12px 20px; color: #888; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; }
+        .nav-item:hover { background: rgba(0,212,255,0.1); color: #fff; }
+        .nav-item.active { background: rgba(0,212,255,0.15); color: #00d4ff; border-left-color: #00d4ff; }
+        .nav-item .icon { margin-right: 10px; font-size: 16px; }
+        .nav-item .badge { margin-left: auto; background: #ff4757; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+        .sys-info { padding: 15px 20px; border-top: 1px solid #2a2a4a; font-size: 12px; color: #666; }
+        .sys-info .disk { color: #00ff88; }
+        .sys-info .disk.warning { color: #ffd700; }
+        .sys-info .disk.critical { color: #ff4444; }
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .header { padding: 20px 30px; background: #16213e; border-bottom: 1px solid #2a2a4a; }
+        .header h2 { font-size: 20px; font-weight: 500; }
+        .content { flex: 1; padding: 25px 30px; overflow-y: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .upload-box { border: 2px dashed #3a3a5a; border-radius: 12px; padding: 50px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .upload-box:hover { border-color: #00d4ff; background: rgba(0,212,255,0.05); }
+        .upload-box .icon { font-size: 48px; margin-bottom: 15px; }
+        .list-item { display: flex; align-items: center; padding: 15px; background: #0f0f23; border-radius: 10px; margin-bottom: 10px; }
+        .list-item:hover { background: #1a1a35; }
+        .list-item .thumb { width: 100px; height: 56px; background: #2a2a4a; border-radius: 6px; margin-right: 15px; object-fit: cover; }
+        .list-item .info { flex: 1; min-width: 0; }
+        .list-item .title { font-weight: 500; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .list-item .meta { font-size: 12px; color: #666; }
+        .list-item .status { padding: 4px 12px; border-radius: 15px; font-size: 12px; }
+        .status-pending { background: rgba(255,215,0,0.2); color: #ffd700; }
+        .status-processing { background: rgba(0,212,255,0.2); color: #00d4ff; }
+        .status-ready { background: rgba(0,255,136,0.2); color: #00ff88; }
+        .status-completed { background: rgba(0,255,136,0.2); color: #00ff88; }
+        .progress { height: 4px; background: #2a2a4a; border-radius: 2px; margin-top: 8px; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, #00d4ff, #00ff88); border-radius: 2px; transition: width 0.3s; }
+        .btn { padding: 8px 20px; border-radius: 20px; border: none; cursor: pointer; font-size: 13px; }
+        .btn-primary { background: linear-gradient(135deg, #00d4ff, #00ff88); color: #000; }
+        .btn-outline { background: transparent; border: 1px solid #3a3a5a; color: #888; }
+        .btn-outline:hover { border-color: #00d4ff; color: #00d4ff; }
+        .btn-danger { background: transparent; border: 1px solid #ff4757; color: #ff4757; }
+        .btn-danger:hover { background: #ff4757; color: #fff; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: #0f0f23; border-radius: 10px; padding: 20px; text-align: center; }
+        .stat-card .value { font-size: 28px; font-weight: 600; color: #00d4ff; }
+        .stat-card .label { font-size: 12px; color: #666; margin-top: 5px; }
+        .empty { text-align: center; padding: 60px; color: #666; }
+        .empty .icon { font-size: 48px; margin-bottom: 15px; opacity: 0.5; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 13px; color: #888; margin-bottom: 6px; }
+        .form-control { width: 100%; padding: 10px 15px; background: #0f0f23; border: 1px solid #2a2a4a; border-radius: 8px; color: #e0e0e0; }
+        .form-control:focus { outline: none; border-color: #00d4ff; }
+        .covers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .cover-item { aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; cursor: pointer; border: 2px solid transparent; }
+        .cover-item:hover { opacity: 0.8; }
+        .cover-item.selected { border-color: #00ff88; }
+        .cover-item img { width: 100%; height: 100%; object-fit: cover; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: #16213e; border-radius: 15px; width: 90%; max-width: 900px; max-height: 90vh; overflow: auto; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 15px 20px; border-top: 1px solid #2a2a4a; display: flex; justify-content: flex-end; gap: 10px; }
+        .close-btn { background: none; border: none; color: #888; font-size: 24px; cursor: pointer; }
+        .tags-container { display: flex; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; padding: 8px; background: #0f0f23; border-radius: 8px; border: 1px solid #2a2a4a; }
+        .tag-item { padding: 4px 12px; border-radius: 15px; font-size: 12px; cursor: pointer; transition: all 0.2s; background: #2a2a4a; color: #888; }
+        .tag-item:hover { background: rgba(0,212,255,0.2); color: #00d4ff; }
+        .tag-item.selected { background: #00d4ff; color: #000; }
+        .tab-btn { padding: 10px 20px; border-radius: 8px; border: 1px solid #2a2a4a; background: #0f0f23; color: #888; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .tab-btn:hover { border-color: #00d4ff; color: #00d4ff; }
+        .tab-btn.active { background: linear-gradient(135deg, #00d4ff, #00ff88); border-color: transparent; color: #000; font-weight: 500; }
+        .tab-btn span { margin-left: 5px; padding: 2px 8px; border-radius: 10px; background: rgba(0,0,0,0.2); font-size: 12px; }
+        .pagination-bar { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; }
+        .page-btn { padding: 8px 14px; border: 1px solid #2a2a4a; background: #0f0f23; color: #888; cursor: pointer; border-radius: 6px; font-size: 13px; }
+        .page-btn:hover { border-color: #00d4ff; color: #00d4ff; }
+        .page-btn.active { background: #00d4ff; border-color: #00d4ff; color: #000; }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .page-info { color: #666; font-size: 13px; margin: 0 15px; }
+        .item-checkbox { width: 18px; height: 18px; margin-right: 12px; cursor: pointer; accent-color: #00d4ff; }
+        .category-selector { position: relative; }
+        .category-display { width: 100%; padding: 10px 15px; background: #0f0f23; border: 1px solid #2a2a4a; border-radius: 8px; color: #e0e0e0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .category-display:hover { border-color: #00d4ff; }
+        .category-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #16213e; border: 1px solid #2a2a4a; border-radius: 8px; margin-top: 4px; max-height: 300px; overflow-y: auto; z-index: 100; display: none; }
+        .category-dropdown.show { display: block; }
+        .category-group { border-bottom: 1px solid #2a2a4a; }
+        .category-group:last-child { border-bottom: none; }
+        .category-parent { padding: 10px 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #00d4ff; font-weight: 500; }
+        .category-parent:hover { background: rgba(0,212,255,0.1); }
+        .category-parent .arrow { transition: transform 0.2s; }
+        .category-parent.expanded .arrow { transform: rotate(90deg); }
+        .category-children { display: none; background: #0f0f23; }
+        .category-children.show { display: block; }
+        .category-child { padding: 8px 15px 8px 30px; cursor: pointer; color: #888; }
+        .category-child:hover { background: rgba(0,212,255,0.1); color: #fff; }
+        .category-child.selected { background: rgba(0,212,255,0.2); color: #00d4ff; }
+        .category-flat { padding: 8px 15px; cursor: pointer; color: #888; }
+        .category-flat:hover { background: rgba(0,212,255,0.1); color: #fff; }
+        .category-flat.selected { background: rgba(0,212,255,0.2); color: #00d4ff; }
+        .list-item .actions { display: flex; gap: 8px; }
+        /* 封面放大预览 */
+        .cover-preview-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; }
+        .cover-preview-modal.show { display: flex; }
+        .cover-preview-modal img { max-width: 90%; max-height: 90%; border-radius: 8px; }
+        .cover-preview-modal .close-btn { position: absolute; top: 20px; right: 20px; font-size: 32px; color: #fff; }
+        /* 上传封面按钮 */
+        .cover-upload-item { aspect-ratio: 16/9; border-radius: 6px; border: 2px dashed #3a3a5a; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; flex-direction: column; gap: 4px; }
+        .cover-upload-item:hover { border-color: #00d4ff; background: rgba(0,212,255,0.05); }
+        .cover-upload-item .icon { font-size: 20px; }
+        .cover-upload-item .text { font-size: 11px; color: #888; }
+        .cover-item .zoom-icon { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+        .cover-item .zoom-icon:hover { background: rgba(0,212,255,0.8); transform: scale(1.1); }
+        .cover-item:hover .zoom-icon { opacity: 1; }
+        .cover-item img { cursor: pointer; }
+        .cover-item { position: relative; }
+        /* 文件浏览器样式 */
+        .file-item { display: flex; align-items: center; padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .file-item:hover { background: rgba(0,212,255,0.1); }
+        .file-item .icon { font-size: 20px; margin-right: 12px; }
+        .file-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-item .size { color: #666; font-size: 12px; margin-left: 10px; }
+        .file-item.folder { color: #ffd700; }
+        .file-item.video { color: #00d4ff; }
+        .file-item.drive { color: #00ff88; }
+        .file-item.selected { background: rgba(0,212,255,0.2); border: 1px solid #00d4ff; }
+        .file-item .checkbox { width: 18px; height: 18px; margin-right: 10px; accent-color: #00d4ff; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">🎬 转码管理</div>
+        <div class="nav">
+            <div class="nav-item active" data-page="upload"><span class="icon">📤</span>上传视频</div>
+            <div class="nav-item" data-page="queue"><span class="icon">📋</span>转码队列<span class="badge" id="queueBadge">0</span></div>
+            <div class="nav-item" data-page="pending"><span class="icon">✏️</span>待发布<span class="badge" id="pendingBadge">0</span></div>
+            <div class="nav-item" data-page="history"><span class="icon">📜</span>发布历史</div>
+        </div>
+        <div class="sys-info">
+            <div>磁盘空间</div>
+            <div id="diskInfo" class="disk">加载中...</div>
+        </div>
+    </div>
+    
+    <div class="main">
+        <div class="header"><h2 id="pageTitle">上传视频</h2></div>
+        <div class="content">
+            <!-- 上传页 -->
+            <div class="page active" id="page-upload">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:20px">
+                    <div style="background:#0f0f23;border-radius:12px;padding:20px">
+                        <h3 style="margin-bottom:15px;color:#00d4ff">📺 长视频</h3>
+                        <div style="margin-bottom:15px;color:#888;font-size:13px">输入服务器本地视频路径</div>
+                        <div style="display:flex;gap:8px;margin-bottom:10px">
+                            <input type="text" class="form-control" id="longLocalPath" placeholder="D:\videos\xxx.mp4" style="flex:1">
+                            <button class="btn btn-outline" onclick="openFileBrowser('long')" title="浏览">📁</button>
+                        </div>
+                        <button class="btn btn-primary" style="width:100%" onclick="addLocalFile('long')">📤 添加到转码队列</button>
+                    </div>
+                    <div style="background:#0f0f23;border-radius:12px;padding:20px">
+                        <h3 style="margin-bottom:15px;color:#ff6b9d">📱 短视频</h3>
+                        <div style="margin-bottom:15px;color:#888;font-size:13px">输入服务器本地视频路径</div>
+                        <div style="display:flex;gap:8px;margin-bottom:10px">
+                            <input type="text" class="form-control" id="shortLocalPath" placeholder="D:\videos\xxx.mp4" style="flex:1">
+                            <button class="btn btn-outline" onclick="openFileBrowser('short')" title="浏览">📁</button>
+                        </div>
+                        <button class="btn btn-primary" style="width:100%" onclick="addLocalFile('short')">📤 添加到转码队列</button>
+                    </div>
+                    <div style="background:#0f0f23;border-radius:12px;padding:20px;border:1px solid #8b0000">
+                        <h3 style="margin-bottom:15px;color:#ff4444">🔞 暗网视频</h3>
+                        <div style="margin-bottom:15px;color:#888;font-size:13px">输入服务器本地视频路径</div>
+                        <div style="display:flex;gap:8px;margin-bottom:10px">
+                            <input type="text" class="form-control" id="darkwebLocalPath" placeholder="D:\videos\xxx.mp4" style="flex:1">
+                            <button class="btn btn-outline" onclick="openFileBrowser('darkweb')" title="浏览">📁</button>
+                        </div>
+                        <button class="btn btn-primary" style="width:100%;background:linear-gradient(135deg,#ff4444,#8b0000)" onclick="addLocalFile('darkweb')">📤 添加到转码队列</button>
+                    </div>
+                    <div style="background:#0f0f23;border-radius:12px;padding:20px;border:1px solid #3a3a5a">
+                        <h3 style="margin-bottom:15px;color:#888">🌐 浏览器上传</h3>
+                        <div style="margin-bottom:10px">
+                            <select class="form-control" id="browserUploadType" style="margin-bottom:10px">
+                                <option value="long">长视频</option>
+                                <option value="short">短视频</option>
+                                <option value="darkweb">暗网视频</option>
+                            </select>
+                        </div>
+                        <div class="upload-box" style="padding:15px;cursor:pointer" onclick="document.getElementById('browserFileInput').click()">
+                            <div class="icon" style="font-size:32px">📤</div>
+                            <div style="font-size:12px">点击选择文件</div>
+                            <input type="file" id="browserFileInput" accept="video/*" multiple hidden>
+                        </div>
+                    </div>
+                </div>
+                <div id="uploadProgress" style="display:none;margin-top:25px">
+                    <div class="progress"><div class="progress-bar" style="width:0%"></div></div>
+                    <div style="text-align:center;margin-top:10px;font-size:13px;color:#888" id="uploadStatus">准备中...</div>
+                </div>
+            </div>
+            
+            <!-- 队列页 -->
+            <div class="page" id="page-queue">
+                <div id="queueStats" style="margin-bottom:15px;color:#888;font-size:13px"></div>
+                <div id="queueList"></div>
+            </div>
+            
+            <!-- 待发布页 -->
+            <div class="page" id="page-pending">
+                <div class="pending-tabs" style="display:flex;gap:10px;margin-bottom:15px;align-items:center;flex-wrap:wrap">
+                    <button class="tab-btn active" data-type="all" onclick="switchPendingTab('all')">全部 <span id="pendingAllCount">0</span></button>
+                    <button class="tab-btn" data-type="long" onclick="switchPendingTab('long')">📺 长视频 <span id="pendingLongCount">0</span></button>
+                    <button class="tab-btn" data-type="short" onclick="switchPendingTab('short')">📱 短视频 <span id="pendingShortCount">0</span></button>
+                    <button class="tab-btn" data-type="darkweb" onclick="switchPendingTab('darkweb')" style="border-color:#8b0000;color:#ff4444">🔞 暗网 <span id="pendingDarkwebCount">0</span></button>
+                    <div style="flex:1"></div>
+                    <input type="text" class="form-control" id="pendingSearch" placeholder="搜索标题..." style="width:180px" onkeyup="if(event.key==='Enter')renderPendingList()">
+                    <button class="btn btn-outline" onclick="renderPendingList()">🔍</button>
+                </div>
+                <div class="pending-actions" style="display:flex;gap:10px;margin-bottom:15px;align-items:center">
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:#888;font-size:13px">
+                        <input type="checkbox" id="selectAllPending" onchange="toggleSelectAll()"> 全选
+                    </label>
+                    <span id="selectedCount" style="color:#888;font-size:13px"></span>
+                    <button class="btn btn-primary" id="batchPublishBtn" style="display:none" onclick="batchPublish()">🚀 批量发布</button>
+                    <button class="btn btn-danger" id="batchDeleteBtn" style="display:none" onclick="batchDelete()">🗑️ 批量删除</button>
+                    <div style="flex:1"></div>
+                    <button class="btn btn-danger" onclick="deleteAllPending()" style="opacity:0.8">🗑️ 一键删除全部</button>
+                </div>
+                <div id="pendingList"></div>
+                <div id="pendingPagination" class="pagination-bar" style="display:none"></div>
+            </div>
+            
+            <!-- 历史页 -->
+            <div class="page" id="page-history">
+                <div class="stats" id="historyStats"></div>
+                <div id="historyList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑模态框 -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>编辑视频信息</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:25px">
+                    <div>
+                        <video id="previewVideo" controls style="width:100%;border-radius:8px;background:#000;max-height:200px"></video>
+                        <div class="form-group" style="margin-top:15px">
+                            <label class="form-label">选择封面</label>
+                            <div id="coversGrid" class="covers"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">视频类型</label>
+                            <div style="display:flex;gap:10px">
+                                <button class="tab-btn" id="typeBtn-long" onclick="switchVideoType('long')">📺 长视频</button>
+                                <button class="tab-btn" id="typeBtn-short" onclick="switchVideoType('short')">📱 短视频</button>
+                                <button class="tab-btn" id="typeBtn-darkweb" onclick="switchVideoType('darkweb')" style="border-color:#8b0000">🔞 暗网</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">标题</label>
+                            <input type="text" class="form-control" id="editTitle">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">描述</label>
+                            <textarea class="form-control" id="editDescription" rows="2" style="resize:vertical"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">分类</label>
+                            <div class="category-selector">
+                                <div class="category-display" onclick="toggleCategoryDropdown()">
+                                    <span id="selectedCategoryText">选择分类</span>
+                                    <span>▼</span>
+                                </div>
+                                <div class="category-dropdown" id="categoryDropdown"></div>
+                                <input type="hidden" id="editCategory" value="">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">标签 <span style="color:#666;font-size:11px">(可多选)</span></label>
+                            <div id="tagsContainer" class="tags-container"></div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px">
+                            <div class="form-group">
+                                <label class="form-label">金币价格</label>
+                                <input type="number" class="form-control" id="editCoin" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">免费预览(秒)</label>
+                                <input type="number" class="form-control" id="editPreview" value="15">
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:20px">
+                            <div class="form-group">
+                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                                    <input type="checkbox" id="editVipOnly"> VIP专属
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                                    <input type="checkbox" id="editFeatured"> ⭐ 推荐
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="publishVideo()">🚀 发布</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 封面放大预览模态框 -->
+    <div class="cover-preview-modal" id="coverPreviewModal" onclick="closeCoverPreview()">
+        <button class="close-btn" onclick="closeCoverPreview()">&times;</button>
+        <img id="coverPreviewImg" src="" alt="封面预览">
+    </div>
+    
+    <!-- 文件浏览器模态框 -->
+    <div class="modal" id="fileBrowserModal">
+        <div class="modal-content" style="max-width:700px">
+            <div class="modal-header">
+                <h3>📁 选择视频文件</h3>
+                <button class="close-btn" onclick="closeFileBrowser()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px">
+                    <button class="btn btn-outline" onclick="browseParent()" id="btnParent">⬆️ 上级</button>
+                    <div id="currentPath" style="flex:1;color:#888;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+                    <span id="selectedCount" style="color:#00d4ff;font-size:13px"></span>
+                </div>
+                <div id="fileList" style="max-height:350px;overflow-y:auto"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeFileBrowser()">取消</button>
+                <button class="btn btn-primary" id="btnConfirmSelect" onclick="confirmFileSelection()" style="display:none">✓ 添加选中文件</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 隐藏的封面上传input -->
+    <input type="file" id="customCoverInput" accept="image/*" hidden onchange="handleCustomCover(event)">
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script>
+let currentTaskId = null, selectedCover = 1, selectedTags = [];
+let videoCategories = [], shortCategories = [], darkwebCategories = [], allTags = [], darkwebTags = [];
+let currentIsShort = false, currentIsDarkweb = false;
+let pendingItems = [], pendingFilter = 'all', selectedPendingIds = [];
+let pendingPage = 1, pendingPageSize = 10;
+let publishingTasks = {}; // 记录正在发布的任务状态: { taskId: 'publishing' | 'success' | 'failed' }
+const titles = { upload: '上传视频', queue: '转码队列', pending: '待发布', history: '发布历史' };
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadSystemInfo(); loadCategories(); loadTags(); loadQueue(); loadPending(); loadHistory();
+    setInterval(() => { loadSystemInfo(); loadQueue(); loadPending(); }, 8000);
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.onclick = () => {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            item.classList.add('active');
+            document.getElementById('page-' + item.dataset.page).classList.add('active');
+            document.getElementById('pageTitle').textContent = titles[item.dataset.page];
+        };
+    });
+    // 浏览器上传事件绑定
+    document.getElementById('browserFileInput').onchange = e => {
+        const type = document.getElementById('browserUploadType').value;
+        handleFiles(e.target.files, type);
+    };
+});
+
+async function loadSystemInfo() {
+    try {
+        const r = await fetch('/api/system'), d = await r.json();
+        const el = document.getElementById('diskInfo');
+        el.textContent = d.disk_free_gb + ' GB 可用';
+        el.className = 'disk' + (d.disk_critical ? ' critical' : d.disk_warning ? ' warning' : '');
+    } catch(e) {}
+}
+
+async function loadCategories() {
+    try {
+        const r = await fetch('/api/categories'), d = await r.json();
+        videoCategories = d.video_categories || [];
+        shortCategories = d.short_categories || [];
+        darkwebCategories = d.darkweb_categories || [];
+    } catch(e) { console.error('Failed to load categories:', e); }
+}
+
+let selectedCategoryId = null;
+
+function renderCategories(isShort, isDarkweb) {
+    const dropdown = document.getElementById('categoryDropdown');
+    let html = '';
+    
+    if (isDarkweb) {
+        // 暗网分类
+        darkwebCategories.forEach((parent, idx) => {
+            if (parent.children && parent.children.length > 0) {
+                html += '<div class="category-group">';
+                html += '<div class="category-parent" onclick="toggleCategoryGroup(' + idx + ')">';
+                html += '<span>' + parent.name + ' (' + parent.children.length + ')</span>';
+                html += '<span class="arrow">▶</span>';
+                html += '</div>';
+                html += '<div class="category-children" id="catGroup' + idx + '">';
+                parent.children.forEach(child => {
+                    html += '<div class="category-child" data-id="' + child.id + '" onclick="selectCategory(' + child.id + ', \'' + child.name.replace(/'/g, "\\'") + '\')">' + child.name + '</div>';
+                });
+                html += '</div></div>';
+            } else {
+                html += '<div class="category-flat" data-id="' + parent.id + '" onclick="selectCategory(' + parent.id + ', \'' + parent.name.replace(/'/g, "\\'") + '\')">' + parent.name + '</div>';
+            }
+        });
+    } else if (isShort) {
+        // 短视频分类是扁平列表
+        shortCategories.forEach(cat => {
+            html += '<div class="category-flat" data-id="' + cat.id + '" onclick="selectCategory(' + cat.id + ', \'' + cat.name.replace(/'/g, "\\'") + '\')">' + cat.name + '</div>';
+        });
+    } else {
+        // 长视频分类是树形结构，可折叠
+        videoCategories.forEach((parent, idx) => {
+            if (parent.children && parent.children.length > 0) {
+                html += '<div class="category-group">';
+                html += '<div class="category-parent" onclick="toggleCategoryGroup(' + idx + ')">';
+                html += '<span>' + parent.name + ' (' + parent.children.length + ')</span>';
+                html += '<span class="arrow">▶</span>';
+                html += '</div>';
+                html += '<div class="category-children" id="catGroup' + idx + '">';
+                parent.children.forEach(child => {
+                    html += '<div class="category-child" data-id="' + child.id + '" onclick="selectCategory(' + child.id + ', \'' + child.name.replace(/'/g, "\\'") + '\')">' + child.name + '</div>';
+                });
+                html += '</div></div>';
+            } else {
+                html += '<div class="category-flat" data-id="' + parent.id + '" onclick="selectCategory(' + parent.id + ', \'' + parent.name.replace(/'/g, "\\'") + '\')">' + parent.name + '</div>';
+            }
+        });
+    }
+    
+    dropdown.innerHTML = html;
+    document.getElementById('editCategory').value = '';
+    document.getElementById('selectedCategoryText').textContent = '选择分类';
+    selectedCategoryId = null;
+}
+
+function toggleCategoryDropdown() {
+    document.getElementById('categoryDropdown').classList.toggle('show');
+}
+
+function toggleCategoryGroup(idx) {
+    const group = document.getElementById('catGroup' + idx);
+    const parent = group.previousElementSibling;
+    group.classList.toggle('show');
+    parent.classList.toggle('expanded');
+    event.stopPropagation();
+}
+
+function selectCategory(id, name) {
+    selectedCategoryId = id;
+    document.getElementById('editCategory').value = id;
+    document.getElementById('selectedCategoryText').textContent = name;
+    document.getElementById('categoryDropdown').classList.remove('show');
+    
+    // 更新选中状态
+    document.querySelectorAll('.category-child, .category-flat').forEach(el => {
+        el.classList.toggle('selected', parseInt(el.dataset.id) === id);
+    });
+}
+
+// 点击外部关闭下拉
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.category-selector')) {
+        document.getElementById('categoryDropdown')?.classList.remove('show');
+    }
+});
+
+async function loadTags() {
+    try {
+        const r = await fetch('/api/tags'), d = await r.json();
+        allTags = d.tags || [];
+        darkwebTags = d.darkweb_tags || [];
+    } catch(e) { console.error('Failed to load tags:', e); }
+}
+
+function renderTags(isShort, isDarkweb) {
+    const tags = isDarkweb ? darkwebTags : allTags;
+    const container = document.getElementById('tagsContainer');
+    if (tags.length === 0) {
+        container.innerHTML = '<span style="color:#666;font-size:12px">暂无标签</span>';
+        return;
+    }
+    container.innerHTML = tags.map(t => 
+        '<span class="tag-item ' + (selectedTags.includes(t.id) ? 'selected' : '') + '" data-id="' + t.id + '">' + t.name + '</span>'
+    ).join('');
+    container.querySelectorAll('.tag-item').forEach(el => {
+        el.onclick = () => {
+            const id = parseInt(el.dataset.id);
+            if (selectedTags.includes(id)) {
+                selectedTags = selectedTags.filter(x => x !== id);
+                el.classList.remove('selected');
+            } else {
+                selectedTags.push(id);
+                el.classList.add('selected');
+            }
+        };
+    });
+}
+
+async function handleFiles(files, videoType) {
+    if (!files.length) return;
+    const formData = new FormData();
+    for (let f of files) formData.append('video', f);
+    formData.append('video_type', videoType);
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('uploadStatus').textContent = '上传中...';
+    try {
+        const r = await fetch('/api/upload', { method: 'POST', body: formData });
+        const d = await r.json();
+        if (d.tasks && d.tasks.length > 0) {
+            // 上传成功，隐藏进度条，切换到转码队列页面
+            document.getElementById('uploadProgress').style.display = 'none';
+            document.querySelector('#uploadProgress .progress-bar').style.width = '0%';
+            
+            // 切换到转码队列页面
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelector('.nav-item[data-page="queue"]').classList.add('active');
+            document.getElementById('page-queue').classList.add('active');
+            document.getElementById('pageTitle').textContent = '转码队列';
+            
+            // 刷新队列并开始轮询
+            loadQueue();
+            for (let t of d.tasks) pollTranscodeStatus(t.task_id);
+        }
+    } catch(e) { alert('上传失败'); document.getElementById('uploadProgress').style.display = 'none'; }
+}
+
+// 记录批量添加的任务数量
+let batchAddCount = 0;
+let batchCompletedCount = 0;
+
+// 轮询转码状态（在转码队列页面显示进度）
+async function pollTranscodeStatus(taskId) {
+    try {
+        const r = await fetch('/api/status/' + taskId);
+        if (r.status === 404) { setTimeout(() => pollTranscodeStatus(taskId), 1000); return; }
+        const d = await r.json();
+        
+        // 刷新队列列表显示最新状态
+        loadQueue();
+        
+        if (d.status === 'ready') {
+            // 转码完成，刷新待发布列表
+            loadPending();
+            batchCompletedCount++;
+            
+            // 如果是批量添加，等所有任务完成后切换到待发布页面
+            if (batchAddCount > 1) {
+                if (batchCompletedCount >= batchAddCount) {
+                    // 所有任务完成，切换到待发布页面
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                    document.querySelector('.nav-item[data-page="pending"]').classList.add('active');
+                    document.getElementById('page-pending').classList.add('active');
+                    document.getElementById('pageTitle').textContent = '待发布';
+                    batchAddCount = 0;
+                    batchCompletedCount = 0;
+                }
+            } else {
+                // 单个任务，弹出编辑窗口
+                showEditModal(taskId, d);
+            }
+        } else if (d.error) {
+            // 转码失败
+            loadQueue();
+            batchCompletedCount++;
+        } else {
+            // 继续轮询
+            setTimeout(() => pollTranscodeStatus(taskId), 2000);
+        }
+    } catch(e) { setTimeout(() => pollTranscodeStatus(taskId), 2000); }
+}
+
+// 旧的pollStatus保留用于兼容
+async function pollStatus(taskId) {
+    try {
+        const r = await fetch('/api/status/' + taskId);
+        if (r.status === 404) { setTimeout(() => pollStatus(taskId), 1000); return; }
+        const d = await r.json();
+        const bar = document.querySelector('#uploadProgress .progress-bar');
+        const status = document.getElementById('uploadStatus');
+        if (d.status === 'uploading') {
+            bar.style.width = '5%';
+            status.textContent = '准备转码...';
+            setTimeout(() => pollStatus(taskId), 1000);
+        } else if (d.status === 'processing' || d.status === 'transcoding') {
+            bar.style.width = Math.max(10, d.progress) + '%';
+            status.textContent = '转码中 ' + Math.round(d.progress) + '%';
+            setTimeout(() => pollStatus(taskId), 1000);
+        } else if (d.status === 'generating_covers') {
+            bar.style.width = '95%';
+            status.textContent = '生成封面...';
+            setTimeout(() => pollStatus(taskId), 1000);
+        } else if (d.status === 'ready') {
+            document.getElementById('uploadProgress').style.display = 'none';
+            bar.style.width = '0%';
+            loadPending();
+            showEditModal(taskId, d);
+        } else if (d.error) {
+            status.textContent = '失败: ' + d.error;
+        } else {
+            setTimeout(() => pollStatus(taskId), 1000);
+        }
+    } catch(e) { setTimeout(() => pollStatus(taskId), 2000); }
+}
+
+function showEditModal(taskId, data) {
+    currentTaskId = taskId;
+    selectedCover = data.best_cover || 1;
+    selectedTags = [];
+    currentIsShort = data.is_short || false;
+    currentIsDarkweb = data.is_darkweb || false;
+    customCoverUrl = null; // 重置自定义封面
+    document.getElementById('editTitle').value = data.name || '';
+    document.getElementById('editDescription').value = '';
+    document.getElementById('editFeatured').checked = false;
+    const video = document.getElementById('previewVideo');
+    if (data.video_preview_url && Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(data.video_preview_url);
+        hls.attachMedia(video);
+    }
+    // 渲染封面网格（包含上传按钮）
+    renderCoversGrid(data.covers || []);
+    // 更新视频类型按钮状态
+    updateVideoTypeButtons();
+    // 根据视频类型渲染分类和标签
+    renderCategories(currentIsShort, currentIsDarkweb);
+    renderTags(currentIsShort, currentIsDarkweb);
+    document.getElementById('editModal').classList.add('show');
+}
+
+function updateVideoTypeButtons() {
+    document.getElementById('typeBtn-long').classList.toggle('active', !currentIsShort && !currentIsDarkweb);
+    document.getElementById('typeBtn-short').classList.toggle('active', currentIsShort && !currentIsDarkweb);
+    document.getElementById('typeBtn-darkweb').classList.toggle('active', currentIsDarkweb);
+}
+
+async function switchVideoType(type) {
+    const oldIsShort = currentIsShort;
+    const oldIsDarkweb = currentIsDarkweb;
+    
+    currentIsShort = type === 'short';
+    currentIsDarkweb = type === 'darkweb';
+    
+    // 更新按钮状态
+    updateVideoTypeButtons();
+    
+    // 重新渲染分类和标签
+    renderCategories(currentIsShort, currentIsDarkweb);
+    renderTags(currentIsShort, currentIsDarkweb);
+    
+    // 调用API更新服务器端的类型
+    try {
+        await fetch('/api/set-type/' + currentTaskId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ video_type: type })
+        });
+    } catch(e) {
+        console.error('Failed to update video type:', e);
+    }
+}
+
+let customCoverUrl = null; // 自定义封面URL
+let currentCovers = []; // 当前封面列表
+
+function renderCoversGrid(covers) {
+    currentCovers = covers;
+    let html = '';
+    
+    // 上传自定义封面按钮
+    html += '<div class="cover-upload-item" onclick="document.getElementById(\'customCoverInput\').click()">' +
+        '<span class="icon">📤</span>' +
+        '<span class="text">上传封面</span>' +
+        '</div>';
+    
+    // 自定义封面（如果有）
+    if (customCoverUrl) {
+        html += '<div class="cover-item selected" data-idx="custom">' +
+            '<img src="' + customCoverUrl + '" onclick="selectCover(\'custom\')">' +
+            '<span class="zoom-icon" onclick="event.stopPropagation();previewCover(\'' + customCoverUrl + '\')">🔍</span>' +
+            '</div>';
+    }
+    
+    // 系统生成的封面
+    covers.forEach(c => {
+        const isSelected = !customCoverUrl && c.index === selectedCover;
+        html += '<div class="cover-item ' + (isSelected ? 'selected' : '') + '" data-idx="' + c.index + '">' +
+            '<img src="' + c.url + '" onclick="selectCover(' + c.index + ')">' +
+            '<span class="zoom-icon" onclick="event.stopPropagation();previewCover(\'' + c.url + '\')">🔍</span>' +
+            '</div>';
+    });
+    
+    document.getElementById('coversGrid').innerHTML = html;
+}
+
+function selectCover(idx) {
+    if (idx === 'custom') {
+        selectedCover = 'custom';
+    } else {
+        selectedCover = idx;
+        customCoverUrl = null; // 选择系统封面时清除自定义封面选中状态
+    }
+    renderCoversGrid(currentCovers);
+}
+
+function previewCover(url) {
+    document.getElementById('coverPreviewImg').src = url;
+    document.getElementById('coverPreviewModal').classList.add('show');
+}
+
+function closeCoverPreview() {
+    document.getElementById('coverPreviewModal').classList.remove('show');
+}
+
+async function handleCustomCover(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+        alert('请选择图片文件');
+        return;
+    }
+    
+    // 上传封面
+    const formData = new FormData();
+    formData.append('cover', file);
+    formData.append('task_id', currentTaskId);
+    
+    try {
+        const r = await fetch('/api/upload-cover', { method: 'POST', body: formData });
+        const d = await r.json();
+        if (d.success && d.url) {
+            customCoverUrl = d.url;
+            selectedCover = 'custom';
+            renderCoversGrid(currentCovers);
+        } else {
+            alert(d.error || '上传失败');
+        }
+    } catch(e) {
+        alert('上传失败: ' + e.message);
+    }
+    
+    // 清空input以便重复选择同一文件
+    event.target.value = '';
+}
+
+function closeModal() { document.getElementById('editModal').classList.remove('show'); }
+
+async function publishVideo() {
+    if (!currentTaskId) return;
+    
+    const taskId = currentTaskId;
+    const publishData = {
+        task_id: taskId,
+        title: document.getElementById('editTitle').value,
+        description: document.getElementById('editDescription').value,
+        category_id: document.getElementById('editCategory').value || null,
+        tag_ids: selectedTags.length ? selectedTags : null,
+        selected_cover: selectedCover === 'custom' ? 1 : selectedCover,
+        custom_cover_url: customCoverUrl, // 自定义封面URL
+        coin_price: parseInt(document.getElementById('editCoin').value) || 0,
+        free_preview_seconds: parseInt(document.getElementById('editPreview').value) || 15,
+        is_vip_only: document.getElementById('editVipOnly').checked,
+        is_featured: document.getElementById('editFeatured').checked,
+        is_darkweb: currentIsDarkweb
+    };
+    
+    // 立即关闭弹窗，设置为发布中状态
+    closeModal();
+    publishingTasks[taskId] = 'publishing';
+    renderPendingList();
+    
+    // 选择发布API
+    const publishUrl = currentIsDarkweb ? '/api/publish-darkweb' : '/api/publish';
+    
+    // 后台异步发布
+    try {
+        const r = await fetch(publishUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(publishData)
+        });
+        const d = await r.json();
+        if (d.success) {
+            publishingTasks[taskId] = 'success';
+            // 立即刷新历史列表
+            loadHistory();
+            // 2秒后从待发布列表移除
+            setTimeout(() => {
+                delete publishingTasks[taskId];
+                loadPending();
+            }, 2000);
+        } else {
+            publishingTasks[taskId] = 'failed';
+            publishingTasks[taskId + '_error'] = d.error || '发布失败';
+            publishingTasks[taskId + '_data'] = publishData; // 保存数据用于重试
+        }
+        renderPendingList();
+    } catch(e) {
+        publishingTasks[taskId] = 'failed';
+        publishingTasks[taskId + '_error'] = '网络错误';
+        publishingTasks[taskId + '_data'] = publishData;
+        renderPendingList();
+    }
+}
+
+async function retryPublish(taskId) {
+    const publishData = publishingTasks[taskId + '_data'];
+    if (!publishData) {
+        alert('无法重试，请重新编辑发布');
+        return;
+    }
+    
+    // 重置为发布中状态
+    publishingTasks[taskId] = 'publishing';
+    delete publishingTasks[taskId + '_error'];
+    renderPendingList();
+    
+    try {
+        const r = await fetch('/api/publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(publishData)
+        });
+        const d = await r.json();
+        if (d.success) {
+            publishingTasks[taskId] = 'success';
+            // 立即刷新历史列表
+            loadHistory();
+            setTimeout(() => {
+                delete publishingTasks[taskId];
+                delete publishingTasks[taskId + '_data'];
+                loadPending();
+            }, 2000);
+        } else {
+            publishingTasks[taskId] = 'failed';
+            publishingTasks[taskId + '_error'] = d.error || '发布失败';
+        }
+        renderPendingList();
+    } catch(e) {
+        publishingTasks[taskId] = 'failed';
+        publishingTasks[taskId + '_error'] = '网络错误';
+        renderPendingList();
+    }
+}
+
+async function loadQueue() {
+    try {
+        const r = await fetch('/api/queue'), d = await r.json();
+        const tasks = Array.isArray(d) ? d : (d.tasks || []);
+        document.getElementById('queueBadge').textContent = tasks.length;
+        document.getElementById('queueBadge').style.display = tasks.length ? '' : 'none';
+        document.getElementById('queueList').innerHTML = tasks.length ? tasks.map(t => {
+            let statusText = '等待中', statusClass = 'status-pending';
+            if (t.status === 'uploading') {
+                statusText = '上传中...';
+                statusClass = 'status-pending';
+            } else if (t.status === 'processing' || t.status === 'transcoding') {
+                statusText = '转码中 ' + Math.round(t.progress || 0) + '%';
+                statusClass = 'status-processing';
+            } else if (t.status === 'generating_covers') {
+                statusText = '生成封面...';
+                statusClass = 'status-processing';
+            }
+            return '<div class="list-item"><div class="info"><div class="title">' + (t.filename || '') + '</div>' +
+                '<div class="progress"><div class="progress-bar" style="width:' + (t.progress || 0) + '%"></div></div>' +
+                '</div><span class="status ' + statusClass + '">' + statusText + '</span></div>';
+        }).join('') : '<div class="empty"><div class="icon">📭</div><div>队列为空</div></div>';
+    } catch(e) {}
+}
+
+async function loadPending() {
+    try {
+        const r = await fetch('/api/pending'), d = await r.json();
+        pendingItems = Array.isArray(d) ? d : (d.items || []);
+        const longCount = pendingItems.filter(t => !t.is_short && !t.is_darkweb).length;
+        const shortCount = pendingItems.filter(t => t.is_short && !t.is_darkweb).length;
+        const darkwebCount = pendingItems.filter(t => t.is_darkweb).length;
+        document.getElementById('pendingBadge').textContent = pendingItems.length;
+        document.getElementById('pendingBadge').style.display = pendingItems.length ? '' : 'none';
+        document.getElementById('pendingAllCount').textContent = pendingItems.length;
+        document.getElementById('pendingLongCount').textContent = longCount;
+        document.getElementById('pendingShortCount').textContent = shortCount;
+        document.getElementById('pendingDarkwebCount').textContent = darkwebCount;
+        renderPendingList();
+    } catch(e) {}
+}
+
+function switchPendingTab(type) {
+    pendingFilter = type;
+    pendingPage = 1;
+    selectedPendingIds = [];
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.type === type));
+    renderPendingList();
+}
+
+function getFilteredItems() {
+    let items = pendingItems;
+    if (pendingFilter === 'long') items = pendingItems.filter(t => !t.is_short && !t.is_darkweb);
+    else if (pendingFilter === 'short') items = pendingItems.filter(t => t.is_short && !t.is_darkweb);
+    else if (pendingFilter === 'darkweb') items = pendingItems.filter(t => t.is_darkweb);
+    const search = document.getElementById('pendingSearch').value.trim().toLowerCase();
+    if (search) items = items.filter(t => (t.filename || '').toLowerCase().includes(search));
+    return items;
+}
+
+function renderPendingList() {
+    const items = getFilteredItems();
+    const totalPages = Math.ceil(items.length / pendingPageSize) || 1;
+    if (pendingPage > totalPages) pendingPage = totalPages;
+    const start = (pendingPage - 1) * pendingPageSize;
+    const pageItems = items.slice(start, start + pendingPageSize);
+    
+    document.getElementById('pendingList').innerHTML = pageItems.length ? pageItems.map(t => {
+        const pubStatus = publishingTasks[t.task_id];
+        let statusHtml = '';
+        let actionsHtml = '';
+        
+        if (pubStatus === 'publishing') {
+            statusHtml = '<span class="status status-processing">🚀 发布中...</span>';
+            actionsHtml = ''; // 发布中不显示按钮
+        } else if (pubStatus === 'success') {
+            statusHtml = '<span class="status status-completed">✅ 发布成功</span>';
+            actionsHtml = '';
+        } else if (pubStatus === 'failed') {
+            const errMsg = publishingTasks[t.task_id + '_error'] || '发布失败';
+            statusHtml = '<span class="status status-failed" style="background:rgba(255,71,87,0.2);color:#ff4757">❌ ' + errMsg + '</span>';
+            actionsHtml = '<div class="actions">' +
+                '<button class="btn btn-primary" onclick="retryPublish(\'' + t.task_id + '\')">🔄 重试</button>' +
+                '<button class="btn btn-outline" onclick="editTask(\'' + t.task_id + '\')">编辑</button>' +
+                '<button class="btn btn-danger" onclick="deleteTask(\'' + t.task_id + '\')">删除</button>' +
+                '</div>';
+        } else {
+            actionsHtml = '<div class="actions">' +
+                '<button class="btn btn-primary" onclick="editTask(\'' + t.task_id + '\')">编辑发布</button>' +
+                '<button class="btn btn-danger" onclick="deleteTask(\'' + t.task_id + '\')">删除</button>' +
+                '</div>';
+        }
+        
+        return '<div class="list-item">' +
+            '<input type="checkbox" class="item-checkbox" data-id="' + t.task_id + '" ' + (selectedPendingIds.includes(t.task_id) ? 'checked' : '') + ' onchange="toggleSelectItem(\'' + t.task_id + '\')">' +
+            (t.covers?.[0]?.url ? '<img src="' + t.covers[0].url + '" class="thumb">' : '<div class="thumb"></div>') +
+            '<div class="info"><div class="title">' + (t.filename || '') + '</div><div class="meta">' + 
+            (t.duration ? Math.round(t.duration) + '秒' : '') + ' · ' + (t.is_darkweb ? '🔞 暗网' : t.is_short ? '📱 短视频' : '📺 长视频') + '</div></div>' +
+            statusHtml +
+            actionsHtml +
+            '</div>';
+    }).join('') : '<div class="empty"><div class="icon">📝</div><div>暂无' + (pendingFilter === 'all' ? '待发布' : pendingFilter === 'long' ? '长视频' : '短视频') + '</div></div>';
+    
+    renderPagination(items.length, totalPages);
+    updateSelectedCount();
+}
+
+function renderPagination(total, totalPages) {
+    const pag = document.getElementById('pendingPagination');
+    if (totalPages <= 1) { pag.style.display = 'none'; return; }
+    pag.style.display = 'flex';
+    let html = '<button class="page-btn" onclick="goPage(' + (pendingPage - 1) + ')" ' + (pendingPage <= 1 ? 'disabled' : '') + '>上一页</button>';
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= pendingPage - 2 && i <= pendingPage + 2)) {
+            html += '<button class="page-btn ' + (i === pendingPage ? 'active' : '') + '" onclick="goPage(' + i + ')">' + i + '</button>';
+        } else if (i === pendingPage - 3 || i === pendingPage + 3) {
+            html += '<span class="page-info">...</span>';
+        }
+    }
+    html += '<button class="page-btn" onclick="goPage(' + (pendingPage + 1) + ')" ' + (pendingPage >= totalPages ? 'disabled' : '') + '>下一页</button>';
+    html += '<span class="page-info">共 ' + total + ' 条</span>';
+    pag.innerHTML = html;
+}
+
+function goPage(p) { pendingPage = p; renderPendingList(); }
+
+function toggleSelectAll() {
+    const checked = document.getElementById('selectAllPending').checked;
+    const items = getFilteredItems();
+    const start = (pendingPage - 1) * pendingPageSize;
+    const pageItems = items.slice(start, start + pendingPageSize);
+    if (checked) {
+        pageItems.forEach(t => { if (!selectedPendingIds.includes(t.task_id)) selectedPendingIds.push(t.task_id); });
+    } else {
+        pageItems.forEach(t => { selectedPendingIds = selectedPendingIds.filter(id => id !== t.task_id); });
+    }
+    renderPendingList();
+}
+
+function toggleSelectItem(taskId) {
+    if (selectedPendingIds.includes(taskId)) {
+        selectedPendingIds = selectedPendingIds.filter(id => id !== taskId);
+    } else {
+        selectedPendingIds.push(taskId);
+    }
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const count = selectedPendingIds.length;
+    document.getElementById('selectedCount').textContent = count ? '已选 ' + count + ' 项' : '';
+    document.getElementById('batchPublishBtn').style.display = count ? '' : 'none';
+    document.getElementById('batchDeleteBtn').style.display = count ? '' : 'none';
+    const items = getFilteredItems();
+    const start = (pendingPage - 1) * pendingPageSize;
+    const pageItems = items.slice(start, start + pendingPageSize);
+    const allSelected = pageItems.length > 0 && pageItems.every(t => selectedPendingIds.includes(t.task_id));
+    document.getElementById('selectAllPending').checked = allSelected;
+}
+
+async function deleteTask(taskId) {
+    if (!confirm('确定要删除这个视频吗？')) return;
+    try {
+        const r = await fetch('/api/delete/' + taskId, { method: 'DELETE' });
+        const d = await r.json();
+        if (d.success) {
+            selectedPendingIds = selectedPendingIds.filter(id => id !== taskId);
+            loadPending();
+        } else {
+            alert(d.error || '删除失败');
+        }
+    } catch(e) { alert('删除失败'); }
+}
+
+async function batchDelete() {
+    if (!selectedPendingIds.length) return;
+    if (!confirm('确定要删除选中的 ' + selectedPendingIds.length + ' 个视频吗？')) return;
+    try {
+        const r = await fetch('/api/delete-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task_ids: selectedPendingIds })
+        });
+        const d = await r.json();
+        if (d.success) {
+            alert('成功删除 ' + d.deleted.length + ' 个视频');
+            selectedPendingIds = [];
+            loadPending();
+        } else {
+            alert('删除失败');
+        }
+    } catch(e) { alert('删除失败'); }
+}
+
+async function deleteAllPending() {
+    if (!pendingItems.length) {
+        alert('没有待发布的视频');
+        return;
+    }
+    if (!confirm('⚠️ 确定要删除全部 ' + pendingItems.length + ' 个待发布视频吗？\n\n此操作不可恢复！')) return;
+    try {
+        const allIds = pendingItems.map(t => t.task_id);
+        const r = await fetch('/api/delete-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task_ids: allIds })
+        });
+        const d = await r.json();
+        if (d.success) {
+            alert('成功删除 ' + d.deleted_count + ' 个视频');
+            selectedPendingIds = [];
+            loadPending();
+        } else {
+            alert('删除失败: ' + (d.error || '未知错误'));
+        }
+    } catch(e) { alert('删除失败: ' + e.message); }
+}
+
+async function batchPublish() {
+    if (!selectedPendingIds.length) return;
+    alert('批量发布功能：将依次打开编辑窗口发布 ' + selectedPendingIds.length + ' 个视频');
+    for (const taskId of selectedPendingIds) {
+        try {
+            const r = await fetch('/api/status/' + taskId), d = await r.json();
+            if (d.status === 'ready' || d.status === 'scheduled') {
+                showEditModal(taskId, d);
+                break;
+            }
+        } catch(e) {}
+    }
+}
+
+async function editTask(taskId) {
+    try {
+        const r = await fetch('/api/status/' + taskId), d = await r.json();
+        if (d.status === 'ready' || d.status === 'scheduled') showEditModal(taskId, d);
+    } catch(e) {}
+}
+
+async function loadHistory() {
+    try {
+        const r = await fetch('/api/history'), d = await r.json();
+        const items = Array.isArray(d) ? d : (d.items || []);
+        const stats = d.stats || { today: 0, this_week: 0, total: items.length };
+        document.getElementById('historyStats').innerHTML = 
+            '<div class="stat-card"><div class="value">' + (stats.today || 0) + '</div><div class="label">今日</div></div>' +
+            '<div class="stat-card"><div class="value">' + (stats.this_week || 0) + '</div><div class="label">本周</div></div>' +
+            '<div class="stat-card"><div class="value">' + (stats.total || items.length) + '</div><div class="label">总计</div></div>';
+        document.getElementById('historyList').innerHTML = items.length ? items.map(h => 
+            '<div class="list-item"><div class="info"><div class="title">' + (h.title || h.filename || '') + '</div>' +
+            '<div class="meta">' + (h.published_at || '') + ' · ' + Math.round(h.duration || 0) + '秒</div></div>' +
+            '<span class="status status-completed">已发布</span></div>'
+        ).join('') : '<div class="empty"><div class="icon">📜</div><div>暂无记录</div></div>';
+    } catch(e) {}
+}
+
+// 文件浏览器相关变量和函数
+let fileBrowserTarget = 'long'; // 当前浏览器目标：long, short, darkweb
+let currentBrowsePath = '';
+let parentPath = '';
+let selectedFiles = []; // 多选的文件列表
+
+function openFileBrowser(target) {
+    fileBrowserTarget = target;
+    selectedFiles = [];
+    updateSelectedCount();
+    document.getElementById('fileBrowserModal').classList.add('show');
+    // 从localStorage读取上次浏览的路径
+    const lastPath = localStorage.getItem('lastBrowsePath_' + target) || '';
+    browsePath(lastPath);
+}
+
+function closeFileBrowser() {
+    document.getElementById('fileBrowserModal').classList.remove('show');
+}
+
+async function browsePath(path) {
+    try {
+        const r = await fetch('/api/browse?path=' + encodeURIComponent(path));
+        const d = await r.json();
+        if (d.error) { 
+            // 如果路径不存在，回到根目录
+            if (path) {
+                browsePath('');
+            } else {
+                alert(d.error);
+            }
+            return; 
+        }
+        
+        currentBrowsePath = d.current;
+        parentPath = d.parent;
+        
+        // 保存当前路径到localStorage
+        if (d.current) {
+            localStorage.setItem('lastBrowsePath_' + fileBrowserTarget, d.current);
+        }
+        
+        document.getElementById('currentPath').textContent = d.current || '选择驱动器';
+        document.getElementById('btnParent').style.display = d.parent !== undefined && d.current ? 'block' : 'none';
+        
+        let html = '';
+        for (const item of d.items) {
+            const icon = item.type === 'folder' ? '📁' : item.type === 'drive' ? '💾' : '🎬';
+            const sizeText = item.size ? formatSize(item.size) : '';
+            const isSelected = selectedFiles.includes(item.path);
+            
+            if (item.type === 'video') {
+                // 视频文件显示复选框
+                html += '<div class="file-item ' + item.type + (isSelected ? ' selected' : '') + '" onclick="toggleFileSelect(\'' + item.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\')">' +
+                    '<input type="checkbox" class="checkbox" ' + (isSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleFileSelect(\'' + item.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\')">' +
+                    '<span class="icon">' + icon + '</span>' +
+                    '<span class="name">' + item.name + '</span>' +
+                    (sizeText ? '<span class="size">' + sizeText + '</span>' : '') +
+                    '</div>';
+            } else {
+                // 文件夹和驱动器点击进入
+                html += '<div class="file-item ' + item.type + '" onclick="selectFileItem(\'' + item.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\', \'' + item.type + '\')">' +
+                    '<span class="icon">' + icon + '</span>' +
+                    '<span class="name">' + item.name + '</span>' +
+                    '</div>';
+            }
+        }
+        if (d.items.length === 0) {
+            html = '<div style="text-align:center;padding:40px;color:#666">此目录为空</div>';
+        }
+        document.getElementById('fileList').innerHTML = html;
+    } catch(e) { alert('浏览失败: ' + e.message); }
+}
+
+function browseParent() {
+    if (parentPath !== undefined) {
+        browsePath(parentPath);
+    }
+}
+
+function selectFileItem(path, type) {
+    if (type === 'folder' || type === 'drive') {
+        browsePath(path);
+    }
+}
+
+function toggleFileSelect(path) {
+    const idx = selectedFiles.indexOf(path);
+    if (idx >= 0) {
+        selectedFiles.splice(idx, 1);
+    } else {
+        selectedFiles.push(path);
+    }
+    updateSelectedCount();
+    // 更新UI
+    const items = document.querySelectorAll('.file-item.video');
+    items.forEach(item => {
+        const checkbox = item.querySelector('.checkbox');
+        if (checkbox) {
+            const itemPath = item.onclick.toString().match(/toggleFileSelect\('([^']+)'\)/)?.[1]?.replace(/\\\\/g, '\\');
+            if (itemPath === path) {
+                item.classList.toggle('selected', selectedFiles.includes(path));
+                checkbox.checked = selectedFiles.includes(path);
+            }
+        }
+    });
+}
+
+function updateSelectedCount() {
+    const countEl = document.getElementById('selectedCount');
+    const btnConfirm = document.getElementById('btnConfirmSelect');
+    if (selectedFiles.length > 0) {
+        countEl.textContent = '已选 ' + selectedFiles.length + ' 个文件';
+        btnConfirm.style.display = 'block';
+        btnConfirm.textContent = '✓ 添加 ' + selectedFiles.length + ' 个文件';
+    } else {
+        countEl.textContent = '';
+        btnConfirm.style.display = 'none';
+    }
+}
+
+async function confirmFileSelection() {
+    if (selectedFiles.length === 0) return;
+    
+    closeFileBrowser();
+    
+    try {
+        const r = await fetch('/api/add-local', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paths: selectedFiles, video_type: fileBrowserTarget })
+        });
+        const d = await r.json();
+        
+        if (d.error_count > 0) {
+            alert('部分文件添加失败:\n' + d.errors.map(e => e.path + ': ' + e.error).join('\n'));
+        }
+        
+        if (d.count > 0) {
+            // 设置批量添加计数
+            batchAddCount = d.count;
+            batchCompletedCount = 0;
+            
+            // 显示添加成功提示
+            alert('已添加 ' + d.count + ' 个视频到转码队列');
+            
+            // 切换到转码队列页面
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelector('.nav-item[data-page="queue"]').classList.add('active');
+            document.getElementById('page-queue').classList.add('active');
+            document.getElementById('pageTitle').textContent = '转码队列';
+            
+            // 刷新队列和待发布列表
+            loadQueue();
+            loadPending();
+            
+            // 开始轮询每个任务的状态
+            for (const task of d.tasks) {
+                pollTranscodeStatus(task.task_id);
+            }
+        }
+    } catch(e) { alert('添加失败: ' + e.message); }
+    
+    selectedFiles = [];
+}
+
+function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+}
+
+async function addLocalFile(videoType) {
+    const inputId = videoType === 'short' ? 'shortLocalPath' : videoType === 'darkweb' ? 'darkwebLocalPath' : 'longLocalPath';
+    const path = document.getElementById(inputId).value.trim();
+    if (!path) { alert('请输入本地文件路径'); return; }
+    try {
+        const r = await fetch('/api/add-local', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: path, video_type: videoType })
+        });
+        const d = await r.json();
+        if (d.error) { alert(d.error); return; }
+        document.getElementById(inputId).value = '';
+        
+        // 切换到转码队列页面
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelector('.nav-item[data-page="queue"]').classList.add('active');
+        document.getElementById('page-queue').classList.add('active');
+        document.getElementById('pageTitle').textContent = '转码队列';
+        
+        // 刷新队列并开始轮询
+        loadQueue();
+        if (d.task_id) pollTranscodeStatus(d.task_id);
+    } catch(e) { alert('添加失败: ' + e.message); }
+}
+    </script>
+</body>
+</html>

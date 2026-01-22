@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, desc
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
@@ -11,7 +11,7 @@ import os
 
 from app.core.database import get_db
 from app.models.user import User
-from app.models.video import Video, VideoStatus
+from app.models.video import Video, VideoStatus, VideoTag, VideoCategory
 from app.api.deps import get_admin_user
 
 router = APIRouter(prefix="/admin/videos")
@@ -656,4 +656,197 @@ async def update_video_cover(
         "success": True,
         "video_id": video_id,
         "cover_url": cover_url
+    }
+
+
+# ============ 转码服务直接发布 API ============
+
+class DirectPublishRequest(BaseModel):
+    """直接发布视频请求（从转码服务）"""
+    title: str
+    hls_url: str
+    cover_url: str
+    preview_url: Optional[str] = ""
+    duration: float = 0
+    is_short: bool = False
+    is_vip_only: bool = False
+    coin_price: int = 0
+    vip_coin_price: int = 0
+    free_preview_seconds: int = 15
+    category_id: Optional[int] = None
+    short_category_id: Optional[int] = None
+    tag_ids: Optional[List[int]] = None
+    status: str = "PUBLISHED"  # PUBLISHED 或 REVIEWING
+
+
+@router.get("/transcode/tags")
+async def get_tags_for_transcode(
+    x_transcode_key: str = Header(None, alias="X-Transcode-Key"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取标签列表（供转码服务使用）
+    需要提供转码密钥验证
+    """
+    if x_transcode_key != TRANSCODE_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid transcode key")
+    
+    result = await db.execute(
+        select(VideoTag).order_by(desc(VideoTag.use_count), VideoTag.id)
+    )
+    tags = result.scalars().all()
+    
+    return {
+        "items": [
+            {"id": tag.id, "name": tag.name, "use_count": tag.use_count}
+            for tag in tags
+        ]
+    }
+
+
+@router.get("/transcode/categories")
+async def get_categories_for_transcode(
+    x_transcode_key: str = Header(None, alias="X-Transcode-Key"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取分类列表（供转码服务使用）
+    需要提供转码密钥验证，返回带有子分类的完整分类树
+    """
+    from sqlalchemy import or_
+    
+    if x_transcode_key != TRANSCODE_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid transcode key")
+    
+    # 获取所有分类
+    result = await db.execute(
+        select(VideoCategory)
+        .where(VideoCategory.is_active == True)
+        .order_by(VideoCategory.sort_order, VideoCategory.id)
+    )
+    categories = result.scalars().all()
+    
+    # 构建分类树
+    parent_map = {}
+    children_map = {}
+    
+    for cat in categories:
+        cat_data = {
+            "id": cat.id,
+            "name": cat.name,
+            "parent_id": cat.parent_id,
+            "category_type": getattr(cat, 'category_type', 'video'),
+            "sort_order": cat.sort_order,
+            "children": []
+        }
+        if cat.parent_id is None:
+            parent_map[cat.id] = cat_data
+        else:
+            if cat.parent_id not in children_map:
+                children_map[cat.parent_id] = []
+            children_map[cat.parent_id].append(cat_data)
+    
+    # 将子分类添加到父分类
+    for parent_id, children in children_map.items():
+        if parent_id in parent_map:
+            parent_map[parent_id]["children"] = children
+    
+    return {
+        "categories": list(parent_map.values()),
+        "all": [
+            {
+                "id": cat.id,
+                "name": cat.name,
+                "parent_id": cat.parent_id,
+                "category_type": getattr(cat, 'category_type', 'video'),
+            }
+            for cat in categories
+        ]
+    }
+
+
+@router.post("/direct-publish")
+async def direct_publish_video(
+    request: DirectPublishRequest,
+    x_transcode_key: str = Header(None, alias="X-Transcode-Key"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    从转码服务直接发布视频
+    
+    转码服务完成处理后调用此接口创建视频记录并直接发布
+    需要提供转码密钥验证
+    """
+    # 验证密钥
+    if x_transcode_key != TRANSCODE_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid transcode key")
+    
+    # 检查 hls_url 是否已存在（防止重复）
+    result = await db.execute(
+        select(Video).where(Video.hls_url == request.hls_url)
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        return {
+            "success": True,
+            "id": existing.id,
+            "action": "skipped",
+            "message": f"视频已存在: {existing.title}"
+        }
+    
+    # 获取唯一标题
+    unique_title = await get_unique_title(db, request.title)
+    
+    # 确定状态
+    status = VideoStatus.PUBLISHED if request.status == "PUBLISHED" else VideoStatus.REVIEWING
+    
+    # 使用北京时间 (UTC+8)
+    from datetime import timedelta
+    beijing_now = datetime.utcnow() + timedelta(hours=8)
+    
+    # 创建视频记录
+    video = Video(
+        title=unique_title,
+        description="",
+        is_short=request.is_short,
+        hls_url=request.hls_url,
+        cover_url=request.cover_url,
+        preview_url=request.preview_url or "",
+        duration=request.duration,
+        status=status,
+        uploader_id=1,  # 默认管理员
+        is_vip_only=request.is_vip_only,
+        coin_price=request.coin_price,
+        vip_coin_price=request.vip_coin_price,
+        free_preview_seconds=request.free_preview_seconds,
+        category_id=request.category_id,
+        short_category_id=request.short_category_id,
+        created_at=beijing_now,
+        published_at=beijing_now if status == VideoStatus.PUBLISHED else None,
+    )
+    
+    db.add(video)
+    await db.commit()
+    await db.refresh(video)
+    
+    # 添加标签关联
+    if request.tag_ids:
+        from sqlalchemy import text
+        for tag_id in request.tag_ids:
+            try:
+                await db.execute(
+                    text("INSERT INTO video_tags_association (video_id, tag_id) VALUES (:video_id, :tag_id)"),
+                    {"video_id": video.id, "tag_id": tag_id}
+                )
+            except:
+                pass  # 忽略重复或无效标签
+        await db.commit()
+    
+    return {
+        "success": True,
+        "id": video.id,
+        "action": "created",
+        "title": unique_title,
+        "status": status.value,
+        "message": f"视频已{'发布' if status == VideoStatus.PUBLISHED else '创建'}: {unique_title}"
     }

@@ -13,6 +13,12 @@ frontend/dist/
 backend/.env
 .env
 
+# SSH密钥文件（敏感）
+server_key
+server_key_main
+server_key_new
+*.pem
+
 # 数据库文件
 *.db
 *.sqlite

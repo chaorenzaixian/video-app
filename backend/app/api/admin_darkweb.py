@@ -918,3 +918,157 @@ async def process_darkweb_video(video_id: int, file_path: str, skip_thumbnail: b
                     await db.commit()
             except:
                 pass
+
+
+# ========== 转码服务器专用API ==========
+from fastapi import Header
+from app.core.config import settings
+
+TRANSCODE_SECRET_KEY = getattr(settings, 'TRANSCODE_SECRET_KEY', 'vYTWoms4FKOqySca1jCLtNHRVz3BAI6U')
+
+
+@router.get("/transcode/categories")
+async def get_categories_for_transcode(
+    x_transcode_key: str = Header(None, alias="X-Transcode-Key"),
+    db: AsyncSession = Depends(get_db)
+):
+    """转码服务器获取暗网分类（无需登录，使用密钥验证）"""
+    if x_transcode_key != TRANSCODE_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid transcode key")
+    
+    result = await db.execute(
+        select(DarkwebCategory).order_by(DarkwebCategory.level, DarkwebCategory.sort_order)
+    )
+    all_categories = result.scalars().all()
+    
+    count_result = await db.execute(
+        select(DarkwebVideo.category_id, func.count(DarkwebVideo.id))
+        .group_by(DarkwebVideo.category_id)
+    )
+    count_map = {r[0]: r[1] for r in count_result.fetchall()}
+    
+    parent_categories = [c for c in all_categories if c.level == 1]
+    child_categories = [c for c in all_categories if c.level == 2]
+    
+    children_map = {}
+    for child in child_categories:
+        if child.parent_id not in children_map:
+            children_map[child.parent_id] = []
+        child_resp = {
+            "id": child.id,
+            "name": child.name,
+            "description": child.description,
+            "icon": child.icon,
+            "sort_order": child.sort_order or 0,
+            "is_active": child.is_active if child.is_active is not None else True,
+            "parent_id": child.parent_id,
+            "level": child.level or 2,
+            "video_count": count_map.get(child.id, 0),
+            "children": []
+        }
+        children_map[child.parent_id].append(child_resp)
+    
+    categories = []
+    for parent in parent_categories:
+        children = children_map.get(parent.id, [])
+        total_count = count_map.get(parent.id, 0) + sum(c["video_count"] for c in children)
+        cat = {
+            "id": parent.id,
+            "name": parent.name,
+            "description": parent.description,
+            "icon": parent.icon,
+            "sort_order": parent.sort_order or 0,
+            "is_active": parent.is_active if parent.is_active is not None else True,
+            "parent_id": parent.parent_id,
+            "level": parent.level or 1,
+            "video_count": total_count,
+            "children": children
+        }
+        categories.append(cat)
+    
+    return categories
+
+
+@router.get("/transcode/tags")
+async def get_tags_for_transcode(
+    x_transcode_key: str = Header(None, alias="X-Transcode-Key"),
+    db: AsyncSession = Depends(get_db)
+):
+    """转码服务器获取暗网标签（无需登录，使用密钥验证）"""
+    if x_transcode_key != TRANSCODE_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid transcode key")
+    
+    result = await db.execute(
+        select(DarkwebTag)
+        .order_by(DarkwebTag.use_count.desc())
+        .limit(100)
+    )
+    tags = result.scalars().all()
+    return {"items": [{"id": t.id, "name": t.name, "use_count": t.use_count or 0} for t in tags]}
+
+
+# ========== 转码服务器专用API ==========
+
+class TranscodeVideoCreate(BaseModel):
+    """转码服务器创建暗网视频的请求体"""
+    title: str
+    description: Optional[str] = None
+    cover_url: Optional[str] = None
+    hls_url: Optional[str] = None
+    preview_url: Optional[str] = None
+    duration: float = 0
+    category_id: Optional[int] = None
+    tags: Optional[List[int]] = None  # 标签ID列表
+    is_featured: bool = False
+
+
+@router.post("/transcode/videos")
+async def create_video_from_transcode(
+    data: TranscodeVideoCreate,
+    x_transcode_key: str = Header(None, alias="X-Transcode-Key"),
+    db: AsyncSession = Depends(get_db)
+):
+    """转码服务器创建暗网视频（无需登录，使用密钥验证）"""
+    if x_transcode_key != TRANSCODE_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid transcode key")
+    
+    # 使用北京时间 (UTC+8)
+    from datetime import datetime, timedelta
+    beijing_now = datetime.utcnow() + timedelta(hours=8)
+    
+    # 创建视频记录
+    video = DarkwebVideo(
+        title=data.title,
+        description=data.description,
+        cover_url=data.cover_url,
+        hls_url=data.hls_url,
+        preview_url=data.preview_url,
+        duration=data.duration,
+        category_id=data.category_id,
+        is_featured=data.is_featured,
+        uploader_id=1,  # 使用管理员ID
+        status=VideoStatus.PUBLISHED if data.hls_url else VideoStatus.UPLOADING,
+        created_at=beijing_now,
+        published_at=beijing_now if data.hls_url else None
+    )
+    
+    # 处理标签（通过ID）
+    if data.tags:
+        for tag_id in data.tags:
+            result = await db.execute(
+                select(DarkwebTag).where(DarkwebTag.id == tag_id)
+            )
+            tag = result.scalar_one_or_none()
+            if tag:
+                tag.use_count = (tag.use_count or 0) + 1
+                video.tags.append(tag)
+    
+    db.add(video)
+    await db.commit()
+    await db.refresh(video)
+    
+    return {
+        "id": video.id,
+        "title": video.title,
+        "status": video.status.value if video.status else "PUBLISHED"
+    }
