@@ -101,32 +101,32 @@
           </div>
         </div>
 
-        <!-- 视频筛选 -->
-        <div ref="filterBarRef" :class="['filter-bar', { 'is-fixed': isFilterFixed }]">
-          <div class="filter-tabs">
-            <span 
-              v-for="(filter, index) in videoFilters" 
-              :key="filter.key"
-              :class="['filter-item', { active: activeVideoFilter === index }]"
-              @click="changeVideoFilter(index)"
-            >
-              {{ filter.label }}
-            </span>
-          </div>
-          <!-- 列表/网格切换 -->
-          <div class="view-toggle" @click="gridMode = gridMode === 1 ? 2 : 1">
-            <span class="toggle-label">切换</span>
-            <!-- 单列模式显示横线图标，双列模式显示网格图标 -->
-            <span class="toggle-icon" v-if="gridMode === 1">
-              <i></i><i></i><i></i>
-            </span>
-            <span class="toggle-icon grid" v-else>
-              <i></i><i></i><i></i><i></i>
-            </span>
+        <!-- 视频筛选容器 - 使用sticky定位避免跳动 -->
+        <div class="filter-bar-wrapper">
+          <div ref="filterBarRef" class="filter-bar">
+            <div class="filter-tabs">
+              <span 
+                v-for="(filter, index) in videoFilters" 
+                :key="filter.key"
+                :class="['filter-item', { active: activeVideoFilter === index }]"
+                @click="changeVideoFilter(index)"
+              >
+                {{ filter.label }}
+              </span>
+            </div>
+            <!-- 列表/网格切换 -->
+            <div class="view-toggle" @click="gridMode = gridMode === 1 ? 2 : 1">
+              <span class="toggle-label">切换</span>
+              <!-- 单列模式显示横线图标，双列模式显示网格图标 -->
+              <span class="toggle-icon" v-if="gridMode === 1">
+                <i></i><i></i><i></i>
+              </span>
+              <span class="toggle-icon grid" v-else>
+                <i></i><i></i><i></i><i></i>
+              </span>
+            </div>
           </div>
         </div>
-        <!-- 筛选栏固定时的占位 -->
-        <div class="filter-bar-placeholder" v-if="isFilterFixed"></div>
 
         <!-- 骨架屏加载状态 -->
         <div v-if="loadingVideos && videos.length === 0" :class="['video-list', gridMode === 1 ? 'single-column' : 'double-column']">
@@ -432,10 +432,8 @@ const videos = ref([])
 const loadingVideos = ref(false)
 const gridMode = ref(2) // 1=单列, 2=双列
 
-// 筛选栏固定
+// 筛选栏ref
 const filterBarRef = ref(null)
-const isFilterFixed = ref(false)
-const filterBarOriginalTop = ref(0)
 const fixedHeaderHeight = ref(0) // 动态获取的固定头部高度
 
 // 初始化固定头部高度 CSS 变量
@@ -836,45 +834,16 @@ const handleBannerClick = (banner) => {
   }
 }
 
-// 处理滚动，控制筛选栏固定
+// 处理滚动，更新固定头部高度CSS变量
 const handleScroll = () => {
-  if (!filterBarRef.value) return
-  
   // 获取固定头部的实际高度
   const headerEl = document.querySelector('.fixed-header')
   const headerHeight = headerEl?.offsetHeight || 0
-  const headerRect = headerEl?.getBoundingClientRect()
   
   // 更新固定头部高度（用于 CSS 变量）
   if (headerHeight !== fixedHeaderHeight.value) {
     fixedHeaderHeight.value = headerHeight
     document.documentElement.style.setProperty('--fixed-header-height', `${headerHeight}px`)
-  }
-  
-  // 获取筛选栏相对于视口的位置
-  const rect = filterBarRef.value.getBoundingClientRect()
-  
-  // 调试输出
-  if (!isFilterFixed.value && rect.top <= headerHeight + 5) {
-    console.log('=== 筛选栏固定调试 ===')
-    console.log('headerHeight:', headerHeight)
-    console.log('headerRect.bottom:', headerRect?.bottom)
-    console.log('filterBar rect.top:', rect.top)
-    console.log('差值:', rect.top - headerHeight)
-  }
-  
-  // 当筛选栏顶部到达固定头部底部时，固定筛选栏
-  if (rect.top <= headerHeight && !isFilterFixed.value) {
-    isFilterFixed.value = true
-  } else if (isFilterFixed.value) {
-    // 需要检查占位元素的位置来决定是否取消固定
-    const placeholder = document.querySelector('.filter-bar-placeholder')
-    if (placeholder) {
-      const placeholderRect = placeholder.getBoundingClientRect()
-      if (placeholderRect.top > headerHeight) {
-        isFilterFixed.value = false
-      }
-    }
   }
 }
 
@@ -1566,47 +1535,29 @@ $breakpoint-xxl: 1280px; // 大桌面
 }
 
 // 视频筛选
+// 筛选栏容器 - 使用sticky定位
+.filter-bar-wrapper {
+  position: sticky;
+  top: var(--fixed-header-height, 100px);
+  z-index: 50;
+  background: #0a0a0a;
+  margin: 0 clamp(4px, 1.5vw, 10px);
+}
+
 .filter-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: clamp(8px, 2.5vw, 14px) clamp(6px, 2vw, 12px);
   background: #0a0a0a;
-  margin: 0 clamp(4px, 1.5vw, 10px);
   border-radius: clamp(8px, 3vw, 14px) clamp(8px, 3vw, 14px) 0 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  width: calc(100% - clamp(8px, 3vw, 20px));
+  width: 100%;
   box-sizing: border-box;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  z-index: 50;
-  
-  // 固定状态 - 使用 CSS 变量动态设置 top 值
-  &.is-fixed {
-    position: fixed;
-    top: var(--fixed-header-height, 100px);
-    left: clamp(4px, 1.5vw, 10px);
-    right: clamp(4px, 1.5vw, 10px);
-    width: auto;
-    margin: 0;
-    border-radius: 0;
-    
-    @media (min-width: $breakpoint-lg) {
-      left: 50%;
-      transform: translateX(-50%);
-      max-width: calc(750px - clamp(8px, 3vw, 20px));
-    }
-    
-    @media (min-width: $breakpoint-xl) {
-      max-width: calc(900px - clamp(8px, 3vw, 20px));
-    }
-    
-    @media (min-width: $breakpoint-xxl) {
-      max-width: calc(1200px - clamp(8px, 3vw, 20px));
-    }
-  }
   
   &::-webkit-scrollbar {
     display: none;
@@ -1702,12 +1653,6 @@ $breakpoint-xxl: 1280px; // 大桌面
       }
     }
   }
-}
-
-// 筛选栏固定时的占位元素
-.filter-bar-placeholder {
-  height: 50px; // 筛选栏的大概高度
-  margin: 0 clamp(4px, 1.5vw, 10px);
 }
 
 // 骨架屏加载效果
