@@ -26,27 +26,20 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    // 获取状态栏高度
-    final statusBarHeight = MediaQuery.of(context).padding.top;
+    // 获取底部安全区域高度
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Column(
-        children: [
-          // 状态栏占位（黑色背景）
-          Container(
-            height: statusBarHeight,
-            color: Colors.black,
-          ),
-          // WebView 全屏显示
-          const Expanded(
-            child: WebViewPage(
-              url: 'http://38.47.218.137/',
-              showAppBar: false,
-              enableEdgeSwipeBack: true,
-            ),
-          ),
-        ],
+      // 使用SafeArea只处理顶部，底部由网页的底部导航处理
+      body: SafeArea(
+        top: true,
+        bottom: false, // 底部不使用SafeArea，让网页自己处理
+        child: const WebViewPage(
+          url: 'http://38.47.218.137/',
+          showAppBar: false,
+          enableEdgeSwipeBack: true,
+        ),
       ),
     );
   }
