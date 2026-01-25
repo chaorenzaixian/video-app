@@ -48,7 +48,7 @@ defineEmits(['detail', 'profile', 'like'])
 </script>
 
 <style lang="scss" scoped>
-.posts-list { padding: 0; }
+.posts-list { padding: 0; min-height: calc(100vh - 200px); }
 
 .post-card {
   background: #151515;

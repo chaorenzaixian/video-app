@@ -595,7 +595,7 @@ onMounted(() => fetchGallery())
 
 <style lang="scss" scoped>
 .gallery-detail-page { min-height: 100vh; background: #000; padding-bottom: 70px; }
-.top-header { display: flex; align-items: center; padding: 12px 16px; background: #000; position: sticky; top: 0; z-index: 100; }
+.top-header { display: flex; align-items: center; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); background: #000; position: sticky; top: 0; z-index: 100; }
 .back-btn { background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; padding: 4px 12px 4px 0; }
 .page-title { color: #fff; font-size: 17px; font-weight: 500; flex: 1; }
 .header-right { width: 40px; }

@@ -226,7 +226,7 @@ onActivated(async () => {
   height: 100vh;
   height: 100dvh;
   background: #0d0d0d;
-  padding-bottom: 70px;
+  padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px));
   overflow-x: hidden;
   overflow-y: auto;
   

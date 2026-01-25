@@ -81,17 +81,30 @@ const navigateTo = (path) => {
   right: 0;
   display: flex;
   justify-content: space-around;
-  align-items: center;
-  padding: 4px 0;
-  padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  align-items: flex-start;
+  padding-top: 6px;
   background: linear-gradient(to top, #0a0a0a 0%, rgba(10, 10, 10, 0.98) 100%);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   width: 100%;
   z-index: 1000;
+  box-sizing: border-box;
+  /* 内容区52px + 安全区域 */
+  height: calc(52px + env(safe-area-inset-bottom, 0px));
   
-  // 响应式最大宽度 - 与页面内容一致
+  /* iOS安全区域背景延伸 */
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-bottom, 0px);
+    background: #0a0a0a;
+  }
+  
+  // 响应式最大宽度
   @media (min-width: 768px) {
     max-width: 750px;
     left: 50%;
@@ -111,11 +124,14 @@ const navigateTo = (path) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: flex-start;
+  gap: 3px;
   color: rgba(255, 255, 255, 0.45);
   cursor: pointer;
   transition: all 0.25s ease;
-  padding: 2px 14px;
+  padding: 0 12px;
+  height: 44px; /* 内容区高度，满足iOS点击区域要求 */
+  min-width: 44px; /* 最小点击区域 */
   
   &:hover {
     color: rgba(255, 255, 255, 0.7);
@@ -131,6 +147,7 @@ const navigateTo = (path) => {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     
     img {
       width: 100%;
@@ -140,10 +157,12 @@ const navigateTo = (path) => {
   }
   
   .nav-label {
-    font-size: 13px;
-    letter-spacing: 0.5px;
+    font-size: 12px;
+    letter-spacing: 0.3px;
     color: rgba(255, 255, 255, 0.45);
     transition: all 0.25s ease;
+    line-height: 1;
+    flex-shrink: 0;
   }
   
   &.active {
@@ -158,8 +177,15 @@ const navigateTo = (path) => {
 
 // 平板及以上
 @media (min-width: 768px) {
+  .bottom-nav {
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-top: 8px;
+  }
+  
   .nav-item {
-    padding: 4px 18px;
+    padding: 0 18px;
+    height: 46px;
+    gap: 4px;
     
     .nav-icon-img {
       width: 30px;
@@ -167,7 +193,7 @@ const navigateTo = (path) => {
     }
     
     .nav-label {
-      font-size: 14px;
+      font-size: 13px;
     }
   }
 }
@@ -175,16 +201,18 @@ const navigateTo = (path) => {
 // 横屏模式优化
 @media (orientation: landscape) and (max-height: 500px) {
   .bottom-nav {
-    padding: 2px 0;
-    padding-bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+    height: calc(44px + env(safe-area-inset-bottom, 0px));
+    padding-top: 4px;
   }
   
   .nav-item {
-    padding: 2px 10px;
+    padding: 0 10px;
+    height: 38px;
+    gap: 2px;
     
     .nav-icon-img {
-      width: 24px;
-      height: 24px;
+      width: 22px;
+      height: 22px;
     }
     
     .nav-label {

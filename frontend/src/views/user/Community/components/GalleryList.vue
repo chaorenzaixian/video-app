@@ -38,17 +38,30 @@ defineEmits(['detail'])
   gap: 12px 8px;
 }
 
-.gallery-item { cursor: pointer; display: flex; flex-direction: column; }
+.gallery-item { 
+  cursor: pointer;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
 
 .gallery-cover {
   position: relative;
   width: 100%;
-  padding-top: 133.33%;
+  height: 0 !important;
+  padding-top: 133.33% !important; /* 3:4比例 = 4/3 * 100% */
   border-radius: 8px;
   overflow: hidden;
   background: #1a1a1a;
   
-  img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+  img { 
+    position: absolute !important; 
+    top: 0 !important; 
+    left: 0 !important; 
+    width: 100% !important; 
+    height: 100% !important; 
+    object-fit: cover !important; 
+  }
 }
 
 .gallery-info {

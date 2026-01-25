@@ -706,6 +706,7 @@ onMounted(() => {
   top: 0;
   z-index: 100;
   background: #0a0a12;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 // 顶部导航

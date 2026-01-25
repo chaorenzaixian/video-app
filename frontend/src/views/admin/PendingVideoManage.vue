@@ -5,10 +5,34 @@
         <div class="card-header">
           <span>待处理视频</span>
           <div class="header-stats">
-            <el-tag type="warning">待处理: {{ pagination.total }}</el-tag>
+            <el-tag type="info">长视频: {{ stats.longCount }}</el-tag>
+            <el-tag type="success" style="margin-left: 8px">短视频: {{ stats.shortCount }}</el-tag>
+            <el-tag type="warning" style="margin-left: 8px">总计: {{ stats.longCount + stats.shortCount }}</el-tag>
           </div>
         </div>
       </template>
+
+      <!-- 视频类型Tab -->
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="video-tabs">
+        <el-tab-pane name="long">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><VideoCamera /></el-icon>
+              长视频
+              <el-badge :value="stats.longCount" :max="99" class="tab-badge" />
+            </span>
+          </template>
+        </el-tab-pane>
+        <el-tab-pane name="short">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><Film /></el-icon>
+              短视频
+              <el-badge :value="stats.shortCount" :max="99" class="tab-badge" />
+            </span>
+          </template>
+        </el-tab-pane>
+      </el-tabs>
 
       <!-- 筛选栏 -->
       <div class="filter-bar">
@@ -21,12 +45,6 @@
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-
-        <el-select v-model="filters.videoType" placeholder="视频类型" clearable style="width: 120px">
-          <el-option label="全部" value="" />
-          <el-option label="长视频" value="long" />
-          <el-option label="短视频" value="short" />
-        </el-select>
 
         <el-button type="primary" @click="fetchVideos">
           <el-icon><Search /></el-icon>搜索
@@ -251,7 +269,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Picture } from '@element-plus/icons-vue'
+import { Search, Picture, VideoCamera, Film } from '@element-plus/icons-vue'
 import api from '@/utils/api'
 import dayjs from 'dayjs'
 
@@ -259,10 +277,15 @@ const loading = ref(false)
 const videos = ref([])
 const categories = ref([])
 const selectedIds = ref([])
+const activeTab = ref('long')
+
+const stats = reactive({
+  longCount: 0,
+  shortCount: 0
+})
 
 const filters = reactive({
-  search: '',
-  videoType: ''
+  search: ''
 })
 
 const pagination = reactive({
@@ -310,7 +333,7 @@ const fetchVideos = async () => {
       params: {
         page: pagination.page,
         page_size: pagination.pageSize,
-        video_type: filters.videoType || undefined,
+        video_type: activeTab.value,
         search: filters.search || undefined
       }
     })
@@ -322,6 +345,32 @@ const fetchVideos = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 获取统计数据
+const fetchStats = async () => {
+  try {
+    // 获取长视频数量
+    const longRes = await api.get('/admin/videos/pending', {
+      params: { page: 1, page_size: 1, video_type: 'long' }
+    })
+    stats.longCount = longRes.data?.total || longRes.total || 0
+    
+    // 获取短视频数量
+    const shortRes = await api.get('/admin/videos/pending', {
+      params: { page: 1, page_size: 1, video_type: 'short' }
+    })
+    stats.shortCount = shortRes.data?.total || shortRes.total || 0
+  } catch (error) {
+    console.error('获取统计失败:', error)
+  }
+}
+
+// Tab切换
+const handleTabChange = () => {
+  pagination.page = 1
+  selectedIds.value = []
+  fetchVideos()
 }
 
 // 获取分类列表
@@ -337,7 +386,6 @@ const fetchCategories = async () => {
 // 重置筛选
 const resetFilters = () => {
   filters.search = ''
-  filters.videoType = ''
   pagination.page = 1
   fetchVideos()
 }
@@ -446,6 +494,7 @@ const publishSingle = async (row) => {
     await api.put(`/admin/videos/${row.id}/update-and-publish`, { publish: true })
     ElMessage.success('视频已发布')
     fetchVideos()
+    fetchStats()  // 刷新统计
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('发布失败')
@@ -472,6 +521,7 @@ const batchPublish = async () => {
     ElMessage.success(`已发布 ${selectedIds.value.length} 个视频`)
     selectedIds.value = []
     fetchVideos()
+    fetchStats()  // 刷新统计
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('批量发布失败')
@@ -517,6 +567,7 @@ const formatDate = (date) => {
 onMounted(() => {
   fetchVideos()
   fetchCategories()
+  fetchStats()
 })
 </script>
 
@@ -526,6 +577,32 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+
+  .video-tabs {
+    margin-bottom: 16px;
+    
+    :deep(.el-tabs__header) {
+      margin-bottom: 0;
+    }
+    
+    .tab-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      
+      .el-icon {
+        font-size: 16px;
+      }
+      
+      .tab-badge {
+        margin-left: 4px;
+        
+        :deep(.el-badge__content) {
+          font-size: 10px;
+        }
+      }
+    }
   }
 
   .filter-bar {

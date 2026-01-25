@@ -1,12 +1,11 @@
 <template>
   <div class="video-player-page">
-    <!-- 返回按钮 -->
-    <div class="back-btn" @click="goBack">
-      <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
-    </div>
-
     <!-- 视频播放器 -->
     <div class="player-container">
+      <!-- 返回按钮 - 放在player-container内部，全屏时跟随 -->
+      <div class="back-btn" @click="goBack">
+        <img src="/images/icons/ic_back.webp" alt="返回" class="back-icon" />
+      </div>
       <!-- 前贴广告 -->
       <div class="pre-roll-ad" v-if="showPreRollAd && preRollAd">
         <div class="ad-video-container">
@@ -1126,18 +1125,35 @@ const checkVideoPurchase = async () => {
   currentPlayTime.value = 0
   trialWatchTime.value = 0
   
-  // 免费视频不需要购买
-  if (!v.pay_type || v.pay_type === 'free') {
+  const payType = v.pay_type || 'free'
+  const coinPrice = v.coin_price || 0
+  
+  // 详细调试日志
+  console.log('[Purchase] 视频原始数据:', {
+    id: v.id,
+    title: v.title,
+    pay_type_raw: v.pay_type,
+    coin_price_raw: v.coin_price,
+    pay_type_used: payType,
+    coin_price_used: coinPrice,
+    is_purchased_from_api: v.is_purchased
+  })
+  
+  // 免费视频判断：pay_type必须是free 且 coin_price必须为0
+  // 修复：即使pay_type是free，如果coin_price>0也应该视为付费视频
+  if (payType === 'free' && coinPrice <= 0) {
     needsPurchase.value = false
     hasPurchased.value = true
+    console.log('[Purchase] 判定为免费视频，原因:', payType === 'free' ? 'pay_type=free' : 'coin_price<=0')
     return
   }
   
   // VIP免费视频
-  if (v.pay_type === 'vip_free' && isVip.value) {
+  if (payType === 'vip_free' && isVip.value) {
     needsPurchase.value = false
     hasPurchased.value = true
     isVipFree.value = true
+    console.log('[Purchase] VIP免费视频')
     return
   }
   
@@ -1146,6 +1162,7 @@ const checkVideoPurchase = async () => {
     needsPurchase.value = false
     hasPurchased.value = true
     isVipFree.value = true
+    console.log('[Purchase] 黄金至尊及以上VIP免费')
     return
   }
   
@@ -1154,22 +1171,29 @@ const checkVideoPurchase = async () => {
     needsPurchase.value = false
     hasPurchased.value = true
     isVipFree.value = true
+    console.log('[Purchase] VIP等级免费')
     return
   }
   
   // 需要付费，检查是否已购买
   needsPurchase.value = true
+  console.log('[Purchase] 需要付费视频，检查购买状态...')
   
   try {
     const res = await api.get(`/coins/purchase/video/${v.id}/check`, { signal: abortSignal })
     const data = res.data || res
-    hasPurchased.value = data.purchased === true || data.can_watch === true
+    console.log('[Purchase] API返回:', data)
+    
+    // 后端返回 is_purchased 或 can_watch 表示可以观看
+    hasPurchased.value = data.is_purchased === true || data.can_watch === true
+    console.log('[Purchase] hasPurchased:', hasPurchased.value)
     
     // 检查是否VIP免费
     if (data.is_vip_free) {
       isVipFree.value = true
       hasPurchased.value = true
       needsPurchase.value = false
+      console.log('[Purchase] VIP免费')
     }
   } catch (error) {
     if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
@@ -2115,10 +2139,11 @@ onUnmounted(() => {
   width: 100%;
   max-width: 100vw;
   overflow-x: clip; // 使用clip替代hidden，不影响sticky
+  // 播放页面不需要padding-top，播放器会sticky到安全区域下方
   padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
 }
 
-// 返回按钮
+// 返回按钮 - 在player-container内部
 .back-btn {
   position: absolute;
   top: 12px;
@@ -2131,6 +2156,11 @@ onUnmounted(() => {
   align-items: center;
   cursor: pointer;
   
+  // iOS全屏时适配安全区域
+  @supports (padding-top: env(safe-area-inset-top)) {
+    top: calc(12px + env(safe-area-inset-top));
+  }
+  
   svg {
     width: 28px;
     height: 28px;
@@ -2142,7 +2172,7 @@ onUnmounted(() => {
 // 播放器容器 - sticky固定在顶部
 .player-container {
   position: sticky;
-  top: 0;
+  top: 0;  // body已有padding-top安全区域，这里不需要再加
   z-index: 50;
   width: 100%;
   aspect-ratio: 16/9;

@@ -217,7 +217,7 @@ onUnmounted(() => {
   height: 100dvh;
   background: #0d0d0d;
   color: #fff;
-  padding-bottom: calc(65px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px));
   width: 100%;
   max-width: 100vw;
   margin: 0 auto;

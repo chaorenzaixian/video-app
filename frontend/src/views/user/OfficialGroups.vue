@@ -138,6 +138,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 16px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
   background: #0a0a0a;
   position: sticky;
   top: 0;

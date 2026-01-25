@@ -264,7 +264,7 @@ $breakpoint-xxl: 1280px;
   height: 100dvh;
   background: #0a0a0a;
   color: #fff;
-  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px)); /* 与底部导航高度一致 */
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
   width: 100%;

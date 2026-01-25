@@ -28,12 +28,14 @@
       @media (min-width: 376px) and (max-width: 414px) { html { font-size: 15px; } }
       @media (min-width: 415px) and (max-width: 768px) { html { font-size: 16px; } }
       @media (min-width: 769px) { html { font-size: 16px; } }
-      /* 安全区域适配 */
-      @supports (padding: env(safe-area-inset-bottom)) {
-        body { padding-bottom: env(safe-area-inset-bottom); }
+      /* 安全区域适配 - 只处理顶部，底部由底部导航组件处理 */
+      @supports (padding: env(safe-area-inset-top)) {
+        body { 
+          padding-top: env(safe-area-inset-top);
+        }
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-BZXad20c.js"></script>
+    <script type="module" crossorigin src="/assets/index-BZri5UdU.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vue-vendor-Ba_vealp.js">
     <link rel="modulepreload" crossorigin href="/assets/element-plus-i2A-2cXF.js">
     <link rel="modulepreload" crossorigin href="/assets/utils-Dp9cxKoe.js">

@@ -41,7 +41,7 @@
           <!-- 视频播放器 -->
           <video
             :ref="el => setVideoRef(index, el)"
-            :src="video.video_url || video.hls_url"
+            :data-src="video.video_url || video.hls_url"
             :poster="video.cover_url"
             class="short-video"
             loop
@@ -434,6 +434,7 @@ import { useTimers, useVideoCleanup, useEventListeners } from '@/composables/use
 import { useDebounce } from '@/composables/useDebounce'
 import { formatCount, formatDuration } from '@/utils/format'
 import { VIP_LEVEL_ICONS } from '@/constants/vip'
+import Hls from 'hls.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -540,10 +541,56 @@ const emojiList = [
   '🎉', '🎊', '💎', '🏆', '🥇', '⭐', '🌟', '💫', '🌈', '☀️'
 ]
 
-// 设置视频引用
+// HLS实例存储
+const hlsInstances = ref({})
+
+// 设置视频引用并初始化HLS
 const setVideoRef = (index, el) => {
   if (el) {
     videoRefs.value[index] = el
+    // 初始化视频源
+    initVideoSource(index, el)
+  }
+}
+
+// 初始化视频源（支持HLS和普通视频）
+const initVideoSource = (index, videoEl) => {
+  const video = videos.value[index]
+  if (!video) return
+  
+  const url = video.video_url || video.hls_url
+  if (!url) return
+  
+  // 如果已经初始化过，跳过
+  if (videoEl.dataset.initialized === url) return
+  videoEl.dataset.initialized = url
+  
+  // 检查是否是HLS格式
+  const isHls = url.includes('.m3u8')
+  
+  if (isHls) {
+    if (Hls.isSupported()) {
+      // 销毁旧的HLS实例
+      if (hlsInstances.value[index]) {
+        hlsInstances.value[index].destroy()
+      }
+      // 创建新的HLS实例
+      const hls = new Hls({
+        maxBufferLength: 10,
+        maxMaxBufferLength: 20,
+        maxBufferSize: 10 * 1024 * 1024,
+        startLevel: -1,
+      })
+      hls.loadSource(url)
+      hls.attachMedia(videoEl)
+      hlsInstances.value[index] = hls
+    } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+      // Safari原生支持HLS
+      videoEl.src = url
+    }
+  } else {
+    // 普通视频直接设置src
+    videoEl.src = url
   }
 }
 
@@ -1685,11 +1732,21 @@ onBeforeRouteLeave((to, from, next) => {
 
 onBeforeUnmount(() => {
   stopAllVideos()
+  // 清理所有HLS实例
+  Object.values(hlsInstances.value).forEach(hls => {
+    if (hls) hls.destroy()
+  })
+  hlsInstances.value = {}
 })
 
 // 资源清理由 composables 自动处理
 onUnmounted(() => {
   stopAllVideos()
+  // 清理所有HLS实例
+  Object.values(hlsInstances.value).forEach(hls => {
+    if (hls) hls.destroy()
+  })
+  hlsInstances.value = {}
 })
 
 // 监听标签切换

@@ -334,7 +334,7 @@ watch(activeMainTab, (newTab) => {
   height: 100dvh;
   background: #0a0a0a;
   color: #fff;
-  padding-bottom: 70px;
+  padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px));
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -345,6 +345,7 @@ watch(activeMainTab, (newTab) => {
   justify-content: flex-start;
   gap: 24px;
   padding: 12px 16px;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
   background: #0a0a0a;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   position: sticky;

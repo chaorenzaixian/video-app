@@ -1985,13 +1985,14 @@ onUnmounted(() => {
   width: 100%;
   max-width: 100vw;
   overflow-x: clip; // 使用clip替代hidden，不影响sticky
+  padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
 }
 
 // 返回按钮
 .back-btn {
   position: absolute;
-  top: 12px;
+  top: calc(12px + env(safe-area-inset-top, 0px));
   left: 12px;
   z-index: 100;
   width: 36px;
@@ -2012,7 +2013,7 @@ onUnmounted(() => {
 // 播放器容器 - sticky固定在顶部
 .player-container {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top, 0px);
   z-index: 50;
   width: 100%;
   aspect-ratio: 16/9;
