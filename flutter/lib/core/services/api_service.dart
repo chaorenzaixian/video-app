@@ -8,7 +8,7 @@ class ApiService {
   late Dio _dio;
   
   // API 基础地址
-  static const String baseUrl = 'http://38.47.218.137:8000/api/v1';
+  static const String baseUrl = 'http://38.47.218.137/api/v1';
   
   // 获取完整图片URL
   static String getFullImageUrl(String? url) {

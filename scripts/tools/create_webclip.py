@@ -102,7 +102,13 @@ def create_app_html() -> str:
 
 
 def create_mobileconfig(icon_b64: str) -> str:
-    """创建iOS描述文件"""
+    """创建iOS描述文件 - 优化版本"""
+    import uuid
+    
+    # 生成唯一的 UUID
+    webclip_uuid = str(uuid.uuid4()).upper()
+    profile_uuid = str(uuid.uuid4()).upper()
+    
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -114,20 +120,22 @@ def create_mobileconfig(icon_b64: str) -> str:
             <true/>
             <key>Icon</key>
             <data>{icon_b64}</data>
+            <key>IgnoreManifestScope</key>
+            <true/>
             <key>IsRemovable</key>
             <true/>
             <key>Label</key>
             <string>Soul</string>
             <key>PayloadDescription</key>
-            <string>Soul App</string>
+            <string>添加Soul到主屏幕，享受全屏体验</string>
             <key>PayloadDisplayName</key>
             <string>Soul</string>
             <key>PayloadIdentifier</key>
-            <string>com.ssoul.webclip</string>
+            <string>cc.ssoul.webclip</string>
             <key>PayloadType</key>
             <string>com.apple.webClip.managed</string>
             <key>PayloadUUID</key>
-            <string>A1B2C3D4-E5F6-7890-ABCD-EF1234567890</string>
+            <string>{webclip_uuid}</string>
             <key>PayloadVersion</key>
             <integer>1</integer>
             <key>Precomposed</key>
@@ -137,11 +145,11 @@ def create_mobileconfig(icon_b64: str) -> str:
         </dict>
     </array>
     <key>PayloadDescription</key>
-    <string>Install Soul App</string>
+    <string>安装Soul到您的主屏幕，获得类似原生App的体验</string>
     <key>PayloadDisplayName</key>
     <string>Soul</string>
     <key>PayloadIdentifier</key>
-    <string>com.ssoul.profile</string>
+    <string>cc.ssoul.profile</string>
     <key>PayloadOrganization</key>
     <string>Soul</string>
     <key>PayloadRemovalDisallowed</key>
@@ -149,9 +157,16 @@ def create_mobileconfig(icon_b64: str) -> str:
     <key>PayloadType</key>
     <string>Configuration</string>
     <key>PayloadUUID</key>
-    <string>B2C3D4E5-F678-9012-BCDE-F12345678901</string>
+    <string>{profile_uuid}</string>
     <key>PayloadVersion</key>
     <integer>1</integer>
+    <key>ConsentText</key>
+    <dict>
+        <key>default</key>
+        <string>此配置文件将在您的主屏幕上添加Soul图标，点击即可全屏访问。</string>
+        <key>zh-Hans</key>
+        <string>此配置文件将在您的主屏幕上添加Soul图标，点击即可全屏访问。</string>
+    </dict>
 </dict>
 </plist>'''
 

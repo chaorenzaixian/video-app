@@ -662,7 +662,7 @@ onMounted(() => {
     background: #0f0f1a;
     border-radius: 16px 16px 0 0;
     padding: 12px 20px;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(80px + var(--safe-area-bottom, 0px));
     animation: slideUp 0.3s ease;
   }
   

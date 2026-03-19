@@ -88,6 +88,10 @@ img, video, iframe {
 
 /* 主题变量 - 管理后台（亮色） */
 :root {
+  /* 安全区域变量 - 优先使用App注入的值，否则使用env() */
+  --safe-area-bottom: var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px));
+  --safe-area-top: var(--app-safe-area-top, env(safe-area-inset-top, 0px));
+  
   --primary-color: #6366f1;
   --primary-light: #818cf8;
   --primary-dark: #4f46e5;

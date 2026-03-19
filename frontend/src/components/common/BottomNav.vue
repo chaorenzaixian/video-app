@@ -91,7 +91,9 @@ const navigateTo = (path) => {
   z-index: 1000;
   box-sizing: border-box;
   /* 内容区52px + 安全区域 */
-  height: calc(52px + env(safe-area-inset-bottom, 0px));
+  height: calc(52px + var(--safe-area-bottom, 0px));
+  /* 底部padding确保内容不被安全区域遮挡 */
+  padding-bottom: var(--safe-area-bottom, 0px);
   
   /* iOS安全区域背景延伸 */
   &::after {
@@ -100,7 +102,7 @@ const navigateTo = (path) => {
     bottom: 0;
     left: 0;
     right: 0;
-    height: env(safe-area-inset-bottom, 0px);
+    height: var(--safe-area-bottom, 0px);
     background: #0a0a0a;
   }
   
@@ -178,7 +180,7 @@ const navigateTo = (path) => {
 // 平板及以上
 @media (min-width: 768px) {
   .bottom-nav {
-    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    height: calc(56px + var(--safe-area-bottom, 0px));
     padding-top: 8px;
   }
   
@@ -201,7 +203,7 @@ const navigateTo = (path) => {
 // 横屏模式优化
 @media (orientation: landscape) and (max-height: 500px) {
   .bottom-nav {
-    height: calc(44px + env(safe-area-inset-bottom, 0px));
+    height: calc(44px + var(--safe-area-bottom, 0px));
     padding-top: 4px;
   }
   

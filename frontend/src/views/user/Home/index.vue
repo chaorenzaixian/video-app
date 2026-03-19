@@ -264,7 +264,7 @@ $breakpoint-xxl: 1280px;
   height: 100dvh;
   background: #0a0a0a;
   color: #fff;
-  padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px)); /* 与底部导航高度一致 */
+  padding-bottom: calc(52px + var(--safe-area-bottom, 0px)); /* 与底部导航高度一致 */
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
   width: 100%;
@@ -487,7 +487,11 @@ $breakpoint-xxl: 1280px;
   transform: translateY(-100%);
 }
 
-.page-content { width: 100%; }
+.page-content { 
+  width: 100%; 
+  position: relative;
+  overflow: hidden; // 防止动画过程中内容溢出
+}
 
 .hot-section {
   padding: clamp(8px, 2.5vw, 14px) clamp(10px, 3vw, 16px);
@@ -740,11 +744,12 @@ $breakpoint-xxl: 1280px;
 .drawer-slide-enter-active, .drawer-slide-leave-active { transition: transform 0.3s ease; }
 .drawer-slide-enter-from, .drawer-slide-leave-to { transform: translateX(100%); }
 
-.slide-left-enter-active, .slide-left-leave-active { transition: all 0.1s ease-out; }
-.slide-left-enter-from { opacity: 0; transform: translateX(100%); }
-.slide-left-leave-to { opacity: 0; transform: translateX(-100%); }
+// 页面切换动画 - 优化为淡入淡出避免重叠
+.slide-left-enter-active, .slide-left-leave-active { transition: opacity 0.15s ease-out; }
+.slide-left-enter-from { opacity: 0; }
+.slide-left-leave-to { opacity: 0; }
 
-.slide-right-enter-active, .slide-right-leave-active { transition: all 0.1s ease-out; }
-.slide-right-enter-from { opacity: 0; transform: translateX(-100%); }
-.slide-right-leave-to { opacity: 0; transform: translateX(100%); }
+.slide-right-enter-active, .slide-right-leave-active { transition: opacity 0.15s ease-out; }
+.slide-right-enter-from { opacity: 0; }
+.slide-right-leave-to { opacity: 0; }
 </style>

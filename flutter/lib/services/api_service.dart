@@ -8,8 +8,8 @@ class ApiService {
   static bool _initialized = false;
   
   // API 基础地址 - 使用真实服务器地址
-  static const String baseUrl = 'http://38.47.218.137:8000/api/v1';
-  static const String serverUrl = 'http://38.47.218.137:8000';
+  static const String baseUrl = 'http://38.47.218.137/api/v1';
+  static const String serverUrl = 'http://38.47.218.137';
   
   static Future<void> init() async {
     if (_initialized) return;

@@ -13,6 +13,7 @@ sftp = ssh.open_sftp()
 files = [
     ('transcode_service/web_ui.py', 'D:/VideoTranscode/service/web_ui.py'),
     ('transcode_service/templates/index.html', 'D:/VideoTranscode/service/templates/index.html'),
+    ('transcode_service/transcoder.py', 'D:/VideoTranscode/service/transcoder.py'),
 ]
 
 for local, remote in files:

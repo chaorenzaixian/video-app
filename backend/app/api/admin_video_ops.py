@@ -554,6 +554,11 @@ async def update_and_publish_video(
         video.cover_url = request.cover_url
     if request.coin_price is not None:
         video.coin_price = request.coin_price
+        # 自动更新pay_type：如果设置了价格则为coins，否则为free
+        if request.coin_price > 0:
+            video.pay_type = 'coins'
+        else:
+            video.pay_type = 'free'
     if request.is_vip_only is not None:
         video.is_vip_only = request.is_vip_only
     if request.vip_coin_price is not None:

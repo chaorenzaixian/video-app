@@ -627,11 +627,19 @@ async function pollStatus(taskId) {
 
 function showEditModal(taskId, data) {
     currentTaskId = taskId;
-    selectedCover = data.best_cover || 1;
-    selectedTags = [];
     currentIsShort = data.is_short || false;
     currentIsDarkweb = data.is_darkweb || false;
-    customCoverUrl = null; // 重置自定义封面
+    
+    // 检查是否有自定义封面
+    if (data.has_custom_cover || data.best_cover === 'custom') {
+        customCoverUrl = `/api/preview/${taskId}/covers/custom_cover.webp`;
+        selectedCover = 'custom';
+    } else {
+        customCoverUrl = null;
+        selectedCover = data.best_cover || 1;
+    }
+    
+    selectedTags = [];
     document.getElementById('editTitle').value = data.name || '';
     document.getElementById('editDescription').value = '';
     document.getElementById('editFeatured').checked = false;
@@ -780,8 +788,8 @@ async function publishVideo() {
         description: document.getElementById('editDescription').value,
         category_id: document.getElementById('editCategory').value || null,
         tag_ids: selectedTags.length ? selectedTags : null,
-        selected_cover: selectedCover === 'custom' ? 1 : selectedCover,
-        custom_cover_url: customCoverUrl, // 自定义封面URL
+        selected_cover: selectedCover,  // 保持 'custom' 或数字索引
+        custom_cover_url: customCoverUrl, // 自定义封面URL（备用）
         coin_price: parseInt(document.getElementById('editCoin').value) || 0,
         free_preview_seconds: parseInt(document.getElementById('editPreview').value) || 15,
         is_vip_only: document.getElementById('editVipOnly').checked,
@@ -793,6 +801,7 @@ async function publishVideo() {
     closeModal();
     publishingTasks[taskId] = 'publishing';
     renderPendingList();
+    loadHistory(); // 刷新历史页面显示发布中状态
     
     // 选择发布API
     const publishUrl = currentIsDarkweb ? '/api/publish-darkweb' : '/api/publish';
@@ -839,6 +848,7 @@ async function retryPublish(taskId) {
     publishingTasks[taskId] = 'publishing';
     delete publishingTasks[taskId + '_error'];
     renderPendingList();
+    loadHistory(); // 刷新历史页面显示发布中状态
     
     try {
         const r = await fetch('/api/publish', {
@@ -1112,15 +1122,39 @@ async function loadHistory() {
         const r = await fetch('/api/history'), d = await r.json();
         const items = Array.isArray(d) ? d : (d.items || []);
         const stats = d.stats || { today: 0, this_week: 0, total: items.length };
+        
+        // 统计正在发布的任务数量
+        const publishingCount = Object.values(publishingTasks).filter(s => s === 'publishing').length;
+        
         document.getElementById('historyStats').innerHTML = 
             '<div class="stat-card"><div class="value">' + (stats.today || 0) + '</div><div class="label">今日</div></div>' +
             '<div class="stat-card"><div class="value">' + (stats.this_week || 0) + '</div><div class="label">本周</div></div>' +
-            '<div class="stat-card"><div class="value">' + (stats.total || items.length) + '</div><div class="label">总计</div></div>';
-        document.getElementById('historyList').innerHTML = items.length ? items.map(h => 
+            (publishingCount > 0 ? '<div class="stat-card" style="background:rgba(255,165,0,0.15)"><div class="value" style="color:#ffa500">' + publishingCount + '</div><div class="label">发布中</div></div>' : '');
+        
+        // 构建正在发布的任务列表
+        let publishingHtml = '';
+        for (const taskId in publishingTasks) {
+            if (publishingTasks[taskId] === 'publishing' && !taskId.includes('_')) {
+                // 从待发布列表中找到对应的任务信息
+                const task = pendingItems.find(t => t.task_id === taskId);
+                const title = task ? (task.name || task.filename) : taskId;
+                publishingHtml += '<div class="list-item" style="border-left:3px solid #ffa500">' +
+                    '<div class="info"><div class="title">' + title + '</div>' +
+                    '<div class="meta">正在上传到服务器...</div></div>' +
+                    '<span class="status" style="background:rgba(255,165,0,0.2);color:#ffa500;animation:pulse 1.5s infinite">' +
+                    '<span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #ffa500;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-right:6px"></span>发布中</span></div>';
+            }
+        }
+        
+        // 已发布的列表
+        const historyHtml = items.length ? items.map(h => 
             '<div class="list-item"><div class="info"><div class="title">' + (h.title || h.filename || '') + '</div>' +
             '<div class="meta">' + (h.published_at || '') + ' · ' + Math.round(h.duration || 0) + '秒</div></div>' +
-            '<span class="status status-completed">已发布</span></div>'
-        ).join('') : '<div class="empty"><div class="icon">📜</div><div>暂无记录</div></div>';
+            '<span class="status status-completed">✓ 已发布</span></div>'
+        ).join('') : '';
+        
+        document.getElementById('historyList').innerHTML = publishingHtml + historyHtml || 
+            '<div class="empty"><div class="icon">📜</div><div>暂无记录</div></div>';
     } catch(e) {}
 }
 

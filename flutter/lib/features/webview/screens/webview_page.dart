@@ -208,48 +208,29 @@ class _WebViewPageState extends State<WebViewPage> with WidgetsBindingObserver {
       final mediaQuery = MediaQuery.of(context);
       final bottomInset = mediaQuery.padding.bottom;
       final topInset = mediaQuery.padding.top;
+      final isIOS = Platform.isIOS;
+      
+      debugPrint('准备注入安全区域: top=$topInset, bottom=$bottomInset, platform=${isIOS ? 'iOS' : 'Android'}');
       
       // 注入CSS变量和标记，让网页知道在App内运行
       final script = '''
         (function() {
           // 标记在App内运行
           document.documentElement.setAttribute('data-in-app', 'true');
+          document.documentElement.setAttribute('data-platform', '${isIOS ? 'ios' : 'android'}');
+          
+          // 设置安全区域CSS变量（统一使用 --safe-area-bottom 和 --safe-area-top）
+          document.documentElement.style.setProperty('--safe-area-top', '${topInset}px');
+          document.documentElement.style.setProperty('--safe-area-bottom', '${bottomInset}px');
           document.documentElement.style.setProperty('--app-safe-area-top', '${topInset}px');
           document.documentElement.style.setProperty('--app-safe-area-bottom', '${bottomInset}px');
           
-          // 如果env()不工作，用App传入的值覆盖
-          var style = document.createElement('style');
-          style.id = 'app-safe-area-override';
-          style.textContent = \`
-            /* App内运行时，底部导航不需要额外的安全区域padding，因为Flutter已经处理了 */
-            html[data-in-app="true"] .bottom-nav {
-              height: 52px !important;
-              padding-bottom: 0 !important;
-            }
-            html[data-in-app="true"] .bottom-nav::after {
-              display: none !important;
-            }
-            /* App内运行时，页面底部padding也不需要安全区域 */
-            html[data-in-app="true"] .app-container,
-            html[data-in-app="true"] .community-page,
-            html[data-in-app="true"] .profile-page,
-            html[data-in-app="true"] .darkweb-entry-page,
-            html[data-in-app="true"] .dating-page {
-              padding-bottom: 60px !important;
-            }
-          \`;
-          
-          // 移除旧的样式（如果存在）
-          var oldStyle = document.getElementById('app-safe-area-override');
-          if (oldStyle) oldStyle.remove();
-          
-          document.head.appendChild(style);
-          console.log('App safe area injected: top=${topInset}, bottom=${bottomInset}');
+          console.log('[App] Safe area injected: top=${topInset}px, bottom=${bottomInset}px, platform=${isIOS ? 'ios' : 'android'}');
         })();
       ''';
       
       await _controller.runJavaScript(script);
-      debugPrint('安全区域信息注入成功: top=$topInset, bottom=$bottomInset');
+      debugPrint('安全区域信息注入成功: top=$topInset, bottom=$bottomInset, platform=${isIOS ? 'iOS' : 'Android'}');
     } catch (e) {
       debugPrint('安全区域信息注入失败: $e');
     }

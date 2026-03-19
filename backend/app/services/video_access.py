@@ -135,8 +135,9 @@ async def check_video_access(
     vip_free_level = getattr(video, 'vip_free_level', 0) or 0
     free_preview_seconds = getattr(video, 'free_preview_seconds', 15) or 15
     
-    # 免费视频
-    if pay_type == 'free' or coin_price <= 0:
+    # 免费视频：pay_type必须是free 且 coin_price必须为0
+    # 修复：即使pay_type是free，如果coin_price>0也应该视为付费视频
+    if pay_type == 'free' and coin_price <= 0:
         return VideoAccessResult(
             can_watch=True,
             can_download=user is not None,

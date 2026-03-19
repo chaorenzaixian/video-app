@@ -68,7 +68,14 @@ def do_publish_task(task_info):
         pending_publish[task_id]["publish_progress"] = "上传封面..."
         print(f"[发布] 开始上传封面: {task_data['covers_dir']}")
         uploader.upload_covers(task_data['covers_dir'], video_id)
-        cover_url = f"/uploads/hls/{video_id}/covers/cover_{data.get('selected_cover', task_data['best_cover'])}.webp"
+        
+        # 确定封面文件名：优先使用自定义封面，否则使用选择的封面
+        selected_cover = data.get('selected_cover', task_data['best_cover'])
+        if selected_cover == 'custom':
+            cover_filename = "custom_cover.webp"
+        else:
+            cover_filename = f"cover_{selected_cover}.webp"
+        cover_url = f"/uploads/hls/{video_id}/covers/{cover_filename}"
         print(f"[发布] 封面URL: {cover_url}")
         
         # 上传预览视频
@@ -177,15 +184,22 @@ def recover_pending_tasks():
                 except:
                     pass
             covers = []
+            # 检查是否有自定义封面
+            custom_cover_path = os.path.join(covers_dir, "custom_cover.webp")
+            has_custom_cover = os.path.exists(custom_cover_path)
+            if has_custom_cover:
+                covers.append({"index": "custom", "url": f"/api/preview/{task_dir}/covers/custom_cover.webp", "selected": True})
             for i in range(1, 11):
                 cp = os.path.join(covers_dir, f"cover_{i}.webp")
                 if os.path.exists(cp):
-                    covers.append({"index": i, "url": f"/api/preview/{task_dir}/covers/cover_{i}.webp", "selected": i == 5})
+                    covers.append({"index": i, "url": f"/api/preview/{task_dir}/covers/cover_{i}.webp", "selected": not has_custom_cover and i == 5})
             preview_path = os.path.join(task_path, f"{name}_preview.webm")
             pending_publish[task_dir] = {
                 "status": "ready", "task_id": task_dir, "filename": filename, "name": name,
                 "duration": duration, "height": 0, "is_short": is_short, "is_darkweb": is_darkweb,
-                "hls_dir": hls_dir, "covers_dir": covers_dir, "covers": covers, "best_cover": 5,
+                "hls_dir": hls_dir, "covers_dir": covers_dir, "covers": covers, 
+                "best_cover": "custom" if has_custom_cover else 5,
+                "has_custom_cover": has_custom_cover,
                 "preview_path": preview_path if os.path.exists(preview_path) else None,
                 "preview_url": f"/api/preview/{task_dir}/{name}_preview.webm" if os.path.exists(preview_path) else None,
                 "video_preview_url": f"/api/preview/{task_dir}/hls/master.m3u8"
@@ -428,6 +442,7 @@ def process_video(task_id, video_path, is_short, is_darkweb=False):
         "status": "ready", "task_id": task_id, "filename": filename, "name": name,
         "duration": duration, "height": height, "is_short": is_short, "is_darkweb": is_darkweb,
         "hls_dir": hls_dir, "covers_dir": covers_dir, "covers": covers, "best_cover": best_cover,
+        "has_custom_cover": False,
         "preview_path": preview_path,
         "preview_url": f"/api/preview/{task_id}/{name}_preview.webm" if preview_path else None,
         "video_preview_url": f"/api/preview/{task_id}/hls/master.m3u8"
@@ -541,7 +556,14 @@ def publish_darkweb_video():
         video_id = f"darkweb_{datetime.now().strftime('%Y%m%d%H%M%S')}"
         hls_url = uploader.upload_darkweb_hls(task_data['hls_dir'], video_id)
         uploader.upload_darkweb_covers(task_data['covers_dir'], video_id)
-        cover_url = f"/uploads/darkweb_hls/{video_id}/covers/cover_{data.get('selected_cover', task_data['best_cover'])}.webp"
+        
+        # 确定封面文件名：优先使用自定义封面，否则使用选择的封面
+        selected_cover = data.get('selected_cover', task_data['best_cover'])
+        if selected_cover == 'custom':
+            cover_filename = "custom_cover.webp"
+        else:
+            cover_filename = f"cover_{selected_cover}.webp"
+        cover_url = f"/uploads/darkweb_hls/{video_id}/covers/{cover_filename}"
         preview_url = ""
         if task_data.get('preview_path'):
             preview_url = uploader.upload_darkweb_preview(task_data['preview_path'], video_id) or ""

@@ -334,7 +334,7 @@ watch(activeMainTab, (newTab) => {
   height: 100dvh;
   background: #0a0a0a;
   color: #fff;
-  padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(52px + var(--safe-area-bottom, 0px));
   overflow-x: hidden;
   overflow-y: auto;
 }

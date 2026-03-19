@@ -376,7 +376,7 @@ class Transcoder:
                          duration: float, name: str) -> Optional[str]:
         """
         生成分段预览视频（优化版）
-        5段，每段2秒，均匀分布在整个视频中
+        10段，每段1秒，从开头到结尾均匀分布
         使用 H.264 编码 + 并行生成 + copy模式快速截取
         """
         import concurrent.futures
@@ -384,22 +384,21 @@ class Transcoder:
         
         preview_path = os.path.join(output_dir, f"{name}_preview.webm")
         
-        # 计算分段参数
-        num_segments = 5
-        seg_duration = 2.0  # 每段2秒
+        # 计算分段参数：10段，每段1秒
+        num_segments = 10
+        seg_duration = 1.0  # 每段1秒
         
         if duration < 10:
-            # 短视频：按视频时长调整
-            num_segments = max(1, int(duration / 2))
-            seg_duration = min(2.0, duration / num_segments) if num_segments > 0 else duration
+            # 短视频：按视频时长调整，至少保证有几段
+            num_segments = max(3, int(duration))
+            seg_duration = min(1.0, duration / num_segments) if num_segments > 0 else duration
         
-        # 计算每段的起始位置（5%~95%均匀分布，避开片头片尾）
+        # 计算每段的起始位置（从开头到结尾均匀分布）
+        # 0%, 10%, 20%, ..., 90% 的位置
         segments = []
         for i in range(num_segments):
-            if num_segments > 1:
-                position = 0.05 + (0.9 * i / (num_segments - 1))
-            else:
-                position = 0.5
+            # 均匀分布：从0%到90%（避免最后一段超出）
+            position = i / num_segments
             start_time = duration * position
             
             # 确保不超过视频末尾
@@ -408,6 +407,11 @@ class Transcoder:
             
             segments.append((i, start_time, seg_duration))
         
+        # 打印分段信息，方便调试
+        print(f"[Preview] 视频时长: {duration:.1f}秒")
+        for idx, start, dur in segments:
+            print(f"[Preview]   段{idx}: {start:.1f}s - {start+dur:.1f}s")
+        
         # 创建临时目录
         temp_dir = tempfile.mkdtemp(prefix="preview_")
         temp_files = []
@@ -415,59 +419,37 @@ class Transcoder:
         try:
             print(f"[Preview] 生成分段预览: {num_segments}段 x {seg_duration}秒")
             
-            # 并行生成各分段（使用 copy 模式快速截取，然后统一编码）
+            # 直接编码每个分段（不使用copy模式，确保精确截取）
             def generate_segment(args):
                 idx, start_time, seg_dur = args
-                # 先用 copy 模式快速截取原始片段
-                raw_path = os.path.join(temp_dir, f"raw_{idx}.mp4")
-                cmd_copy = [
+                seg_path = os.path.join(temp_dir, f"seg_{idx}.mp4")
+                
+                # 直接编码，确保从精确位置开始
+                # -ss 放在 -i 前面实现快速 seek
+                cmd_encode = [
                     "ffmpeg", "-y",
                     "-ss", str(start_time),
                     "-i", video_path,
                     "-t", str(seg_dur),
-                    "-c", "copy",  # 直接复制，不重编码
-                    "-an",
-                    raw_path
-                ]
-                result = subprocess.run(cmd_copy, capture_output=True, timeout=30)
-                
-                if result.returncode != 0 or not os.path.exists(raw_path):
-                    # copy 失败，直接编码
-                    seg_path = os.path.join(temp_dir, f"seg_{idx}.mp4")
-                    cmd_encode = [
-                        "ffmpeg", "-y",
-                        "-ss", str(start_time),
-                        "-i", video_path,
-                        "-t", str(seg_dur),
-                        "-c:v", "libx264",
-                        "-preset", "ultrafast",
-                        "-crf", "28",
-                        "-vf", "scale=480:-2",
-                        "-an",
-                        seg_path
-                    ]
-                    subprocess.run(cmd_encode, capture_output=True, timeout=60)
-                    return seg_path if os.path.exists(seg_path) else None
-                
-                # 重编码为统一格式
-                seg_path = os.path.join(temp_dir, f"seg_{idx}.mp4")
-                cmd_encode = [
-                    "ffmpeg", "-y",
-                    "-i", raw_path,
                     "-c:v", "libx264",
                     "-preset", "ultrafast",
                     "-crf", "28",
                     "-vf", "scale=480:-2",
+                    "-force_key_frames", "expr:gte(t,0)",  # 强制第一帧为关键帧
                     "-an",
                     seg_path
                 ]
-                subprocess.run(cmd_encode, capture_output=True, timeout=60)
                 
-                # 清理原始片段
-                if os.path.exists(raw_path):
-                    os.remove(raw_path)
-                
-                return seg_path if os.path.exists(seg_path) else None
+                try:
+                    result = subprocess.run(cmd_encode, capture_output=True, timeout=60)
+                    if result.returncode == 0 and os.path.exists(seg_path):
+                        return seg_path
+                    else:
+                        print(f"[Preview] 段{idx}生成失败: {result.stderr.decode('utf-8', errors='ignore')[:100]}")
+                        return None
+                except Exception as e:
+                    print(f"[Preview] 段{idx}异常: {e}")
+                    return None
             
             # 使用线程池并行生成
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, num_segments)) as executor:
@@ -491,6 +473,7 @@ class Transcoder:
                     f.write(f"file '{safe_path}'\n")
             
             # 拼接并转换为 WebM（VP9 体积更小，兼容性好）
+            # 关键：-g 30 强制每秒一个关键帧，确保每段都能正确显示
             concat_cmd = [
                 "ffmpeg", "-y",
                 "-f", "concat",
@@ -498,6 +481,8 @@ class Transcoder:
                 "-i", concat_file,
                 "-c:v", "libvpx-vp9",
                 "-b:v", "500k",
+                "-g", "30",  # 每30帧一个关键帧（约1秒），确保每段开头都是关键帧
+                "-keyint_min", "30",  # 最小关键帧间隔
                 "-vf", "scale=480:-2",
                 preview_path
             ]

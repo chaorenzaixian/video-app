@@ -475,7 +475,12 @@ async def get_home_init(
             )
             
             if category_id and category_id > 0:
+                # 指定分类
                 query = query.where(Video.category_id == category_id)
+            elif sort_by == "hot":
+                # "推荐"分类 + "热门推荐"筛选：只显示 is_featured=true 的视频
+                query = query.where(Video.is_featured == True)
+            # 其他筛选（最新上架、最多观看）显示所有视频
             
             if sort_by == "created_at":
                 query = query.order_by(Video.created_at.desc())
@@ -567,7 +572,12 @@ async def get_home_videos(
     )
     
     if category_id and category_id > 0:
+        # 指定分类
         query = query.where(Video.category_id == category_id)
+    elif sort_by == "hot":
+        # "推荐"分类 + "热门推荐"筛选：只显示 is_featured=true 的视频
+        query = query.where(Video.is_featured == True)
+    # 其他筛选（最新上架、最多观看）显示所有视频
     
     if sort_by == "created_at":
         query = query.order_by(Video.created_at.desc())

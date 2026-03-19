@@ -894,7 +894,7 @@ $breakpoint-xxl: 1280px; // 大桌面
   background: #0a0a0a;
   color: #fff;
   padding-bottom: 60px;
-  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); /* 安全区域适配 */
+  padding-bottom: calc(60px + var(--safe-area-bottom, 0px)); /* 安全区域适配 */
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
   width: 100%;
@@ -2161,38 +2161,36 @@ $breakpoint-xxl: 1280px; // 大桌面
 // 页面内容区域
 .page-content {
   width: 100%;
+  position: relative;
+  overflow: hidden; // 防止动画过程中内容溢出
 }
 
-// 左滑动画（点击右边的分类）
+// 左滑动画（点击右边的分类）- 优化为淡入淡出避免重叠
 .slide-left-enter-active,
 .slide-left-leave-active {
-  transition: all 0.1s ease-out;
+  transition: opacity 0.15s ease-out;
 }
 
 .slide-left-enter-from {
   opacity: 0;
-  transform: translateX(100%);
 }
 
 .slide-left-leave-to {
   opacity: 0;
-  transform: translateX(-100%);
 }
 
-// 右滑动画（点击左边的分类）
+// 右滑动画（点击左边的分类）- 优化为淡入淡出避免重叠
 .slide-right-enter-active,
 .slide-right-leave-active {
-  transition: all 0.1s ease-out;
+  transition: opacity 0.15s ease-out;
 }
 
 .slide-right-enter-from {
   opacity: 0;
-  transform: translateX(-100%);
 }
 
 .slide-right-leave-to {
   opacity: 0;
-  transform: translateX(100%);
 }
 
 // 导航栏轻微滑动动画
