@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>SafeAreaManager测试</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: system-ui;
+      background: #000;
+      color: #fff;
+    }
+    .info {
+      background: #222;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+    }
+    .info h3 {
+      margin: 0 0 10px 0;
+      color: #4CAF50;
+    }
+    .info p {
+      margin: 5px 0;
+      font-size: 14px;
+    }
+    .error {
+      background: #f44336;
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>SafeAreaManager测试</h1>
+  <div id="result"></div>
+
+  <script type="module">
+    const resultDiv = document.getElementById('result')
+    
+    try {
+      // 动态导入safeAreaManager
+      const module = await import('/src/utils/safeAreaManager.js')
+      const safeAreaManager = module.default
+      
+      resultDiv.innerHTML += `
+        <div class="info">
+          <h3>✅ SafeAreaManager加载成功</h3>
+        </div>
+      `
+      
+      // 初始化
+      safeAreaManager.init()
+      
+      // 获取设备信息
+      const deviceInfo = safeAreaManager.detectDevice()
+      resultDiv.innerHTML += `
+        <div class="info">
+          <h3>设备信息</h3>
+          <p>设备名称: ${deviceInfo.name}</p>
+          <p>有刘海: ${deviceInfo.hasNotch ? '是' : '否'}</p>
+          <p>顶部安全区域: ${deviceInfo.topInset}px</p>
+          <p>底部安全区域: ${deviceInfo.bottomInset}px</p>
+        </div>
+      `
+      
+      // 获取iOS版本
+      const iosVersion = safeAreaManager.getIOSVersion()
+      if (iosVersion) {
+        resultDiv.innerHTML += `
+          <div class="info">
+            <h3>iOS版本</h3>
+            <p>版本: ${iosVersion.major}.${iosVersion.minor}.${iosVersion.patch}</p>
+          </div>
+        `
+      }
+      
+      // 获取安全区域值
+      const insets = safeAreaManager.getSafeAreaInsets()
+      resultDiv.innerHTML += `
+        <div class="info">
+          <h3>当前安全区域值</h3>
+          <p>顶部: ${insets.top}px</p>
+          <p>底部: ${insets.bottom}px</p>
+          <p>左侧: ${insets.left}px</p>
+          <p>右侧: ${insets.right}px</p>
+        </div>
+      `
+      
+      // 订阅变化
+      safeAreaManager.subscribe((newInsets) => {
+        console.log('安全区域更新:', newInsets)
+      })
+      
+    } catch (error) {
+      resultDiv.innerHTML += `
+        <div class="error">
+          <h3>❌ 错误</h3>
+          <p>${error.message}</p>
+          <pre>${error.stack}</pre>
+        </div>
+      `
+      console.error('SafeAreaManager测试失败:', error)
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>导航栏位置测试</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    :root {
+      --safe-area-top: constant(safe-area-inset-top, 0px);
+      --safe-area-top: env(safe-area-inset-top, 0px);
+      --safe-area-bottom: constant(safe-area-inset-bottom, 0px);
+      --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+    }
+    
+    .page {
+      height: 100vh;
+      height: 100dvh;
+      background: #0a0a0a;
+      padding-bottom: calc(52px + var(--safe-area-bottom, 0px));
+      overflow-y: auto;
+      position: relative;
+    }
+    
+    .content {
+      padding: 20px;
+    }
+    
+    .box {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 14px;
+    }
+    
+    .label {
+      color: rgba(255,255,255,0.6);
+    }
+    
+    .value {
+      color: #a855f7;
+      font-weight: 600;
+    }
+    
+    .filler {
+      height: 150vh;
+      background: linear-gradient(to bottom, 
+        #0a0a0a 0%, 
+        #1a1a2e 25%,
+        #2a1a3e 50%,
+        #1a1a2e 75%,
+        #0a0a0a 100%
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 20px;
+      padding: 40px 20px;
+    }
+    
+    .marker {
+      width: 100%;
+      text-align: center;
+      padding: 20px;
+      background: rgba(168, 85, 247, 0.2);
+      border: 2px solid #a855f7;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 6px;
+      background: linear-gradient(to top, #0a0a0a 0%, rgba(10, 10, 10, 0.98) 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      width: 100%;
+      z-index: 1000;
+      box-sizing: border-box;
+      
+      height: calc(52px + constant(safe-area-inset-bottom, 0px));
+      height: calc(52px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: constant(safe-area-inset-bottom, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      color: rgba(255, 255, 255, 0.45);
+      padding: 0 12px;
+      height: 44px;
+    }
+    
+    .nav-icon {
+      width: 28px;
+      height: 28px;
+      background: rgba(168, 85, 247, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    
+    .nav-label {
+      font-size: 12px;
+    }
+    
+    .active .nav-icon {
+      background: linear-gradient(135deg, #a855f7, #6366f1);
+    }
+    
+    .active .nav-label {
+      background: linear-gradient(135deg, #c084fc, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .debug-fixed {
+      position: fixed;
+      top: calc(10px + env(safe-area-inset-top, 0px));
+      right: 10px;
+      background: rgba(0,0,0,0.9);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      z-index: 9999;
+      border: 1px solid #a855f7;
+      max-width: 180px;
+    }
+    
+    .debug-row {
+      margin: 3px 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    
+    .debug-label {
+      color: rgba(255,255,255,0.7);
+    }
+    
+    .debug-value {
+      color: #a855f7;
+      font-weight: 600;
+    }
+    
+    .warning {
+      background: rgba(255, 59, 48, 0.2);
+      border: 1px solid #ff3b30;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    .success {
+      background: rgba(52, 199, 89, 0.2);
+      border: 1px solid #34c759;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="page" id="page">
+    <div class="content">
+      <h2 style="margin-bottom: 20px;">导航栏位置诊断</h2>
+      
+      <div class="box">
+        <div class="row">
+          <span class="label">设备:</span>
+          <span class="value" id="device">-</span>
+        </div>
+        <div class="row">
+          <span class="label">窗口高度:</span>
+          <span class="value" id="winHeight">-</span>
+        </div>
+        <div class="row">
+          <span class="label">页面高度:</span>
+          <span class="value" id="pageHeight">-</span>
+        </div>
+      </div>
+      
+      <div class="box">
+        <div class="row">
+          <span class="label">safe-area-bottom:</span>
+          <span class="value" id="safeBottom">-</span>
+        </div>
+        <div class="row">
+          <span class="label">导航栏高度:</span>
+          <span class="value" id="navHeight">-</span>
+        </div>
+        <div class="row">
+          <span class="label">页面padding-bottom:</span>
+          <span class="value" id="pagePadding">-</span>
+        </div>
+        <div class="row">
+          <span class="label">导航栏bottom位置:</span>
+          <span class="value" id="navBottom">-</span>
+        </div>
+      </div>
+      
+      <div id="statusBox"></div>
+      
+      <div class="box">
+        <h3 style="margin-bottom: 12px;">测试说明</h3>
+        <p style="color: rgba(255,255,255,0.7); font-size: 13px; line-height: 1.6;">
+          1. 观察底部导航栏是否固定在屏幕底部<br>
+          2. 向下滚动页面，导航栏应该保持固定<br>
+          3. 滚动到最底部，检查是否有合适的间距<br>
+          4. 如果"往下拉才合适"，说明初始位置太高
+        </p>
+      </div>
+    </div>
+    
+    <div class="filler">
+      <div class="marker">⬆️ 页面顶部</div>
+      <div class="marker" style="margin-top: 300px;">⬇️ 继续向下滚动</div>
+      <div class="marker" style="margin-top: 300px;">📍 即将到达底部</div>
+      <div class="marker" style="margin-top: 300px;">🎯 页面底部</div>
+      <p style="color: rgba(255,255,255,0.5); margin-top: 40px;">
+        如果看到这里，导航栏应该正好在屏幕底部
+      </p>
+    </div>
+  </div>
+  
+  <nav class="bottom-nav" id="bottomNav">
+    <div class="nav-item active">
+      <div class="nav-icon">🏠</div>
+      <span class="nav-label">首页</span>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">🔥</div>
+      <span class="nav-label">禁区</span>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">💬</div>
+      <span class="nav-label">交友</span>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">📱</div>
+      <span class="nav-label">社区</span>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">👤</div>
+      <span class="nav-label">自己</span>
+    </div>
+  </nav>
+  
+  <div class="debug-fixed" id="debug">
+    <div class="debug-row">
+      <span class="debug-label">Scroll:</span>
+      <span class="debug-value" id="scrollY">0px</span>
+    </div>
+    <div class="debug-row">
+      <span class="debug-label">Nav Y:</span>
+      <span class="debug-value" id="navY">-</span>
+    </div>
+    <div class="debug-row">
+      <span class="debug-label">Safe Bottom:</span>
+      <span class="debug-value" id="debugSafeBottom">-</span>
+    </div>
+  </div>
+  
+  <script>
+    function updateInfo() {
+      // 设备信息
+      const isIPhone = /iPhone/.test(navigator.userAgent);
+      document.getElementById('device').textContent = isIPhone ? 'iPhone' : 'Other';
+      document.getElementById('winHeight').textContent = window.innerHeight + 'px';
+      
+      const page = document.getElementById('page');
+      document.getElementById('pageHeight').textContent = page.offsetHeight + 'px';
+      
+      // 安全区域
+      const root = document.documentElement;
+      const rootStyle = getComputedStyle(root);
+      const safeBottom = rootStyle.getPropertyValue('--safe-area-bottom').trim() || '0px';
+      
+      document.getElementById('safeBottom').textContent = safeBottom;
+      document.getElementById('debugSafeBottom').textContent = safeBottom;
+      
+      // 导航栏
+      const nav = document.getElementById('bottomNav');
+      const navHeight = nav.offsetHeight;
+      const navStyle = getComputedStyle(nav);
+      const navPaddingBottom = navStyle.paddingBottom;
+      
+      document.getElementById('navHeight').textContent = navHeight + 'px';
+      
+      // 页面padding
+      const pageStyle = getComputedStyle(page);
+      const pagePaddingBottom = pageStyle.paddingBottom;
+      document.getElementById('pagePadding').textContent = pagePaddingBottom;
+      
+      // 导航栏位置
+      const navRect = nav.getBoundingClientRect();
+      document.getElementById('navBottom').textContent = Math.round(navRect.bottom) + 'px';
+      document.getElementById('navY').textContent = Math.round(navRect.top) + 'px';
+      
+      // 状态检查
+      const statusBox = document.getElementById('statusBox');
+      const safeBottomPx = parseFloat(safeBottom);
+      const expectedNavHeight = 52 + safeBottomPx;
+      const actualNavHeight = navHeight;
+      const navBottomPos = Math.round(navRect.bottom);
+      const windowHeight = window.innerHeight;
+      
+      let status = '';
+      
+      if (safeBottomPx === 0) {
+        status = `<div class="warning">
+          ⚠️ 警告：安全区域底部值为0px<br><br>
+          iPhone XS Max应该有约34px的底部安全区域（Home Indicator）。<br><br>
+          可能原因：<br>
+          • viewport-fit=cover未生效<br>
+          • 浏览器缓存问题<br>
+          • 需要重新添加到主屏幕
+        </div>`;
+      } else if (Math.abs(navBottomPos - windowHeight) > 2) {
+        status = `<div class="warning">
+          ⚠️ 警告：导航栏位置不正确<br><br>
+          导航栏底部: ${navBottomPos}px<br>
+          窗口高度: ${windowHeight}px<br>
+          差异: ${navBottomPos - windowHeight}px<br><br>
+          导航栏应该固定在窗口底部（差异应该≤2px）
+        </div>`;
+      } else {
+        status = `<div class="success">
+          ✅ 导航栏位置正确<br><br>
+          导航栏固定在窗口底部<br>
+          安全区域: ${safeBottom}<br>
+          导航栏高度: ${navHeight}px
+        </div>`;
+      }
+      
+      statusBox.innerHTML = status;
+    }
+    
+    function updateScroll() {
+      const page = document.getElementById('page');
+      document.getElementById('scrollY').textContent = Math.round(page.scrollTop) + 'px';
+      
+      const nav = document.getElementById('bottomNav');
+      const navRect = nav.getBoundingClientRect();
+      document.getElementById('navY').textContent = Math.round(navRect.top) + 'px';
+    }
+    
+    // 初始化
+    updateInfo();
+    
+    // 监听滚动
+    document.getElementById('page').addEventListener('scroll', updateScroll);
+    
+    // 监听窗口变化
+    window.addEventListener('resize', updateInfo);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updateInfo, 100);
+    });
+    
+    // 延迟更新
+    setTimeout(updateInfo, 100);
+    setTimeout(updateInfo, 500);
+    setTimeout(updateInfo, 1000);
+    
+    // 页面显示时更新
+    window.addEventListener('pageshow', () => {
+      setTimeout(updateInfo, 100);
+    });
+  </script>
+</body>
+</html>

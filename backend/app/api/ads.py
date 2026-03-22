@@ -360,18 +360,6 @@ async def get_icon_ads(
     db: AsyncSession = Depends(get_db)
 ):
     """获取图标广告位（前5个固定位 + 后续滚动位，数量不限）"""
-    # VIP用户不展示图标广告
-    if current_user:
-        result = await db.execute(
-            select(UserVIP).where(
-                UserVIP.user_id == current_user.id,
-                UserVIP.is_active == True,
-                UserVIP.expire_date > datetime.utcnow()
-            )
-        )
-        if result.scalar_one_or_none():
-            return []  # VIP用户不展示广告
-    
     # 从数据库获取
     result = await db.execute(
         select(IconAd)

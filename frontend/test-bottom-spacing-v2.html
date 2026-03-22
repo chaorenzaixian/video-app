@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>底部间距测试 V2</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #000;
+      color: #fff;
+      padding: 20px;
+      padding-bottom: 120px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    
+    .info {
+      background: #1a1a1a;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #333;
+    }
+    
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    
+    .label {
+      color: #999;
+    }
+    
+    .value {
+      color: #fff;
+      font-weight: bold;
+    }
+    
+    .option-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .option-btn {
+      padding: 15px;
+      background: #1a1a1a;
+      border: 2px solid #333;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    
+    .option-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .option-btn.active {
+      background: #c084fc;
+      border-color: #c084fc;
+      color: #000;
+      font-weight: bold;
+    }
+    
+    .current-info {
+      background: #2a2a3a;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .current-info h3 {
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: #c084fc;
+    }
+    
+    .current-info .value {
+      font-size: 24px;
+      color: #fff;
+    }
+    
+    .test-content {
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      min-height: 300px;
+    }
+    
+    .test-content h3 {
+      margin-bottom: 15px;
+    }
+    
+    .test-content p {
+      color: #999;
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    
+    /* 底部导航栏 */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 6px;
+      background: linear-gradient(to top, #0a0a0a 0%, rgba(10, 10, 10, 0.98) 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 1000;
+    }
+    
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 0 12px;
+      height: 44px;
+    }
+    
+    .nav-icon {
+      width: 28px;
+      height: 28px;
+      background: #333;
+      border-radius: 50%;
+    }
+    
+    .nav-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 底部间距测试 V2</h1>
+  
+  <div class="info">
+    <div class="info-row">
+      <span class="label">设备型号</span>
+      <span class="value" id="device"></span>
+    </div>
+    <div class="info-row">
+      <span class="label">屏幕尺寸</span>
+      <span class="value" id="screen"></span>
+    </div>
+    <div class="info-row">
+      <span class="label">safe-area-inset-bottom</span>
+      <span class="value" id="safeArea"></span>
+    </div>
+  </div>
+  
+  <div class="info">
+    <h3 style="margin-bottom: 10px;">测试说明</h3>
+    <p style="color: #999; line-height: 1.6;">
+      点击下方按钮切换不同的底部间距选项。<br>
+      观察底部导航栏与屏幕底部的间距。<br>
+      找到最舒适的间距后，记下对应的选项编号。
+    </p>
+  </div>
+  
+  <div class="current-info">
+    <h3>当前选项</h3>
+    <div class="value" id="currentOption">选项1: 0px</div>
+  </div>
+  
+  <div class="option-buttons">
+    <button class="option-btn active" data-option="0" data-label="选项1: 0px">选项1<br>0px</button>
+    <button class="option-btn" data-option="10" data-label="选项2: 10px">选项2<br>10px</button>
+    <button class="option-btn" data-option="15" data-label="选项3: 15px">选项3<br>15px</button>
+    <button class="option-btn" data-option="20" data-label="选项4: 20px">选项4<br>20px</button>
+    <button class="option-btn" data-option="25" data-label="选项5: 25px">选项5<br>25px</button>
+    <button class="option-btn" data-option="30" data-label="选项6: 30px">选项6<br>30px</button>
+    <button class="option-btn" data-option="env" data-label="选项7: env()">选项7<br>env()</button>
+    <button class="option-btn" data-option="min15" data-label="选项8: min(env,15px)">选项8<br>min(env,15px)</button>
+    <button class="option-btn" data-option="min20" data-label="选项9: min(env,20px)">选项9<br>min(env,20px)<br>【当前方案】</button>
+    <button class="option-btn" data-option="min25" data-label="选项10: min(env,25px)">选项10<br>min(env,25px)</button>
+  </div>
+  
+  <div class="test-content">
+    <h3>测试内容区域</h3>
+    <p>这是一些测试内容，用于填充页面。</p>
+    <p>你可以滚动页面查看底部导航栏的位置。</p>
+    <p>观察导航栏底部与屏幕底部之间的间距。</p>
+    <p>找到最舒适的间距后，记下对应的选项编号。</p>
+    <br>
+    <p>提示：</p>
+    <p>• 0px = 完全贴合屏幕底部</p>
+    <p>• 10-30px = 固定间距</p>
+    <p>• env() = 使用系统安全区域（动态）</p>
+    <p>• min(env,Xpx) = 取安全区域和X中的较小值</p>
+  </div>
+  
+  <!-- 底部导航栏 -->
+  <div class="bottom-nav" id="bottomNav">
+    <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+    <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+    <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+    <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+    <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+  </div>
+  
+  <script>
+    // 获取设备信息
+    function getDeviceInfo() {
+      const ua = navigator.userAgent;
+      let device = 'Unknown';
+      
+      if (/iPhone/.test(ua)) {
+        const height = window.screen.height;
+        const width = window.screen.width;
+        
+        if (height === 896 && width === 414) device = 'iPhone 17 Air / XR / 11';
+        else if (height === 844 && width === 390) device = 'iPhone 12/13/14';
+        else if (height === 852 && width === 393) device = 'iPhone 14/15 Pro';
+        else if (height === 932 && width === 430) device = 'iPhone 14/15 Pro Max';
+        else if (height === 812 && width === 375) device = 'iPhone X/XS/11 Pro';
+        else device = `iPhone (${width}x${height})`;
+      }
+      
+      return device;
+    }
+    
+    // 获取safe-area-inset-bottom值
+    function getSafeAreaBottom() {
+      const testDiv = document.createElement('div');
+      testDiv.style.position = 'fixed';
+      testDiv.style.bottom = '0';
+      testDiv.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
+      testDiv.style.visibility = 'hidden';
+      document.body.appendChild(testDiv);
+      
+      const computed = getComputedStyle(testDiv);
+      const value = computed.paddingBottom;
+      
+      document.body.removeChild(testDiv);
+      return value;
+    }
+    
+    // 更新信息
+    document.getElementById('device').textContent = getDeviceInfo();
+    document.getElementById('screen').textContent = `${window.screen.width} x ${window.screen.height}`;
+    
+    const safeAreaValue = getSafeAreaBottom();
+    document.getElementById('safeArea').textContent = safeAreaValue;
+    
+    // 处理按钮点击
+    const bottomNav = document.getElementById('bottomNav');
+    const currentOption = document.getElementById('currentOption');
+    const buttons = document.querySelectorAll('.option-btn');
+    
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // 移除所有active状态
+        buttons.forEach(b => b.classList.remove('active'));
+        // 添加当前按钮的active状态
+        btn.classList.add('active');
+        
+        // 获取选项值
+        const option = btn.dataset.option;
+        const label = btn.dataset.label;
+        
+        // 更新当前选项显示
+        currentOption.textContent = label;
+        
+        // 移除所有padding-bottom类
+        bottomNav.style.paddingBottom = '';
+        
+        // 应用新的padding-bottom
+        switch(option) {
+          case '0':
+            bottomNav.style.paddingBottom = '0px';
+            break;
+          case '10':
+            bottomNav.style.paddingBottom = '10px';
+            break;
+          case '15':
+            bottomNav.style.paddingBottom = '15px';
+            break;
+          case '20':
+            bottomNav.style.paddingBottom = '20px';
+            break;
+          case '25':
+            bottomNav.style.paddingBottom = '25px';
+            break;
+          case '30':
+            bottomNav.style.paddingBottom = '30px';
+            break;
+          case 'env':
+            bottomNav.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
+            break;
+          case 'min15':
+            bottomNav.style.paddingBottom = 'min(env(safe-area-inset-bottom, 0px), 15px)';
+            break;
+          case 'min20':
+            bottomNav.style.paddingBottom = 'min(env(safe-area-inset-bottom, 0px), 20px)';
+            break;
+          case 'min25':
+            bottomNav.style.paddingBottom = 'min(env(safe-area-inset-bottom, 0px), 25px)';
+            break;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

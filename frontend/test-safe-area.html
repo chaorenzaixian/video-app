@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>iOS安全区域测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: #fff;
+            padding: 20px;
+            padding-top: env(safe-area-inset-top, 20px);
+        }
+        
+        .info-box {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .info-box h3 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .info-item {
+            margin: 8px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .info-item strong {
+            color: #2196F3;
+            display: inline-block;
+            min-width: 150px;
+        }
+        
+        .test-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, #0a0a0a 0%, rgba(10, 10, 10, 0.98) 100%);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .test-nav-content {
+            background: #2196F3;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        #dynamicHeight {
+            color: #FF9800;
+            font-size: 18px;
+        }
+        
+        .warning {
+            background: #ff5722;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .success {
+            background: #4CAF50;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="margin-bottom: 20px;">iOS安全区域诊断工具</h1>
+    
+    <div class="info-box">
+        <h3>📱 设备信息</h3>
+        <div class="info-item"><strong>User Agent:</strong> <span id="userAgent"></span></div>
+        <div class="info-item"><strong>屏幕尺寸:</strong> <span id="screenSize"></span></div>
+        <div class="info-item"><strong>窗口尺寸:</strong> <span id="windowSize"></span></div>
+        <div class="info-item"><strong>设备像素比:</strong> <span id="pixelRatio"></span></div>
+    </div>
+    
+    <div class="info-box">
+        <h3>🍎 iOS版本检测</h3>
+        <div class="info-item"><strong>iOS版本:</strong> <span id="iosVersion"></span></div>
+        <div class="info-item"><strong>支持env():</strong> <span id="supportsEnv"></span></div>
+        <div id="versionWarning"></div>
+    </div>
+    
+    <div class="info-box">
+        <h3>📏 安全区域值 (CSS env)</h3>
+        <div class="info-item"><strong>Top:</strong> <span id="envTop"></span></div>
+        <div class="info-item"><strong>Bottom:</strong> <span id="envBottom"></span></div>
+        <div class="info-item"><strong>Left:</strong> <span id="envLeft"></span></div>
+        <div class="info-item"><strong>Right:</strong> <span id="envRight"></span></div>
+    </div>
+    
+    <div class="info-box">
+        <h3>🎯 设备匹配结果</h3>
+        <div class="info-item"><strong>匹配设备:</strong> <span id="matchedDevice"></span></div>
+        <div class="info-item"><strong>计算的安全区域:</strong> <span id="calculatedSafeArea"></span></div>
+        <div id="matchResult"></div>
+    </div>
+    
+    <div class="info-box">
+        <h3>🔧 底部导航高度计算</h3>
+        <div class="info-item"><strong>内容高度:</strong> 52px</div>
+        <div class="info-item"><strong>安全区域:</strong> <span id="safeAreaForNav"></span></div>
+        <div class="info-item"><strong>总高度:</strong> <span id="totalHeight"></span></div>
+    </div>
+    
+    <div class="test-nav">
+        <div class="test-nav-content">
+            测试底部导航<br>
+            <span id="dynamicHeight">高度: 计算中...</span>
+        </div>
+    </div>
+    
+    <script>
+        // 获取iOS版本
+        function getIOSVersion() {
+            const match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
+            if (match) {
+                return {
+                    major: parseInt(match[1], 10),
+                    minor: parseInt(match[2], 10),
+                    patch: parseInt(match[3] || 0, 10)
+                };
+            }
+            return null;
+        }
+        
+        // 检测设备
+        function detectDevice() {
+            const screenHeight = window.screen.height;
+            const screenWidth = window.screen.width;
+            
+            const devices = [
+                { height: 812, width: 375, name: 'iPhone X/XS/11 Pro', bottomInset: 34 },
+                { height: 896, width: 414, name: 'iPhone XR/XS Max/11/11 Pro Max', bottomInset: 34 },
+                { height: 844, width: 390, name: 'iPhone 12/12 Pro/13/13 Pro/14', bottomInset: 34 },
+                { height: 926, width: 428, name: 'iPhone 12 Pro Max/13 Pro Max/14 Plus', bottomInset: 34 },
+                { height: 852, width: 393, name: 'iPhone 14 Pro/15 Pro', bottomInset: 34 },
+                { height: 932, width: 430, name: 'iPhone 14 Pro Max/15 Pro Max', bottomInset: 34 },
+                { height: 852, width: 393, name: 'iPhone 15', bottomInset: 34 },
+                { height: 932, width: 430, name: 'iPhone 15 Plus', bottomInset: 34 }
+            ];
+            
+            // 精确匹配
+            for (const device of devices) {
+                if (screenHeight === device.height && screenWidth === device.width) {
+                    return { matched: true, device: device.name, bottomInset: device.bottomInset };
+                }
+            }
+            
+            // 模糊匹配
+            for (const device of devices) {
+                const heightMatch = Math.abs(screenHeight - device.height) <= 10;
+                const widthMatch = Math.abs(screenWidth - device.width) <= 10;
+                if (heightMatch && widthMatch) {
+                    return { matched: true, device: device.name + ' (模糊)', bottomInset: device.bottomInset };
+                }
+            }
+            
+            // 通用刘海屏检测
+            const aspectRatio = screenHeight / screenWidth;
+            if (screenHeight >= 800 && aspectRatio >= 2.0) {
+                return { matched: true, device: '通用刘海屏', bottomInset: 34 };
+            }
+            
+            return { matched: false, device: '未知设备', bottomInset: 0 };
+        }
+        
+        // 获取env()值
+        function getEnvValue(property) {
+            const testDiv = document.createElement('div');
+            testDiv.style.position = 'fixed';
+            testDiv.style.top = '0';
+            testDiv.style.left = '0';
+            testDiv.style.width = '1px';
+            testDiv.style.height = '1px';
+            testDiv.style.padding = `env(${property}, 0px)`;
+            testDiv.style.visibility = 'hidden';
+            document.body.appendChild(testDiv);
+            
+            const computed = getComputedStyle(testDiv);
+            const value = parseFloat(computed.paddingTop) || 0;
+            
+            document.body.removeChild(testDiv);
+            return value;
+        }
+        
+        // 更新信息
+        function updateInfo() {
+            const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+            const iosVersion = getIOSVersion();
+            const deviceInfo = detectDevice();
+            
+            // 设备信息
+            document.getElementById('userAgent').textContent = navigator.userAgent;
+            document.getElementById('screenSize').textContent = `${window.screen.width} x ${window.screen.height}`;
+            document.getElementById('windowSize').textContent = `${window.innerWidth} x ${window.innerHeight}`;
+            document.getElementById('pixelRatio').textContent = window.devicePixelRatio;
+            
+            // iOS版本
+            if (iosVersion) {
+                document.getElementById('iosVersion').textContent = `iOS ${iosVersion.major}.${iosVersion.minor}.${iosVersion.patch}`;
+                const supportsEnv = iosVersion.major > 11 || (iosVersion.major === 11 && iosVersion.minor >= 2);
+                document.getElementById('supportsEnv').textContent = supportsEnv ? '✅ 是' : '❌ 否';
+                
+                if (!supportsEnv) {
+                    document.getElementById('versionWarning').innerHTML = 
+                        '<div class="warning">⚠️ 此iOS版本不支持env(safe-area-inset-*)，将使用0作为安全区域值</div>';
+                } else {
+                    document.getElementById('versionWarning').innerHTML = 
+                        '<div class="success">✅ 此iOS版本支持env(safe-area-inset-*)</div>';
+                }
+            } else {
+                document.getElementById('iosVersion').textContent = isIOS ? '无法检测' : '非iOS设备';
+                document.getElementById('supportsEnv').textContent = 'N/A';
+            }
+            
+            // 安全区域值
+            const envTop = getEnvValue('safe-area-inset-top');
+            const envBottom = getEnvValue('safe-area-inset-bottom');
+            const envLeft = getEnvValue('safe-area-inset-left');
+            const envRight = getEnvValue('safe-area-inset-right');
+            
+            document.getElementById('envTop').textContent = `${envTop}px`;
+            document.getElementById('envBottom').textContent = `${envBottom}px`;
+            document.getElementById('envLeft').textContent = `${envLeft}px`;
+            document.getElementById('envRight').textContent = `${envRight}px`;
+            
+            // 设备匹配
+            document.getElementById('matchedDevice').textContent = deviceInfo.device;
+            document.getElementById('calculatedSafeArea').textContent = `${deviceInfo.bottomInset}px`;
+            
+            if (deviceInfo.matched) {
+                document.getElementById('matchResult').innerHTML = 
+                    '<div class="success">✅ 设备已匹配，将使用设备数据库中的安全区域值</div>';
+            } else {
+                document.getElementById('matchResult').innerHTML = 
+                    '<div class="warning">⚠️ 设备未匹配，将使用默认值0px</div>';
+            }
+            
+            // 底部导航计算
+            let finalSafeArea = 0;
+            
+            if (isIOS && iosVersion) {
+                if (iosVersion.major < 11 || (iosVersion.major === 11 && iosVersion.minor < 2)) {
+                    finalSafeArea = 0; // iOS < 11.2不支持
+                } else {
+                    finalSafeArea = deviceInfo.bottomInset; // 使用设备检测值
+                }
+            }
+            
+            document.getElementById('safeAreaForNav').textContent = `${finalSafeArea}px`;
+            document.getElementById('totalHeight').textContent = `${52 + finalSafeArea}px`;
+            document.getElementById('dynamicHeight').textContent = `高度: ${52 + finalSafeArea}px (52px + ${finalSafeArea}px)`;
+            
+            // 更新测试导航的实际高度
+            const testNav = document.querySelector('.test-nav');
+            testNav.style.height = `${52 + finalSafeArea}px`;
+            testNav.style.paddingBottom = `${finalSafeArea}px`;
+        }
+        
+        // 页面加载时更新
+        updateInfo();
+        
+        // 监听窗口变化
+        window.addEventListener('resize', updateInfo);
+        window.addEventListener('orientationchange', updateInfo);
+        
+        // 监听页面可见性
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                console.log('页面从后台恢复');
+                setTimeout(updateInfo, 100);
+            }
+        });
+        
+        // 监听pageshow
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                console.log('页面从bfcache恢复');
+                setTimeout(updateInfo, 100);
+            }
+        });
+    </script>
+</body>
+</html>

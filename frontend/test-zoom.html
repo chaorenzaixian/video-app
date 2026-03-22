@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>缩放测试页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .info-box {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .info-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .label {
+            font-weight: bold;
+            opacity: 0.8;
+        }
+        
+        .value {
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        
+        .status {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .status.success {
+            background: rgba(76, 175, 80, 0.3);
+        }
+        
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+        }
+        
+        .instruction {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .test-area {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 40px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 16px;
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+        }
+        
+        .zoom-level {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 缩放功能测试</h1>
+        
+        <div class="info-box">
+            <div class="info-item">
+                <span class="label">Viewport配置:</span>
+                <span class="value" id="viewport-content">检测中...</span>
+            </div>
+            <div class="info-item">
+                <span class="label">user-scalable:</span>
+                <span class="value" id="user-scalable">检测中...</span>
+            </div>
+            <div class="info-item">
+                <span class="label">maximum-scale:</span>
+                <span class="value" id="max-scale">检测中...</span>
+            </div>
+            <div class="info-item">
+                <span class="label">当前缩放级别:</span>
+                <span class="value" id="zoom-level">1.0</span>
+            </div>
+            <div class="info-item">
+                <span class="label">设备像素比:</span>
+                <span class="value" id="device-pixel-ratio">-</span>
+            </div>
+            <div class="info-item">
+                <span class="label">视口宽度:</span>
+                <span class="value" id="viewport-width">-</span>
+            </div>
+        </div>
+        
+        <div class="test-area">
+            <div>请尝试双指捏合缩放</div>
+            <div class="zoom-level" id="zoom-display">1.0x</div>
+            <div style="font-size: 12px; opacity: 0.8;">如果数字变化，说明可以缩放</div>
+        </div>
+        
+        <div class="status" id="status">
+            正在检测...
+        </div>
+        
+        <div class="instruction">
+            <strong>测试说明：</strong><br>
+            1. 尝试用双指捏合手势缩放页面<br>
+            2. 观察"当前缩放级别"是否变化<br>
+            3. 如果配置正确，应该无法缩放<br>
+            4. 如果可以缩放，说明配置未生效
+        </div>
+    </div>
+
+    <script>
+        // 获取viewport meta标签
+        const viewportMeta = document.querySelector('meta[name="viewport"]');
+        const viewportContent = viewportMeta ? viewportMeta.getAttribute('content') : '未找到';
+        
+        // 解析viewport配置
+        const viewportConfig = {};
+        if (viewportContent !== '未找到') {
+            viewportContent.split(',').forEach(item => {
+                const [key, value] = item.trim().split('=');
+                if (key && value) {
+                    viewportConfig[key.trim()] = value.trim();
+                }
+            });
+        }
+        
+        // 显示viewport配置
+        document.getElementById('viewport-content').textContent = viewportContent.length > 30 ? 
+            viewportContent.substring(0, 30) + '...' : viewportContent;
+        document.getElementById('user-scalable').textContent = viewportConfig['user-scalable'] || '未设置';
+        document.getElementById('max-scale').textContent = viewportConfig['maximum-scale'] || '未设置';
+        
+        // 显示设备信息
+        document.getElementById('device-pixel-ratio').textContent = window.devicePixelRatio;
+        document.getElementById('viewport-width').textContent = window.innerWidth + 'px';
+        
+        // 检测缩放
+        let initialWidth = window.innerWidth;
+        let zoomDetected = false;
+        
+        function updateZoomLevel() {
+            const currentWidth = window.innerWidth;
+            const visualViewport = window.visualViewport;
+            
+            let zoomLevel = 1.0;
+            if (visualViewport) {
+                zoomLevel = (window.innerWidth / visualViewport.width).toFixed(2);
+            } else {
+                zoomLevel = (initialWidth / currentWidth).toFixed(2);
+            }
+            
+            document.getElementById('zoom-level').textContent = zoomLevel;
+            document.getElementById('zoom-display').textContent = zoomLevel + 'x';
+            
+            // 检测是否发生了缩放
+            if (Math.abs(zoomLevel - 1.0) > 0.01) {
+                zoomDetected = true;
+                updateStatus(false);
+            }
+        }
+        
+        function updateStatus(isCorrect) {
+            const statusEl = document.getElementById('status');
+            const userScalable = viewportConfig['user-scalable'];
+            const maxScale = viewportConfig['maximum-scale'];
+            
+            if (userScalable === 'no' && maxScale === '1.0') {
+                if (zoomDetected) {
+                    statusEl.className = 'status error';
+                    statusEl.innerHTML = '❌ 配置正确但仍可缩放<br><small>可能是浏览器或系统设置问题</small>';
+                } else {
+                    statusEl.className = 'status success';
+                    statusEl.innerHTML = '✅ 配置正确且无法缩放';
+                }
+            } else {
+                statusEl.className = 'status error';
+                statusEl.innerHTML = '❌ Viewport配置错误<br><small>user-scalable应为no，maximum-scale应为1.0</small>';
+            }
+        }
+        
+        // 监听缩放事件
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateZoomLevel);
+            window.visualViewport.addEventListener('scroll', updateZoomLevel);
+        }
+        
+        window.addEventListener('resize', updateZoomLevel);
+        
+        // 定期检查缩放
+        setInterval(updateZoomLevel, 100);
+        
+        // 初始检查
+        setTimeout(() => {
+            updateZoomLevel();
+            updateStatus(true);
+        }, 500);
+        
+        // 触摸事件监听
+        let touchStartDistance = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                touchStartDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+            }
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2) {
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+                
+                if (Math.abs(currentDistance - touchStartDistance) > 10) {
+                    console.log('检测到双指捏合手势');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

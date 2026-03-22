@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>底部黑色区域诊断</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a0a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    .container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100vh;
+      height: 100dvh;
+      background: #0a0a0a;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+    }
+    
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+    
+    .content {
+      padding-top: calc(60px + env(safe-area-inset-top, 0px));
+      min-height: 100%;
+    }
+    
+    .item {
+      height: 100px;
+      margin: 10px;
+      background: #2a2a2a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    }
+    
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: calc(52px + env(safe-area-inset-bottom, 0px));
+      background: linear-gradient(to top, #1a1a1a 0%, rgba(26, 26, 26, 0.98) 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 6px;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      z-index: 1000;
+    }
+    
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 0 12px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+    }
+    
+    .nav-icon {
+      width: 28px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+    }
+    
+    .info-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.95);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      max-width: 90%;
+      max-height: 80%;
+      overflow-y: auto;
+      z-index: 10000;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .info-label {
+      color: #a855f7;
+      font-weight: 600;
+    }
+    
+    .info-value {
+      color: #fff;
+      text-align: right;
+    }
+    
+    .section-title {
+      color: #a855f7;
+      font-size: 13px;
+      font-weight: 700;
+      margin: 16px 0 8px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid #a855f7;
+    }
+    
+    .close-btn {
+      position: sticky;
+      top: 0;
+      background: #a855f7;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    
+    .highlight {
+      background: rgba(168, 85, 247, 0.2);
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="container" id="container">
+      <div class="header">
+        <h3>底部黑色区域诊断</h3>
+      </div>
+      
+      <div class="content">
+        <div class="item">Item 1</div>
+        <div class="item">Item 2</div>
+        <div class="item">Item 3</div>
+        <div class="item">Item 4</div>
+        <div class="item">Item 5</div>
+        <div class="item">Item 6</div>
+        <div class="item">Item 7</div>
+        <div class="item">Item 8</div>
+        <div class="item">Item 9</div>
+        <div class="item">Item 10</div>
+        <div class="item">Item 11</div>
+        <div class="item">Item 12</div>
+        <div class="item">Item 13</div>
+        <div class="item">Item 14</div>
+        <div class="item">Item 15</div>
+        <div class="item" style="background: #a855f7;">最后一个元素</div>
+      </div>
+      
+      <div class="bottom-nav">
+        <div class="nav-item">
+          <div class="nav-icon"></div>
+          <span>首页</span>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon"></div>
+          <span>禁区</span>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon"></div>
+          <span>交友</span>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon"></div>
+          <span>社区</span>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon"></div>
+          <span>自己</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-panel" id="infoPanel" style="display: none;">
+    <button class="close-btn" onclick="document.getElementById('infoPanel').style.display='none'">关闭诊断面板</button>
+    <div id="diagnosticInfo"></div>
+  </div>
+
+  <script>
+    function updateDiagnostics() {
+      const html = document.documentElement;
+      const body = document.body;
+      const app = document.getElementById('app');
+      const container = document.getElementById('container');
+      const bottomNav = document.querySelector('.bottom-nav');
+      const content = document.querySelector('.content');
+      
+      // 获取计算样式
+      const htmlStyle = window.getComputedStyle(html);
+      const bodyStyle = window.getComputedStyle(body);
+      const appStyle = window.getComputedStyle(app);
+      const containerStyle = window.getComputedStyle(container);
+      const navStyle = window.getComputedStyle(bottomNav);
+      const contentStyle = window.getComputedStyle(content);
+      
+      // 获取边界信息
+      const containerRect = container.getBoundingClientRect();
+      const navRect = bottomNav.getBoundingClientRect();
+      const contentRect = content.getBoundingClientRect();
+      
+      // 获取安全区域值
+      const safeAreaTop = parseFloat(htmlStyle.getPropertyValue('padding-top')) || 0;
+      const safeAreaBottom = parseFloat(htmlStyle.getPropertyValue('padding-bottom')) || 0;
+      
+      // 计算env()值
+      const testDiv = document.createElement('div');
+      testDiv.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;padding-bottom:env(safe-area-inset-bottom,0px);';
+      document.body.appendChild(testDiv);
+      const envBottom = parseFloat(window.getComputedStyle(testDiv).paddingBottom) || 0;
+      document.body.removeChild(testDiv);
+      
+      const info = `
+        <div class="section-title">📱 设备信息</div>
+        <div class="info-row">
+          <span class="info-label">User Agent:</span>
+          <span class="info-value">${navigator.userAgent.includes('iPhone') ? 'iPhone' : 'Other'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">屏幕尺寸:</span>
+          <span class="info-value">${window.screen.width} × ${window.screen.height}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">视口尺寸:</span>
+          <span class="info-value">${window.innerWidth} × ${window.innerHeight}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">设备像素比:</span>
+          <span class="info-value">${window.devicePixelRatio}</span>
+        </div>
+        
+        <div class="section-title">🔍 安全区域检测</div>
+        <div class="info-row">
+          <span class="info-label">env(safe-area-inset-bottom):</span>
+          <span class="info-value ${envBottom > 0 ? 'highlight' : ''}">${envBottom}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">env(safe-area-inset-top):</span>
+          <span class="info-value">${safeAreaTop}px</span>
+        </div>
+        
+        <div class="section-title">📦 HTML 元素</div>
+        <div class="info-row">
+          <span class="info-label">height:</span>
+          <span class="info-value">${htmlStyle.height}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">overflow:</span>
+          <span class="info-value">${htmlStyle.overflow}</span>
+        </div>
+        
+        <div class="section-title">📦 BODY 元素</div>
+        <div class="info-row">
+          <span class="info-label">height:</span>
+          <span class="info-value">${bodyStyle.height}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">overflow:</span>
+          <span class="info-value">${bodyStyle.overflow}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">实际高度:</span>
+          <span class="info-value">${body.offsetHeight}px</span>
+        </div>
+        
+        <div class="section-title">📦 #APP 元素</div>
+        <div class="info-row">
+          <span class="info-label">height:</span>
+          <span class="info-value">${appStyle.height}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">overflow:</span>
+          <span class="info-value">${appStyle.overflow}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">实际高度:</span>
+          <span class="info-value">${app.offsetHeight}px</span>
+        </div>
+        
+        <div class="section-title">📦 CONTAINER (.app-container)</div>
+        <div class="info-row">
+          <span class="info-label">position:</span>
+          <span class="info-value">${containerStyle.position}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">height:</span>
+          <span class="info-value">${containerStyle.height}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">padding-bottom:</span>
+          <span class="info-value ${containerStyle.paddingBottom !== '0px' ? 'highlight' : ''}">${containerStyle.paddingBottom}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">overflow-y:</span>
+          <span class="info-value">${containerStyle.overflowY}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">实际高度:</span>
+          <span class="info-value">${container.offsetHeight}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">滚动高度:</span>
+          <span class="info-value">${container.scrollHeight}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">top:</span>
+          <span class="info-value">${containerRect.top}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">bottom:</span>
+          <span class="info-value">${containerRect.bottom}px</span>
+        </div>
+        
+        <div class="section-title">📦 CONTENT (.content)</div>
+        <div class="info-row">
+          <span class="info-label">padding-top:</span>
+          <span class="info-value">${contentStyle.paddingTop}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">min-height:</span>
+          <span class="info-value">${contentStyle.minHeight}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">实际高度:</span>
+          <span class="info-value">${content.offsetHeight}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">top:</span>
+          <span class="info-value">${contentRect.top}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">bottom:</span>
+          <span class="info-value">${contentRect.bottom}px</span>
+        </div>
+        
+        <div class="section-title">📦 BOTTOM NAV</div>
+        <div class="info-row">
+          <span class="info-label">position:</span>
+          <span class="info-value">${navStyle.position}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">height:</span>
+          <span class="info-value ${navStyle.height !== '52px' ? 'highlight' : ''}">${navStyle.height}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">padding-bottom:</span>
+          <span class="info-value ${navStyle.paddingBottom !== '0px' ? 'highlight' : ''}">${navStyle.paddingBottom}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">bottom:</span>
+          <span class="info-value ${navStyle.bottom !== '0px' ? 'highlight' : ''}">${navStyle.bottom}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">实际高度:</span>
+          <span class="info-value">${bottomNav.offsetHeight}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">top位置:</span>
+          <span class="info-value">${navRect.top}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">bottom位置:</span>
+          <span class="info-value ${navRect.bottom !== window.innerHeight ? 'highlight' : ''}">${navRect.bottom}px</span>
+        </div>
+        
+        <div class="section-title">⚠️ 问题分析</div>
+        <div class="info-row">
+          <span class="info-label">视口高度:</span>
+          <span class="info-value">${window.innerHeight}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">导航栏bottom位置:</span>
+          <span class="info-value">${navRect.bottom}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">黑色区域高度:</span>
+          <span class="info-value ${navRect.bottom < window.innerHeight ? 'highlight' : ''}">${Math.max(0, window.innerHeight - navRect.bottom)}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">容器bottom位置:</span>
+          <span class="info-value">${containerRect.bottom}px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">容器是否覆盖全屏:</span>
+          <span class="info-value ${containerRect.bottom < window.innerHeight ? 'highlight' : ''}">${containerRect.bottom >= window.innerHeight ? '✅ 是' : '❌ 否'}</span>
+        </div>
+        
+        <div class="section-title">🎯 建议修复方案</div>
+        ${navRect.bottom < window.innerHeight ? `
+          <div style="color: #ef4444; padding: 8px; background: rgba(239, 68, 68, 0.1); border-radius: 6px; margin-top: 8px;">
+            <strong>检测到问题：</strong>底部导航栏没有延伸到屏幕底部<br>
+            <strong>差距：</strong>${window.innerHeight - navRect.bottom}px<br>
+            <strong>可能原因：</strong><br>
+            1. 底部导航栏的 padding-bottom 不足<br>
+            2. 容器的 padding-bottom 计算错误<br>
+            3. 安全区域值获取失败
+          </div>
+        ` : `
+          <div style="color: #10b981; padding: 8px; background: rgba(16, 185, 129, 0.1); border-radius: 6px; margin-top: 8px;">
+            ✅ 底部导航栏正确延伸到屏幕底部
+          </div>
+        `}
+      `;
+      
+      document.getElementById('diagnosticInfo').innerHTML = info;
+    }
+    
+    // 页面加载后显示诊断信息
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        updateDiagnostics();
+        document.getElementById('infoPanel').style.display = 'block';
+      }, 500);
+    });
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', updateDiagnostics);
+    
+    // 监听方向变化
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updateDiagnostics, 300);
+    });
+    
+    // 点击容器更新诊断
+    document.getElementById('container').addEventListener('click', (e) => {
+      if (e.target.classList.contains('item')) {
+        updateDiagnostics();
+        document.getElementById('infoPanel').style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

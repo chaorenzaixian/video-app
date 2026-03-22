@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>底部导航测试 - iPhone XS Max</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+    
+    .page {
+      height: 100vh;
+      height: 100dvh;
+      padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+      overflow-y: auto;
+    }
+    
+    .content {
+      padding: 20px;
+    }
+    
+    .info-box {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    
+    .label {
+      color: rgba(255,255,255,0.6);
+    }
+    
+    .value {
+      color: #a855f7;
+      font-weight: 600;
+    }
+    
+    .filler {
+      height: 200vh;
+      background: linear-gradient(to bottom, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .scroll-indicator {
+      font-size: 48px;
+      animation: bounce 2s infinite;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+    
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 6px;
+      background: linear-gradient(to top, #0a0a0a 0%, rgba(10, 10, 10, 0.98) 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      width: 100%;
+      z-index: 1000;
+      box-sizing: border-box;
+      
+      height: calc(52px + constant(safe-area-inset-bottom, 0px));
+      height: calc(52px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: constant(safe-area-inset-bottom, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 3px;
+      color: rgba(255, 255, 255, 0.45);
+      padding: 0 12px;
+      height: 44px;
+      min-width: 44px;
+    }
+    
+    .nav-icon {
+      width: 28px;
+      height: 28px;
+      background: rgba(168, 85, 247, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    
+    .nav-label {
+      font-size: 12px;
+      letter-spacing: 0.3px;
+    }
+    
+    .debug-overlay {
+      position: fixed;
+      top: env(safe-area-inset-top, 0px);
+      left: 10px;
+      background: rgba(0,0,0,0.8);
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      z-index: 9999;
+      max-width: 200px;
+    }
+    
+    .debug-row {
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page" id="page">
+    <div class="content">
+      <h1 style="margin-bottom: 20px;">底部导航测试</h1>
+      
+      <div class="info-box">
+        <h3 style="margin-bottom: 12px;">设备信息</h3>
+        <div class="info-row">
+          <span class="label">User Agent:</span>
+          <span class="value" id="ua">-</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Screen Size:</span>
+          <span class="value" id="screen">-</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Window Size:</span>
+          <span class="value" id="window">-</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Device Pixel Ratio:</span>
+          <span class="value" id="dpr">-</span>
+        </div>
+      </div>
+      
+      <div class="info-box">
+        <h3 style="margin-bottom: 12px;">安全区域值</h3>
+        <div class="info-row">
+          <span class="label">safe-area-inset-top:</span>
+          <span class="value" id="safeTop">-</span>
+        </div>
+        <div class="info-row">
+          <span class="label">safe-area-inset-bottom:</span>
+          <span class="value" id="safeBottom">-</span>
+        </div>
+        <div class="info-row">
+          <span class="label">safe-area-inset-left:</span>
+          <span class="value" id="safeLeft">-</span>
+        </div>
+        <div class="info-row">
+          <span class="label">safe-area-inset-right:</span>
+          <span class="value" id="safeRight">-</span>
+        </div>
+      </div>
+      
+      <div class="info-box">
+        <h3 style="margin-bottom: 12px;">底部导航计算</h3>
+        <div class="info-row">
+          <span class="label">导航栏内容高度:</span>
+          <span class="value">52px</span>
+        </div>
+        <div class="info-row">
+          <span class="label">安全区域高度:</span>
+          <span class="value" id="safeBottomCalc">-</span>
+        </div>
+        <div class="info-row">
+          <span class="label">导航栏总高度:</span>
+          <span class="value" id="navTotalHeight">-</span>
+        </div>
+        <div class="info-row">
+          <span class="label">页面padding-bottom:</span>
+          <span class="value" id="pagePaddingBottom">-</span>
+        </div>
+      </div>
+      
+      <div class="info-box">
+        <h3 style="margin-bottom: 12px;">滚动测试</h3>
+        <p style="color: rgba(255,255,255,0.7); font-size: 14px; line-height: 1.6;">
+          向下滚动页面，观察底部导航栏是否始终固定在屏幕底部。<br><br>
+          如果导航栏"可以上下拉动"，说明定位有问题。<br><br>
+          如果"往下拉的时候位置合适"，说明padding-bottom计算不准确。
+        </p>
+      </div>
+    </div>
+    
+    <div class="filler">
+      <div class="scroll-indicator">⬇️</div>
+      <p style="font-size: 18px;">向下滚动测试</p>
+      <p style="color: rgba(255,255,255,0.6);">观察底部导航栏位置</p>
+    </div>
+  </div>
+  
+  <nav class="bottom-nav" id="bottomNav">
+    <div class="nav-item">
+      <div class="nav-icon">🏠</div>
+      <span class="nav-label">首页</span>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">🔥</div>
+      <span class="nav-label">禁区</span>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">💬</div>
+      <span class="nav-label">交友</span>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">📱</div>
+      <span class="nav-label">社区</span>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">👤</div>
+      <span class="nav-label">自己</span>
+    </div>
+  </nav>
+  
+  <div class="debug-overlay" id="debugOverlay">
+    <div class="debug-row">Scroll: <span id="scrollY">0</span>px</div>
+    <div class="debug-row">Nav Bottom: <span id="navBottom">-</span>px</div>
+    <div class="debug-row">Window Height: <span id="winHeight">-</span>px</div>
+  </div>
+  
+  <script>
+    function updateInfo() {
+      // 设备信息
+      document.getElementById('ua').textContent = navigator.userAgent.includes('iPhone') ? 'iPhone' : 'Other';
+      document.getElementById('screen').textContent = `${screen.width}×${screen.height}`;
+      document.getElementById('window').textContent = `${window.innerWidth}×${window.innerHeight}`;
+      document.getElementById('dpr').textContent = window.devicePixelRatio;
+      
+      // 安全区域值
+      const computedStyle = getComputedStyle(document.documentElement);
+      const safeTop = computedStyle.getPropertyValue('--safe-area-top') || 
+                      getComputedStyle(document.body).getPropertyValue('padding-top') || '0px';
+      const safeBottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom') || '0px';
+      const safeLeft = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-left') || '0px';
+      const safeRight = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-right') || '0px';
+      
+      document.getElementById('safeTop').textContent = safeTop;
+      document.getElementById('safeBottom').textContent = safeBottom;
+      document.getElementById('safeLeft').textContent = safeLeft;
+      document.getElementById('safeRight').textContent = safeRight;
+      
+      // 底部导航计算
+      const bottomNav = document.getElementById('bottomNav');
+      const navHeight = bottomNav.offsetHeight;
+      const navComputedStyle = getComputedStyle(bottomNav);
+      const navPaddingBottom = navComputedStyle.paddingBottom;
+      
+      document.getElementById('safeBottomCalc').textContent = navPaddingBottom;
+      document.getElementById('navTotalHeight').textContent = `${navHeight}px`;
+      
+      const page = document.getElementById('page');
+      const pageComputedStyle = getComputedStyle(page);
+      const pagePaddingBottom = pageComputedStyle.paddingBottom;
+      document.getElementById('pagePaddingBottom').textContent = pagePaddingBottom;
+      
+      // 调试信息
+      document.getElementById('winHeight').textContent = window.innerHeight;
+      updateScrollInfo();
+    }
+    
+    function updateScrollInfo() {
+      const page = document.getElementById('page');
+      const bottomNav = document.getElementById('bottomNav');
+      const navRect = bottomNav.getBoundingClientRect();
+      
+      document.getElementById('scrollY').textContent = Math.round(page.scrollTop);
+      document.getElementById('navBottom').textContent = Math.round(navRect.bottom);
+    }
+    
+    // 初始化
+    updateInfo();
+    
+    // 监听滚动
+    document.getElementById('page').addEventListener('scroll', updateScrollInfo);
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', updateInfo);
+    
+    // 延迟更新（确保CSS变量已加载）
+    setTimeout(updateInfo, 100);
+    setTimeout(updateInfo, 500);
+    setTimeout(updateInfo, 1000);
+  </script>
+</body>
+</html>

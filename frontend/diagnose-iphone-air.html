@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>iPhone Air诊断</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: #1a1a1a;
+      color: #fff;
+      font-family: system-ui;
+      padding: 20px;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    }
+    
+    .info-box {
+      background: #2a2a2a;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    
+    .info-box h3 {
+      color: #4CAF50;
+      margin-bottom: 10px;
+    }
+    
+    .info-box p {
+      margin: 5px 0;
+      line-height: 1.6;
+    }
+    
+    .test-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to top, #0a0a0a 0%, rgba(10, 10, 10, 0.98) 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      height: 52px;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      z-index: 1000;
+    }
+    
+    .test-nav-item {
+      padding: 10px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+    }
+    
+    .marker {
+      position: fixed;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: red;
+      z-index: 2000;
+    }
+    
+    .marker.bottom {
+      bottom: 0;
+    }
+    
+    .marker.safe-bottom {
+      bottom: env(safe-area-inset-bottom, 0px);
+      background: lime;
+    }
+  </style>
+</head>
+<body>
+  <h1>iPhone Air底部导航诊断</h1>
+  
+  <div class="info-box">
+    <h3>设备信息</h3>
+    <p>User Agent: <span id="ua"></span></p>
+    <p>屏幕尺寸: <span id="screen"></span></p>
+    <p>视口尺寸: <span id="viewport"></span></p>
+    <p>像素比: <span id="ratio"></span></p>
+    <p>物理像素: <span id="physical"></span></p>
+  </div>
+  
+  <div class="info-box">
+    <h3>安全区域值</h3>
+    <p>env(safe-area-inset-top): <span id="env-top"></span></p>
+    <p>env(safe-area-inset-bottom): <span id="env-bottom"></span></p>
+    <p>env(safe-area-inset-left): <span id="env-left"></span></p>
+    <p>env(safe-area-inset-right): <span id="env-right"></span></p>
+  </div>
+  
+  <div class="info-box">
+    <h3>导航栏计算值</h3>
+    <p>导航栏高度(height): <span id="nav-height"></span></p>
+    <p>导航栏padding-bottom: <span id="nav-padding"></span></p>
+    <p>导航栏总高度: <span id="nav-total"></span></p>
+    <p>导航栏bottom位置: <span id="nav-bottom"></span></p>
+    <p>导航栏实际底部: <span id="nav-actual-bottom"></span></p>
+  </div>
+  
+  <div class="info-box">
+    <h3>问题分析</h3>
+    <p id="analysis"></p>
+  </div>
+  
+  <!-- 测试导航栏 -->
+  <div class="test-nav" id="test-nav">
+    <div class="test-nav-item">首页</div>
+    <div class="test-nav-item">禁区</div>
+    <div class="test-nav-item">交友</div>
+    <div class="test-nav-item">社区</div>
+    <div class="test-nav-item">自己</div>
+  </div>
+  
+  <!-- 标记线 -->
+  <div class="marker bottom" title="屏幕底部(bottom: 0)"></div>
+  <div class="marker safe-bottom" title="安全区域底部"></div>
+
+  <script>
+    function updateInfo() {
+      // 设备信息
+      document.getElementById('ua').textContent = navigator.userAgent
+      document.getElementById('screen').textContent = `${window.screen.height}x${window.screen.width}`
+      document.getElementById('viewport').textContent = `${window.innerHeight}x${window.innerWidth}`
+      document.getElementById('ratio').textContent = window.devicePixelRatio
+      document.getElementById('physical').textContent = `${window.screen.height * window.devicePixelRatio}x${window.screen.width * window.devicePixelRatio}`
+      
+      // 创建测试元素获取env()值
+      const testDiv = document.createElement('div')
+      testDiv.style.position = 'fixed'
+      testDiv.style.top = '0'
+      testDiv.style.left = '0'
+      testDiv.style.paddingTop = 'env(safe-area-inset-top, 0px)'
+      testDiv.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)'
+      testDiv.style.paddingLeft = 'env(safe-area-inset-left, 0px)'
+      testDiv.style.paddingRight = 'env(safe-area-inset-right, 0px)'
+      testDiv.style.visibility = 'hidden'
+      
+      document.body.appendChild(testDiv)
+      const computed = getComputedStyle(testDiv)
+      
+      const envTop = computed.paddingTop
+      const envBottom = computed.paddingBottom
+      const envLeft = computed.paddingLeft
+      const envRight = computed.paddingRight
+      
+      document.getElementById('env-top').textContent = envTop
+      document.getElementById('env-bottom').textContent = envBottom
+      document.getElementById('env-left').textContent = envLeft
+      document.getElementById('env-right').textContent = envRight
+      
+      document.body.removeChild(testDiv)
+      
+      // 导航栏信息
+      const nav = document.getElementById('test-nav')
+      const navComputed = getComputedStyle(nav)
+      const navRect = nav.getBoundingClientRect()
+      
+      document.getElementById('nav-height').textContent = navComputed.height
+      document.getElementById('nav-padding').textContent = navComputed.paddingBottom
+      document.getElementById('nav-total').textContent = `${navRect.height}px`
+      document.getElementById('nav-bottom').textContent = navComputed.bottom
+      document.getElementById('nav-actual-bottom').textContent = `${navRect.bottom}px (距离屏幕顶部)`
+      
+      // 分析
+      const screenHeight = window.innerHeight
+      const navBottom = navRect.bottom
+      const gap = screenHeight - navBottom
+      
+      let analysis = ''
+      if (gap > 5) {
+        analysis = `❌ 导航栏底部距离屏幕底部还有 ${gap.toFixed(1)}px 的间隙（黑色区域）`
+      } else if (gap < -5) {
+        analysis = `❌ 导航栏底部超出屏幕 ${Math.abs(gap).toFixed(1)}px（被Home Indicator遮挡）`
+      } else {
+        analysis = `✅ 导航栏正确贴合屏幕底部`
+      }
+      
+      document.getElementById('analysis').textContent = analysis
+      
+      console.log('诊断信息:', {
+        screen: `${window.screen.height}x${window.screen.width}`,
+        viewport: `${window.innerHeight}x${window.innerWidth}`,
+        envBottom,
+        navHeight: navComputed.height,
+        navPadding: navComputed.paddingBottom,
+        navTotalHeight: navRect.height,
+        navBottom: navRect.bottom,
+        gap
+      })
+    }
+    
+    // 初始更新
+    setTimeout(updateInfo, 100)
+    setTimeout(updateInfo, 500)
+    
+    // 监听变化
+    window.addEventListener('resize', () => {
+      setTimeout(updateInfo, 100)
+    })
+  </script>
+</body>
+</html>

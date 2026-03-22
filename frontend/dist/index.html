@@ -3,49 +3,107 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="format-detection" content="telephone=no" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#0a0a0a" />
-    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="manifest" href="/manifest.json">
     <title>VOD Platform</title>
     <style>
-      * { 
-        -webkit-tap-highlight-color: transparent;
-        -webkit-touch-callout: none;
+      :root {
+        --safe-area-top: env(safe-area-inset-top, 0px);
+        --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-area-left: env(safe-area-inset-left, 0px);
+        --safe-area-right: env(safe-area-inset-right, 0px);
       }
-      html, body { 
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow-x: hidden;
+      html, body {
+        margin: 0; padding: 0; background: #000;
       }
-      html { font-size: 16px; }
-      @media (max-width: 320px) { html { font-size: 13px; } }
-      @media (min-width: 321px) and (max-width: 375px) { html { font-size: 14px; } }
-      @media (min-width: 376px) and (max-width: 414px) { html { font-size: 15px; } }
-      @media (min-width: 415px) and (max-width: 768px) { html { font-size: 16px; } }
-      @media (min-width: 769px) { html { font-size: 16px; } }
-      /* 安全区域适配 - 只处理顶部，底部由底部导航组件处理 */
-      @supports (padding: env(safe-area-inset-top)) {
-        body { 
-          padding-top: env(safe-area-inset-top);
+      .page-scrollable,
+      .smooth-scroll {
+        scroll-behavior: auto !important;
+      }
+      .filter-bar,
+      .page-header-fixed {
+        will-change: transform;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+      }
+      .filter-bar {
+        z-index: 40 !important;
+      }
+      .app-container {
+        -webkit-overflow-scrolling: touch !important;
+      }
+      @supports (overflow: clip) {
+        .page-content {
+          overflow: clip !important;
         }
       }
+      .nav-drawer {
+        background: #1a1a1ae6 !important;
+      }
+      .bottom-nav {
+        padding-bottom: calc(var(--safe-area-bottom, 0px) + 5px) !important;
+        height: calc(52px + var(--safe-area-bottom, 0px) + 5px) !important;
+      }
+      .video-player-page .player-container {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 50 !important;
+        width: 100% !important;
+      }
+      .video-player-page .player-container + * {
+        margin-top: 56.25vw !important;
+      }
+      .video-player-page .content-tabs {
+        position: sticky !important;
+        top: 56.25vw !important;
+        z-index: 49 !important;
+        background: #0a0a0a !important;
+      }
+      .video-track {
+        will-change: transform;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        transform: translateZ(0);
+      }
+      .video-slide {
+        contain: layout style paint;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+      }
+      .video-slide .short-video {
+        transform: translateZ(0);
+      }
+      .community-page .icon-ads-container {
+        margin-top: 12px !important;
+      }
+      .dating-page {
+        display: flex !important;
+        flex-direction: column !important;
+        overflow-y: hidden !important;
+      }
+      .dating-page .main-tabs {
+        position: relative !important;
+        z-index: 100 !important;
+        background: #0a0a0a !important;
+        flex-shrink: 0 !important;
+      }
+      .dating-page .content-area {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
     </style>
-    <script type="module" crossorigin src="/assets/index-CRRa4X2b.js"></script>
+    <script type="module" crossorigin src="/assets/index-BXS5YOJD.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vue-vendor-Ba_vealp.js">
     <link rel="modulepreload" crossorigin href="/assets/element-plus-i2A-2cXF.js">
     <link rel="modulepreload" crossorigin href="/assets/utils-Dp9cxKoe.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-BcXkA4pS.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-M3s6gf8g.css">
   </head>
   <body>
-    <div id="app">
-      <!-- 黑屏加载 - Vue挂载后会被替换 -->
-      <div id="app-loading" style="position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:9999;"></div>
-    </div>
+    <div id="app"></div>
   </body>
 </html>
-

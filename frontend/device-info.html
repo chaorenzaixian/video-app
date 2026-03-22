@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>设备信息检测</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000;
+            color: #fff;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .info-section {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .info-section h2 {
+            color: #818cf8;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #333;
+        }
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        .label {
+            color: #999;
+            font-size: 14px;
+        }
+        .value {
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            text-align: right;
+            max-width: 60%;
+            word-break: break-all;
+        }
+        .highlight {
+            color: #c084fc;
+            font-weight: bold;
+        }
+        .copy-btn {
+            background: #818cf8;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        .copy-btn:active {
+            background: #6366f1;
+        }
+        .success {
+            background: #10b981;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="info-section">
+        <h2>📱 屏幕信息</h2>
+        <div class="info-item">
+            <span class="label">逻辑分辨率（高×宽）</span>
+            <span class="value highlight" id="screen-size"></span>
+        </div>
+        <div class="info-item">
+            <span class="label">物理分辨率（高×宽）</span>
+            <span class="value" id="physical-size"></span>
+        </div>
+        <div class="info-item">
+            <span class="label">像素比</span>
+            <span class="value" id="pixel-ratio"></span>
+        </div>
+        <div class="info-item">
+            <span class="label">视口尺寸（高×宽）</span>
+            <span class="value" id="viewport-size"></span>
+        </div>
+        <div class="info-item">
+            <span class="label">高宽比</span>
+            <span class="value" id="aspect-ratio"></span>
+        </div>
+        <div class="info-item">
+            <span class="label">视口差异</span>
+            <span class="value" id="viewport-diff"></span>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h2>🔒 安全区域检测</h2>
+        <div class="info-item">
+            <span class="label">顶部安全区域</span>
+            <span class="value highlight" id="safe-top"></span>
+        </div>
+        <div class="info-item">
+            <span class="label">底部安全区域</span>
+            <span class="value highlight" id="safe-bottom"></span>
+        </div>
+        <div class="info-item">
+            <span class="label">左侧安全区域</span>
+            <span class="value" id="safe-left"></span>
+        </div>
+        <div class="info-item">
+            <span class="label">右侧安全区域</span>
+            <span class="value" id="safe-right"></span>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h2>📋 设备信息</h2>
+        <div class="info-item">
+            <span class="label">User Agent</span>
+            <span class="value" id="user-agent"></span>
+        </div>
+        <div class="info-item">
+            <span class="label">iOS版本</span>
+            <span class="value" id="ios-version"></span>
+        </div>
+    </div>
+
+    <button class="copy-btn" onclick="copyInfo()">📋 复制所有信息</button>
+    <div class="success" id="success-msg">✅ 已复制到剪贴板</div>
+
+    <script>
+        function getIOSVersion() {
+            const match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
+            if (match) {
+                return {
+                    major: parseInt(match[1], 10),
+                    minor: parseInt(match[2], 10),
+                    patch: parseInt(match[3] || 0, 10),
+                    string: `iOS ${match[1]}.${match[2]}${match[3] ? '.' + match[3] : ''}`
+                };
+            }
+            return null;
+        }
+
+        function getSafeAreaInsets() {
+            const testDiv = document.createElement('div');
+            testDiv.style.position = 'fixed';
+            testDiv.style.top = '0';
+            testDiv.style.left = '0';
+            testDiv.style.width = '1px';
+            testDiv.style.height = '1px';
+            testDiv.style.paddingTop = 'env(safe-area-inset-top, 0px)';
+            testDiv.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
+            testDiv.style.paddingLeft = 'env(safe-area-inset-left, 0px)';
+            testDiv.style.paddingRight = 'env(safe-area-inset-right, 0px)';
+            testDiv.style.visibility = 'hidden';
+            
+            document.body.appendChild(testDiv);
+            const computed = getComputedStyle(testDiv);
+            
+            const insets = {
+                top: parseFloat(computed.paddingTop) || 0,
+                bottom: parseFloat(computed.paddingBottom) || 0,
+                left: parseFloat(computed.paddingLeft) || 0,
+                right: parseFloat(computed.paddingRight) || 0
+            };
+            
+            document.body.removeChild(testDiv);
+            return insets;
+        }
+
+        // 获取所有信息
+        const screenHeight = window.screen.height;
+        const screenWidth = window.screen.width;
+        const pixelRatio = window.devicePixelRatio || 1;
+        const physicalHeight = screenHeight * pixelRatio;
+        const physicalWidth = screenWidth * pixelRatio;
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        const aspectRatio = (screenHeight / screenWidth).toFixed(3);
+        const heightDiff = screenHeight - viewportHeight;
+        const iosVersion = getIOSVersion();
+        const safeInsets = getSafeAreaInsets();
+
+        // 显示信息
+        document.getElementById('screen-size').textContent = `${screenHeight} × ${screenWidth}`;
+        document.getElementById('physical-size').textContent = `${physicalHeight} × ${physicalWidth}`;
+        document.getElementById('pixel-ratio').textContent = pixelRatio;
+        document.getElementById('viewport-size').textContent = `${viewportHeight} × ${viewportWidth}`;
+        document.getElementById('aspect-ratio').textContent = aspectRatio;
+        document.getElementById('viewport-diff').textContent = `${heightDiff}px`;
+        
+        document.getElementById('safe-top').textContent = `${safeInsets.top}px`;
+        document.getElementById('safe-bottom').textContent = `${safeInsets.bottom}px`;
+        document.getElementById('safe-left').textContent = `${safeInsets.left}px`;
+        document.getElementById('safe-right').textContent = `${safeInsets.right}px`;
+        
+        document.getElementById('user-agent').textContent = navigator.userAgent;
+        document.getElementById('ios-version').textContent = iosVersion ? iosVersion.string : '非iOS设备';
+
+        function copyInfo() {
+            const info = `
+设备信息检测结果
+==================
+
+📱 屏幕信息
+- 逻辑分辨率: ${screenHeight} × ${screenWidth}
+- 物理分辨率: ${physicalHeight} × ${physicalWidth}
+- 像素比: ${pixelRatio}
+- 视口尺寸: ${viewportHeight} × ${viewportWidth}
+- 高宽比: ${aspectRatio}
+- 视口差异: ${heightDiff}px
+
+🔒 安全区域
+- 顶部: ${safeInsets.top}px
+- 底部: ${safeInsets.bottom}px
+- 左侧: ${safeInsets.left}px
+- 右侧: ${safeInsets.right}px
+
+📋 系统信息
+- iOS版本: ${iosVersion ? iosVersion.string : '非iOS设备'}
+- User Agent: ${navigator.userAgent}
+            `.trim();
+
+            navigator.clipboard.writeText(info).then(() => {
+                const successMsg = document.getElementById('success-msg');
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

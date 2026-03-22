@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>底部间距测试</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #000;
+      color: #fff;
+      padding: 20px;
+      padding-bottom: 150px; /* 确保底部有足够空间滚动 */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    
+    .info {
+      background: #1a1a1a;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #333;
+    }
+    
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    
+    .label {
+      color: #999;
+    }
+    
+    .value {
+      color: #fff;
+      font-weight: bold;
+    }
+    
+    .test-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to top, #0a0a0a 0%, rgba(10, 10, 10, 0.98) 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 6px;
+    }
+    
+    .nav-option {
+      margin-bottom: 150px; /* 增加间距，确保可以滚动到每个选项 */
+      padding: 20px;
+      background: #1a1a1a;
+      border-radius: 10px;
+    }
+    
+    .nav-option h3 {
+      margin-bottom: 15px;
+      color: #fff;
+      font-size: 18px;
+    }
+    
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 0 12px;
+      height: 44px;
+    }
+    
+    .nav-icon {
+      width: 28px;
+      height: 28px;
+      background: #333;
+      border-radius: 50%;
+    }
+    
+    .nav-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    
+    /* 不同的padding-bottom选项 */
+    .option-0 { padding-bottom: 0px; }
+    .option-10 { padding-bottom: 10px; }
+    .option-15 { padding-bottom: 15px; }
+    .option-20 { padding-bottom: 20px; }
+    .option-25 { padding-bottom: 25px; }
+    .option-30 { padding-bottom: 30px; }
+    .option-env { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .option-min-15 { padding-bottom: min(env(safe-area-inset-bottom, 0px), 15px); }
+    .option-min-20 { padding-bottom: min(env(safe-area-inset-bottom, 0px), 20px); }
+    .option-min-25 { padding-bottom: min(env(safe-area-inset-bottom, 0px), 25px); }
+  </style>
+</head>
+<body>
+  <h1>🧪 底部间距测试</h1>
+  
+  <div class="info">
+    <div class="info-row">
+      <span class="label">设备型号</span>
+      <span class="value" id="device"></span>
+    </div>
+    <div class="info-row">
+      <span class="label">屏幕尺寸</span>
+      <span class="value" id="screen"></span>
+    </div>
+    <div class="info-row">
+      <span class="label">视口尺寸</span>
+      <span class="value" id="viewport"></span>
+    </div>
+    <div class="info-row">
+      <span class="label">safe-area-inset-bottom</span>
+      <span class="value" id="safeArea"></span>
+    </div>
+  </div>
+  
+  <div class="info">
+    <h3 style="margin-bottom: 10px;">测试说明</h3>
+    <p style="color: #999; line-height: 1.6;">
+      向下滚动查看不同的底部导航间距选项。<br>
+      每个选项都有固定在底部的导航栏。<br>
+      找到最舒适的间距后，记下对应的数值。<br><br>
+      <strong style="color: #fff;">提示：用手指向上滑动页面即可滚动</strong>
+    </p>
+  </div>
+  
+  <!-- 添加一些占位内容确保页面足够长 -->
+  <div style="height: 50px;"></div>
+  
+  <div class="nav-option">
+    <h3>选项1: 0px 固定间距</h3>
+    <div class="test-nav option-0">
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+    </div>
+  </div>
+  
+  <div class="nav-option">
+    <h3>选项2: 10px 固定间距</h3>
+    <div class="test-nav option-10">
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+    </div>
+  </div>
+  
+  <div class="nav-option">
+    <h3>选项3: 15px 固定间距</h3>
+    <div class="test-nav option-15">
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+    </div>
+  </div>
+  
+  <div class="nav-option">
+    <h3>选项4: 20px 固定间距</h3>
+    <div class="test-nav option-20">
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+    </div>
+  </div>
+  
+  <div class="nav-option">
+    <h3>选项5: 25px 固定间距</h3>
+    <div class="test-nav option-25">
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+    </div>
+  </div>
+  
+  <div class="nav-option">
+    <h3>选项6: 30px 固定间距</h3>
+    <div class="test-nav option-30">
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+    </div>
+  </div>
+  
+  <div class="nav-option">
+    <h3>选项7: env() 完整值</h3>
+    <div class="test-nav option-env">
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+    </div>
+  </div>
+  
+  <div class="nav-option">
+    <h3>选项8: min(env(), 15px)</h3>
+    <div class="test-nav option-min-15">
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+    </div>
+  </div>
+  
+  <div class="nav-option">
+    <h3>选项9: min(env(), 20px) 【当前方案】</h3>
+    <div class="test-nav option-min-20">
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+    </div>
+  </div>
+  
+  <div class="nav-option">
+    <h3>选项10: min(env(), 25px)</h3>
+    <div class="test-nav option-min-25">
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">首页</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">禁区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">交友</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">社区</div></div>
+      <div class="nav-item"><div class="nav-icon"></div><div class="nav-label">自己</div></div>
+    </div>
+  </div>
+  
+  <!-- 底部占位空间，确保最后一个选项可以完整显示 -->
+  <div style="height: 200px; display: flex; align-items: center; justify-content: center; color: #666;">
+    <p>已到达页面底部</p>
+  </div>
+  
+  <script>
+    // 获取设备信息
+    function getDeviceInfo() {
+      const ua = navigator.userAgent;
+      let device = 'Unknown';
+      
+      if (/iPhone/.test(ua)) {
+        const height = window.screen.height;
+        const width = window.screen.width;
+        
+        if (height === 896 && width === 414) device = 'iPhone 17 Air / XR / 11';
+        else if (height === 844 && width === 390) device = 'iPhone 12/13/14';
+        else if (height === 852 && width === 393) device = 'iPhone 14/15 Pro';
+        else if (height === 932 && width === 430) device = 'iPhone 14/15 Pro Max';
+        else if (height === 812 && width === 375) device = 'iPhone X/XS/11 Pro';
+        else device = `iPhone (${width}x${height})`;
+      }
+      
+      return device;
+    }
+    
+    // 获取safe-area-inset-bottom值
+    function getSafeAreaBottom() {
+      const testDiv = document.createElement('div');
+      testDiv.style.position = 'fixed';
+      testDiv.style.bottom = '0';
+      testDiv.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
+      testDiv.style.visibility = 'hidden';
+      document.body.appendChild(testDiv);
+      
+      const computed = getComputedStyle(testDiv);
+      const value = computed.paddingBottom;
+      
+      document.body.removeChild(testDiv);
+      return value;
+    }
+    
+    // 更新信息
+    document.getElementById('device').textContent = getDeviceInfo();
+    document.getElementById('screen').textContent = `${window.screen.width} x ${window.screen.height}`;
+    document.getElementById('viewport').textContent = `${window.innerWidth} x ${window.innerHeight}`;
+    document.getElementById('safeArea').textContent = getSafeAreaBottom();
+  </script>
+</body>
+</html>

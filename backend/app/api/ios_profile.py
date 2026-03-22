@@ -31,7 +31,7 @@ APP_CONFIG = {
     "description": "Soul视频App - 精彩内容尽在掌握",
     "organization": "Soul Entertainment",
     "identifier": "cc.ssoul",
-    "base_url": "http://38.47.218.137"  # 当前使用IP访问
+    "base_url": "https://ssoul.cc"
 }
 
 
@@ -52,6 +52,8 @@ def create_webclip_payload(
         <dict>
             <key>FullScreen</key>
             <{str(fullscreen).lower()}/>
+            <key>TargetApplicationBundleIdentifier</key>
+            <string>com.apple.webapp</string>
             <key>IgnoreManifestScope</key>
             <true/>
             <key>Icon</key>
@@ -131,6 +133,8 @@ def create_mobileconfig(
     <array>
         {webclip_payload}
     </array>{consent_section}
+    <key>PayloadScope</key>
+    <string>User</string>
     <key>PayloadDescription</key>
     <string>{description}</string>
     <key>PayloadDisplayName</key>

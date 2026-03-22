@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>容器高度诊断</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      padding: 20px;
+    }
+    
+    .info-section {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+    }
+    
+    .info-section h3 {
+      margin-bottom: 10px;
+      color: #a855f7;
+    }
+    
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .info-label {
+      color: rgba(255, 255, 255, 0.7);
+    }
+    
+    .info-value {
+      color: #fff;
+      font-weight: bold;
+    }
+    
+    .test-container {
+      position: relative;
+      background: #1a1a1a;
+      border: 2px solid #a855f7;
+      margin-top: 20px;
+    }
+    
+    .test-container.min-height {
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    
+    .test-container.height {
+      height: 100vh;
+      height: 100dvh;
+    }
+    
+    .container-label {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: #a855f7;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    
+    .bottom-marker {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #ef4444;
+      padding: 10px;
+      text-align: center;
+    }
+    
+    .refresh-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #a855f7;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <button class="refresh-btn" onclick="location.reload()">刷新</button>
+  
+  <div class="info-section">
+    <h3>视口信息</h3>
+    <div class="info-item">
+      <span class="info-label">window.innerHeight</span>
+      <span class="info-value" id="innerHeight">-</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">window.outerHeight</span>
+      <span class="info-value" id="outerHeight">-</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">screen.height</span>
+      <span class="info-value" id="screenHeight">-</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">100vh (计算值)</span>
+      <span class="info-value" id="vh100">-</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">100dvh (计算值)</span>
+      <span class="info-value" id="dvh100">-</span>
+    </div>
+  </div>
+  
+  <div class="info-section">
+    <h3>安全区域</h3>
+    <div class="info-item">
+      <span class="info-label">safe-area-inset-top</span>
+      <span class="info-value" id="safeTop">-</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">safe-area-inset-bottom</span>
+      <span class="info-value" id="safeBottom">-</span>
+    </div>
+  </div>
+  
+  <div class="info-section">
+    <h3>测试容器 (min-height: 100dvh)</h3>
+    <div class="test-container min-height" id="testContainer1">
+      <div class="container-label">min-height: 100dvh</div>
+      <div style="padding: 60px 20px 20px;">
+        <div class="info-item">
+          <span class="info-label">offsetHeight</span>
+          <span class="info-value" id="container1Height">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">scrollHeight</span>
+          <span class="info-value" id="container1ScrollHeight">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">clientHeight</span>
+          <span class="info-value" id="container1ClientHeight">-</span>
+        </div>
+      </div>
+      <div class="bottom-marker">容器底部</div>
+    </div>
+  </div>
+  
+  <div class="info-section">
+    <h3>测试容器 (height: 100dvh)</h3>
+    <div class="test-container height" id="testContainer2">
+      <div class="container-label">height: 100dvh</div>
+      <div style="padding: 60px 20px 20px;">
+        <div class="info-item">
+          <span class="info-label">offsetHeight</span>
+          <span class="info-value" id="container2Height">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">scrollHeight</span>
+          <span class="info-value" id="container2ScrollHeight">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">clientHeight</span>
+          <span class="info-value" id="container2ClientHeight">-</span>
+        </div>
+      </div>
+      <div class="bottom-marker">容器底部</div>
+    </div>
+  </div>
+  
+  <div class="info-section">
+    <h3>滚动信息</h3>
+    <div class="info-item">
+      <span class="info-label">document.body.scrollHeight</span>
+      <span class="info-value" id="bodyScrollHeight">-</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">document.documentElement.scrollHeight</span>
+      <span class="info-value" id="docScrollHeight">-</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">window.scrollY</span>
+      <span class="info-value" id="scrollY">-</span>
+    </div>
+  </div>
+  
+  <script>
+    function updateInfo() {
+      // 视口信息
+      document.getElementById('innerHeight').textContent = window.innerHeight + 'px';
+      document.getElementById('outerHeight').textContent = window.outerHeight + 'px';
+      document.getElementById('screenHeight').textContent = screen.height + 'px';
+      
+      // 计算 vh 和 dvh
+      const testDiv = document.createElement('div');
+      testDiv.style.position = 'fixed';
+      testDiv.style.height = '100vh';
+      testDiv.style.visibility = 'hidden';
+      document.body.appendChild(testDiv);
+      const vh100 = testDiv.offsetHeight;
+      document.body.removeChild(testDiv);
+      
+      const testDiv2 = document.createElement('div');
+      testDiv2.style.position = 'fixed';
+      testDiv2.style.height = '100dvh';
+      testDiv2.style.visibility = 'hidden';
+      document.body.appendChild(testDiv2);
+      const dvh100 = testDiv2.offsetHeight;
+      document.body.removeChild(testDiv2);
+      
+      document.getElementById('vh100').textContent = vh100 + 'px';
+      document.getElementById('dvh100').textContent = dvh100 + 'px';
+      
+      // 安全区域
+      const testDiv3 = document.createElement('div');
+      testDiv3.style.position = 'fixed';
+      testDiv3.style.paddingTop = 'env(safe-area-inset-top, 0px)';
+      testDiv3.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
+      testDiv3.style.visibility = 'hidden';
+      document.body.appendChild(testDiv3);
+      const computed = getComputedStyle(testDiv3);
+      document.getElementById('safeTop').textContent = computed.paddingTop;
+      document.getElementById('safeBottom').textContent = computed.paddingBottom;
+      document.body.removeChild(testDiv3);
+      
+      // 容器信息
+      const container1 = document.getElementById('testContainer1');
+      document.getElementById('container1Height').textContent = container1.offsetHeight + 'px';
+      document.getElementById('container1ScrollHeight').textContent = container1.scrollHeight + 'px';
+      document.getElementById('container1ClientHeight').textContent = container1.clientHeight + 'px';
+      
+      const container2 = document.getElementById('testContainer2');
+      document.getElementById('container2Height').textContent = container2.offsetHeight + 'px';
+      document.getElementById('container2ScrollHeight').textContent = container2.scrollHeight + 'px';
+      document.getElementById('container2ClientHeight').textContent = container2.clientHeight + 'px';
+      
+      // 滚动信息
+      document.getElementById('bodyScrollHeight').textContent = document.body.scrollHeight + 'px';
+      document.getElementById('docScrollHeight').textContent = document.documentElement.scrollHeight + 'px';
+      document.getElementById('scrollY').textContent = window.scrollY + 'px';
+    }
+    
+    // 初始化
+    updateInfo();
+    
+    // 监听滚动
+    window.addEventListener('scroll', () => {
+      document.getElementById('scrollY').textContent = window.scrollY + 'px';
+    });
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', updateInfo);
+    
+    // 延迟更新（确保渲染完成）
+    setTimeout(updateInfo, 100);
+    setTimeout(updateInfo, 500);
+    setTimeout(updateInfo, 1000);
+  </script>
+</body>
+</html>
